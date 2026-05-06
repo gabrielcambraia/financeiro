@@ -36,10 +36,18 @@ export interface Transaction {
   installmentGroupId?: string
 }
 
+export interface FlowSummary {
+  income: number
+  expense: number
+  balance: number
+}
+
 export interface DashboardData {
   totalIncome: number
   totalExpense: number
   netBalance: number
+  realized: FlowSummary
+  pending: FlowSummary
   expensesByCategory: CategorySummary[]
   incomesByCategory: CategorySummary[]
   monthlyTrend: MonthlyTrend[]

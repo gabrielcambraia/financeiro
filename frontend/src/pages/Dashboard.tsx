@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, AreaChart, Area, Legend
 } from 'recharts'
-import { TrendingUp, TrendingDown, Wallet, ArrowLeftRight } from 'lucide-react'
+import { TrendingUp, TrendingDown, Wallet, ArrowLeftRight, CheckCircle2, Clock } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { getDashboard } from '../api/dashboard'
@@ -95,6 +95,58 @@ export default function Dashboard() {
             <div>
               <p className="text-xs text-gray-500 mb-0.5">{label}</p>
               <p className={`text-xl font-bold ${color}`}>{fmt(value)}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Realizado vs A vencer */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {[
+          {
+            label: 'Realizado',
+            subtitle: 'Transações até hoje',
+            icon: CheckCircle2,
+            accent: 'text-emerald-400',
+            border: 'border-emerald-400/20',
+            data: data.realized,
+          },
+          {
+            label: 'A vencer',
+            subtitle: 'Transações futuras no mês',
+            icon: Clock,
+            accent: 'text-amber-400',
+            border: 'border-amber-400/20',
+            data: data.pending,
+          },
+        ].map(({ label, subtitle, icon: Icon, accent, border, data: flow }) => (
+          <div key={label} className={`card border ${border}`}>
+            <div className="flex items-center gap-2 mb-4">
+              <Icon size={16} className={accent} />
+              <div>
+                <p className="text-sm font-semibold text-gray-200">{label}</p>
+                <p className="text-xs text-gray-500">{subtitle}</p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-gray-500 flex items-center gap-1.5">
+                  <TrendingUp size={12} className="text-emerald-400" /> Receitas
+                </span>
+                <span className="text-sm font-medium text-emerald-400">{fmt(flow.income)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-gray-500 flex items-center gap-1.5">
+                  <TrendingDown size={12} className="text-red-400" /> Despesas
+                </span>
+                <span className="text-sm font-medium text-red-400">{fmt(flow.expense)}</span>
+              </div>
+              <div className="border-t border-gray-700 pt-2 flex justify-between items-center">
+                <span className="text-xs text-gray-400 font-medium">Saldo</span>
+                <span className={`text-base font-bold ${flow.balance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {fmt(flow.balance)}
+                </span>
+              </div>
             </div>
           </div>
         ))}

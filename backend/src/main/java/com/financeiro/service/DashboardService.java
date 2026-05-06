@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -27,8 +28,14 @@ public class DashboardService {
         YearMonth ym = YearMonth.parse(month);
         String start = ym.atDay(1).toString();
         String end = ym.atEndOfMonth().toString();
+        String today = LocalDate.now().toString();
 
         List<Transaction> monthTx = fetch(accountId, start, end, false);
+
+        List<Transaction> realizedTx = monthTx.stream()
+                .filter(t -> t.getDate().compareTo(today) <= 0).toList();
+        List<Transaction> pendingTx = monthTx.stream()
+                .filter(t -> t.getDate().compareTo(today) > 0).toList();
 
         BigDecimal totalIncome = sum(monthTx, TransactionType.INCOME);
         BigDecimal totalExpense = sum(monthTx, TransactionType.EXPENSE);
@@ -37,11 +44,23 @@ public class DashboardService {
                 .totalIncome(totalIncome)
                 .totalExpense(totalExpense)
                 .netBalance(totalIncome.subtract(totalExpense))
+                .realized(buildFlowSummary(realizedTx))
+                .pending(buildFlowSummary(pendingTx))
                 .expensesByCategory(buildCategorySummary(monthTx, TransactionType.EXPENSE, totalExpense))
                 .incomesByCategory(buildCategorySummary(monthTx, TransactionType.INCOME, totalIncome))
                 .monthlyTrend(buildMonthlyTrend(ym, accountId))
                 .accountBalances(buildAccountBalances())
                 .dailyBalance(buildDailyBalance(monthTx, ym))
+                .build();
+    }
+
+    private DashboardDTO.FlowSummary buildFlowSummary(List<Transaction> transactions) {
+        BigDecimal income = sum(transactions, TransactionType.INCOME);
+        BigDecimal expense = sum(transactions, TransactionType.EXPENSE);
+        return DashboardDTO.FlowSummary.builder()
+                .income(income)
+                .expense(expense)
+                .balance(income.subtract(expense))
                 .build();
     }
 

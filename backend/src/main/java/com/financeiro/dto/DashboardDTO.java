@@ -12,11 +12,21 @@ public class DashboardDTO {
     private BigDecimal totalIncome;
     private BigDecimal totalExpense;
     private BigDecimal netBalance;
+    private FlowSummary realized;
+    private FlowSummary pending;
     private List<CategorySummary> expensesByCategory;
     private List<CategorySummary> incomesByCategory;
     private List<MonthlyTrend> monthlyTrend;
     private List<AccountBalance> accountBalances;
     private List<DailyBalance> dailyBalance;
+
+    @Data
+    @Builder
+    public static class FlowSummary {
+        private BigDecimal income;
+        private BigDecimal expense;
+        private BigDecimal balance;
+    }
 
     @Data
     @Builder
