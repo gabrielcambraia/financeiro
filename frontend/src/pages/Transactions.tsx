@@ -56,8 +56,18 @@ export default function Transactions() {
 
   const grouped = groupByDate(transactions)
 
+  const today = new Date().toISOString().slice(0, 10)
+
   const totalIncome = transactions.filter(t => t.type === 'INCOME').reduce((s, t) => s + t.amount, 0)
   const totalExpense = transactions.filter(t => t.type === 'EXPENSE').reduce((s, t) => s + t.amount, 0)
+
+  const realized = transactions.filter(t => t.date <= today)
+  const pending = transactions.filter(t => t.date > today)
+
+  const realizedIncome = realized.filter(t => t.type === 'INCOME').reduce((s, t) => s + t.amount, 0)
+  const realizedExpense = realized.filter(t => t.type === 'EXPENSE').reduce((s, t) => s + t.amount, 0)
+  const pendingIncome = pending.filter(t => t.type === 'INCOME').reduce((s, t) => s + t.amount, 0)
+  const pendingExpense = pending.filter(t => t.type === 'EXPENSE').reduce((s, t) => s + t.amount, 0)
 
   return (
     <div className="p-6 space-y-5">
@@ -72,20 +82,56 @@ export default function Transactions() {
       </div>
 
       {/* Summary bar */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="card text-center">
-          <p className="text-xs text-gray-500 mb-1">Receitas</p>
-          <p className="text-lg font-bold text-emerald-400">{fmt(totalIncome)}</p>
+      <div className="space-y-2">
+        <div className="grid grid-cols-3 gap-4">
+          <div className="card text-center">
+            <p className="text-xs text-gray-500 mb-1">Receitas</p>
+            <p className="text-lg font-bold text-emerald-400">{fmt(totalIncome)}</p>
+          </div>
+          <div className="card text-center">
+            <p className="text-xs text-gray-500 mb-1">Despesas</p>
+            <p className="text-lg font-bold text-red-400">{fmt(totalExpense)}</p>
+          </div>
+          <div className="card text-center">
+            <p className="text-xs text-gray-500 mb-1">Saldo</p>
+            <p className={`text-lg font-bold ${totalIncome - totalExpense >= 0 ? 'text-indigo-400' : 'text-orange-400'}`}>
+              {fmt(totalIncome - totalExpense)}
+            </p>
+          </div>
         </div>
-        <div className="card text-center">
-          <p className="text-xs text-gray-500 mb-1">Despesas</p>
-          <p className="text-lg font-bold text-red-400">{fmt(totalExpense)}</p>
+
+        <div className="grid grid-cols-3 gap-4">
+          <div className="card text-center border border-emerald-400/20">
+            <p className="text-xs text-gray-500 mb-1">Receitas recebidas</p>
+            <p className="text-base font-bold text-emerald-400">{fmt(realizedIncome)}</p>
+          </div>
+          <div className="card text-center border border-emerald-400/20">
+            <p className="text-xs text-gray-500 mb-1">Despesas pagas</p>
+            <p className="text-base font-bold text-red-400">{fmt(realizedExpense)}</p>
+          </div>
+          <div className="card text-center border border-emerald-400/20">
+            <p className="text-xs text-gray-500 mb-1">Saldo atual</p>
+            <p className={`text-base font-bold ${realizedIncome - realizedExpense >= 0 ? 'text-indigo-400' : 'text-orange-400'}`}>
+              {fmt(realizedIncome - realizedExpense)}
+            </p>
+          </div>
         </div>
-        <div className="card text-center">
-          <p className="text-xs text-gray-500 mb-1">Saldo</p>
-          <p className={`text-lg font-bold ${totalIncome - totalExpense >= 0 ? 'text-indigo-400' : 'text-orange-400'}`}>
-            {fmt(totalIncome - totalExpense)}
-          </p>
+
+        <div className="grid grid-cols-3 gap-4">
+          <div className="card text-center border border-amber-400/20">
+            <p className="text-xs text-gray-500 mb-1">Receitas a receber</p>
+            <p className="text-base font-bold text-emerald-400">{fmt(pendingIncome)}</p>
+          </div>
+          <div className="card text-center border border-amber-400/20">
+            <p className="text-xs text-gray-500 mb-1">Despesas a pagar</p>
+            <p className="text-base font-bold text-red-400">{fmt(pendingExpense)}</p>
+          </div>
+          <div className="card text-center border border-amber-400/20">
+            <p className="text-xs text-gray-500 mb-1">Saldo futuro</p>
+            <p className={`text-base font-bold ${pendingIncome - pendingExpense >= 0 ? 'text-indigo-400' : 'text-orange-400'}`}>
+              {fmt(pendingIncome - pendingExpense)}
+            </p>
+          </div>
         </div>
       </div>
 
