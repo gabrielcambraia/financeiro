@@ -6,13 +6,14 @@ import com.financeiro.repository.TransactionRepository;
 import com.financeiro.service.AccountService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.YearMonth;
-
 import java.util.List;
 
 @Component
@@ -23,28 +24,57 @@ public class FixedTransactionScheduler {
     private final TransactionRepository repository;
     private final AccountService accountService;
 
+    @EventListener(ApplicationReadyEvent.class)
+    @Transactional
+    public void onStartup() {
+        log.info("Verificando transações fixas na inicialização...");
+        process();
+    }
+
     @Scheduled(cron = "0 5 0 1 * *")
     @Transactional
-    public void replicateFixedTransactions() {
-        LocalDate today = LocalDate.now();
-        YearMonth prevMonth = YearMonth.from(today.minusMonths(1));
-        YearMonth currMonth = YearMonth.from(today);
+    public void onFirstOfMonth() {
+        log.info("Processando transações fixas (dia 1° do mês)...");
+        process();
+    }
 
-        List<Transaction> fixed = repository.findByFixedTrueAndDateBetween(
-                prevMonth.atDay(1).toString(), prevMonth.atEndOfMonth().toString());
+    private void process() {
+        YearMonth currMonth = YearMonth.from(LocalDate.now());
 
-        List<Transaction> existing = repository.findByDateBetweenOrderByDateDesc(
-                currMonth.atDay(1).toString(), currMonth.atEndOfMonth().toString());
+        // 1. Ajusta saldo de qualquer transação (fixa ou não) cuja data já chegou
+        List<Transaction> due = repository.findByBalanceAdjustedFalseAndDateLessThanEqual(
+                LocalDate.now().toString());
 
-        log.info("Replicating {} fixed transactions from {} to {}", fixed.size(), prevMonth, currMonth);
+        for (Transaction t : due) {
+            accountService.adjustBalance(t.getAccount(),
+                    t.getType() == TransactionType.INCOME ? t.getAmount() : t.getAmount().negate());
+            t.setBalanceAdjusted(true);
+            repository.save(t);
+            log.info("Saldo ajustado: id={} data={}", t.getId(), t.getDate());
+        }
 
-        for (Transaction original : fixed) {
-            boolean alreadyExists = existing.stream().anyMatch(t -> t.isFixed()
-                    && t.getAccount().getId().equals(original.getAccount().getId())
-                    && t.getAmount().compareTo(original.getAmount()) == 0
-                    && t.getType() == original.getType());
+        // 2. Garante janela de 12 meses à frente para cada transação fixa ativa
+        for (int offset = 1; offset <= 12; offset++) {
+            YearMonth targetMonth = currMonth.plusMonths(offset);
+            extendTo(currMonth, targetMonth);
+        }
+    }
 
-            if (!alreadyExists) {
+    private void extendTo(YearMonth sourceMonth, YearMonth targetMonth) {
+        List<Transaction> templates = repository.findByFixedTrueAndDateBetween(
+                sourceMonth.atDay(1).toString(), sourceMonth.atEndOfMonth().toString());
+
+        for (Transaction original : templates) {
+            boolean exists = repository.existsByFixedTrueAndAccountIdAndAmountAndTypeAndDescriptionAndDateBetween(
+                    original.getAccount().getId(),
+                    original.getAmount(),
+                    original.getType(),
+                    original.getDescription(),
+                    targetMonth.atDay(1).toString(),
+                    targetMonth.atEndOfMonth().toString());
+
+            if (!exists) {
+                int day = Math.min(LocalDate.parse(original.getDate()).getDayOfMonth(), targetMonth.lengthOfMonth());
                 Transaction copy = Transaction.builder()
                         .account(original.getAccount())
                         .category(original.getCategory())
@@ -52,13 +82,12 @@ public class FixedTransactionScheduler {
                         .paymentType(original.getPaymentType())
                         .amount(original.getAmount())
                         .description(original.getDescription())
-                        .date(LocalDate.parse(original.getDate()).plusMonths(1).toString())
+                        .date(targetMonth.atDay(day).toString())
                         .fixed(true)
+                        .balanceAdjusted(false)
                         .build();
                 repository.save(copy);
-                accountService.adjustBalance(original.getAccount(),
-                        original.getType() == TransactionType.INCOME
-                                ? original.getAmount() : original.getAmount().negate());
+                log.info("Entrada criada para {} (conta={})", targetMonth, original.getAccount().getId());
             }
         }
     }

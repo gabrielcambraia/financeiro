@@ -48,6 +48,9 @@ public class Transaction {
     @Column(name = "is_fixed", nullable = false)
     private boolean fixed;
 
+    @Column(name = "balance_adjusted", nullable = false)
+    private boolean balanceAdjusted = true;
+
     @Column(name = "installment_total")
     private Integer installmentTotal;
 

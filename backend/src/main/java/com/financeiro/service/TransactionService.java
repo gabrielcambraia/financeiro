@@ -59,21 +59,42 @@ public class TransactionService {
             String groupId = UUID.randomUUID().toString();
             LocalDate baseDate = LocalDate.parse(dto.getDate());
             for (int i = 1; i <= dto.getInstallmentTotal(); i++) {
+                LocalDate installmentDate = baseDate.plusMonths(i - 1);
+                boolean dateReached = !installmentDate.isAfter(LocalDate.now());
                 Transaction t = buildTransaction(dto, account, category);
                 t.setInstallmentTotal(dto.getInstallmentTotal());
                 t.setInstallmentNumber(i);
                 t.setInstallmentGroupId(groupId);
-                t.setDate(baseDate.plusMonths(i - 1).toString());
+                t.setDate(installmentDate.toString());
                 t.setFixed(false);
+                t.setBalanceAdjusted(dateReached);
                 created.add(repository.save(t));
+                if (dateReached) {
+                    accountService.adjustBalance(account, computeDelta(dto.getType(), dto.getAmount()));
+                }
             }
+            return created.stream().map(this::toDTO).toList();
         } else {
-            created.add(repository.save(buildTransaction(dto, account, category)));
+            boolean dateReached = !LocalDate.parse(dto.getDate()).isAfter(LocalDate.now());
+            Transaction t = buildTransaction(dto, account, category);
+            t.setBalanceAdjusted(dateReached);
+            created.add(repository.save(t));
+
+            if (dto.isFixed()) {
+                LocalDate baseDate = LocalDate.parse(dto.getDate());
+                for (int i = 1; i <= 11; i++) {
+                    Transaction future = buildTransaction(dto, account, category);
+                    future.setDate(baseDate.plusMonths(i).toString());
+                    future.setBalanceAdjusted(false);
+                    repository.save(future);
+                }
+            }
+
+            if (dateReached) {
+                accountService.adjustBalance(account, computeDelta(dto.getType(), dto.getAmount()));
+            }
+            return created.stream().map(this::toDTO).toList();
         }
-
-        accountService.adjustBalance(account, computeDelta(dto.getType(), dto.getAmount()));
-
-        return created.stream().map(this::toDTO).toList();
     }
 
     @Transactional
@@ -86,7 +107,14 @@ public class TransactionService {
                 ? categoryRepository.findById(dto.getCategoryId()).orElse(null)
                 : null;
 
-        accountService.adjustBalance(existing.getAccount(), computeDelta(existing.getType(), existing.getAmount()).negate());
+        boolean wasAdjusted = existing.isBalanceAdjusted();
+        boolean newDateReached = !LocalDate.parse(dto.getDate()).isAfter(LocalDate.now());
+
+        // Reverte o saldo antigo apenas se ele foi aplicado
+        if (wasAdjusted) {
+            accountService.adjustBalance(existing.getAccount(),
+                    computeDelta(existing.getType(), existing.getAmount()).negate());
+        }
 
         existing.setAccount(newAccount);
         existing.setCategory(newCategory);
@@ -96,9 +124,13 @@ public class TransactionService {
         existing.setDescription(dto.getDescription());
         existing.setDate(dto.getDate());
         existing.setFixed(dto.isFixed());
+        existing.setBalanceAdjusted(newDateReached);
         repository.save(existing);
 
-        accountService.adjustBalance(newAccount, computeDelta(dto.getType(), dto.getAmount()));
+        // Aplica o novo saldo apenas se a nova data já chegou
+        if (newDateReached) {
+            accountService.adjustBalance(newAccount, computeDelta(dto.getType(), dto.getAmount()));
+        }
 
         return toDTO(existing);
     }
@@ -108,20 +140,33 @@ public class TransactionService {
         Transaction t = repository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Transação não encontrada"));
 
-        accountService.adjustBalance(t.getAccount(), computeDelta(t.getType(), t.getAmount()).negate());
-
         if ("GROUP".equals(scope) && t.getInstallmentGroupId() != null) {
-            repository.deleteAll(repository.findByInstallmentGroupId(t.getInstallmentGroupId()));
+            List<Transaction> group = repository.findByInstallmentGroupId(t.getInstallmentGroupId());
+            group.stream().filter(Transaction::isBalanceAdjusted).forEach(tx ->
+                    accountService.adjustBalance(tx.getAccount(), computeDelta(tx.getType(), tx.getAmount()).negate()));
+            repository.deleteAll(group);
         } else if ("FUTURE".equals(scope)) {
             if (t.getInstallmentGroupId() != null) {
-                repository.deleteAll(repository.findByInstallmentGroupIdAndDateGreaterThanEqual(
-                        t.getInstallmentGroupId(), t.getDate()));
+                List<Transaction> future = repository.findByInstallmentGroupIdAndDateGreaterThanEqual(
+                        t.getInstallmentGroupId(), t.getDate());
+                future.stream().filter(Transaction::isBalanceAdjusted).forEach(tx ->
+                        accountService.adjustBalance(tx.getAccount(), computeDelta(tx.getType(), tx.getAmount()).negate()));
+                repository.deleteAll(future);
             } else if (t.isFixed()) {
-                repository.deleteAll(repository.findByFixedTrueAndDateGreaterThanEqual(t.getDate()));
+                List<Transaction> future = repository.findByFixedTrueAndDateGreaterThanEqual(t.getDate());
+                future.stream().filter(Transaction::isBalanceAdjusted).forEach(tx ->
+                        accountService.adjustBalance(tx.getAccount(), computeDelta(tx.getType(), tx.getAmount()).negate()));
+                repository.deleteAll(future);
             } else {
+                if (t.isBalanceAdjusted()) {
+                    accountService.adjustBalance(t.getAccount(), computeDelta(t.getType(), t.getAmount()).negate());
+                }
                 repository.delete(t);
             }
         } else {
+            if (t.isBalanceAdjusted()) {
+                accountService.adjustBalance(t.getAccount(), computeDelta(t.getType(), t.getAmount()).negate());
+            }
             repository.delete(t);
         }
     }

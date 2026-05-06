@@ -21,6 +21,15 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
 
     List<Transaction> findByFixedTrueAndDateGreaterThanEqual(String fromDate);
 
+    List<Transaction> findByFixedTrueAndBalanceAdjustedFalseAndDateBetween(String start, String end);
+
+    List<Transaction> findByBalanceAdjustedFalseAndDateLessThanEqual(String date);
+
+    boolean existsByFixedTrueAndAccountIdAndAmountAndTypeAndDescriptionAndDateBetween(
+            Long accountId, java.math.BigDecimal amount,
+            com.financeiro.entity.enums.TransactionType type,
+            String description, String start, String end);
+
     List<Transaction> findByDateBetweenOrderByDateAsc(String start, String end);
 
     List<Transaction> findByAccountIdAndDateBetweenOrderByDateAsc(Long accountId, String start, String end);
