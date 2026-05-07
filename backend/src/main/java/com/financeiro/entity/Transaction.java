@@ -48,6 +48,7 @@ public class Transaction {
     @Column(name = "is_fixed", nullable = false)
     private boolean fixed;
 
+    @Builder.Default
     @Column(name = "balance_adjusted", nullable = false)
     private boolean balanceAdjusted = true;
 
