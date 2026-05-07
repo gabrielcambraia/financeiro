@@ -7,9 +7,10 @@ Aplicativo de gestão financeira pessoal. Roda localmente no Windows sem precisa
 ## Para usuários finais
 
 1. Acesse a página de [Releases](../../releases) do repositório
-2. Baixe o arquivo `financeiro-vX.X.X.zip` da versão mais recente
-3. Extraia em uma pasta de sua preferência (ex: `C:\financeiro\`)
-4. Execute o `start.bat`
+2. Vá em tags
+3. Baixe o arquivo `financeiro-vX.X.X.zip` da versão mais recente
+4. Extraia em uma pasta de sua preferência (ex: `C:\financeiro\`)
+5. Execute o `start.bat`
 
 Na primeira execução, se Java não estiver instalado, o instalador cuida disso automaticamente.
 
