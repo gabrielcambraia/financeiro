@@ -34,6 +34,7 @@ public class AccountService {
                 .orElseThrow(() -> new RuntimeException("Conta não encontrada: " + id));
         account.setName(dto.getName());
         account.setType(dto.getType());
+        account.setBalance(dto.getBalance());
         account.setColor(dto.getColor());
         account.setIcon(dto.getIcon());
         return toDTO(repository.save(account));

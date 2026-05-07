@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { X } from 'lucide-react'
 import { format } from 'date-fns'
@@ -27,6 +27,12 @@ export default function TransactionForm({ onClose, editing }: Props) {
   })
 
   const { data: accounts = [] } = useQuery({ queryKey: ['accounts'], queryFn: getAccounts })
+
+  useEffect(() => {
+    if (!editing && accounts.length === 1 && !form.accountId) {
+      set('accountId', accounts[0].id)
+    }
+  }, [accounts])
   const { data: categories = [] } = useQuery({
     queryKey: ['categories', type],
     queryFn: () => getCategories(type),

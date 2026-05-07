@@ -125,7 +125,7 @@ export default function Accounts() {
                 </select>
               </div>
               <div>
-                <label className="label">Saldo inicial (R$)</label>
+                <label className="label">{editing ? 'Saldo (R$)' : 'Saldo inicial (R$)'}</label>
                 <input className="input" type="number" step="0.01" placeholder="0,00"
                   value={form.balance} onChange={e => setForm(f => ({ ...f, balance: e.target.value }))} required />
               </div>

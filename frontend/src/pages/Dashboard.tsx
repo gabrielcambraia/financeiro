@@ -230,7 +230,7 @@ export default function Dashboard() {
                 formatter={(v) => fmt(Number(v))}
                 labelFormatter={l => `Dia ${l.slice(8)}`}
               />
-              <Area type="monotone" dataKey="balance" stroke="#6366f1" strokeWidth={2}
+              <Area type="monotone" dataKey="balance" name="Saldo" stroke="#6366f1" strokeWidth={2}
                 fill="url(#balGrad)" />
             </AreaChart>
           </ResponsiveContainer>
@@ -263,16 +263,25 @@ export default function Dashboard() {
       {data.expensesByCategory.length > 0 && (
         <div className="card">
           <h3 className="text-sm font-semibold text-gray-300 mb-4">Detalhamento por categoria</h3>
-          <div className="space-y-2">
+          <div className="space-y-1">
             {data.expensesByCategory.map(({ category, total, percentage }) => (
-              <div key={category.id} className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full shrink-0" style={{ background: category.color }} />
-                <span className="text-sm text-gray-400 w-32 truncate">{category.name}</span>
-                <div className="flex-1 bg-gray-800 rounded-full h-2">
-                  <div className="h-2 rounded-full transition-all" style={{ width: `${percentage}%`, background: category.color }} />
+              <div key={category.id}
+                className="flex items-center gap-3 px-3 py-2 rounded-xl transition-colors hover:bg-gray-800 group cursor-default">
+                <div className="w-2.5 h-2.5 rounded-full shrink-0 transition-transform group-hover:scale-125"
+                  style={{ background: category.color }} />
+                <span className="text-sm text-gray-400 w-32 truncate group-hover:text-gray-200 transition-colors">
+                  {category.name}
+                </span>
+                <div className="flex-1 bg-gray-700 rounded-full h-2">
+                  <div className="h-2 rounded-full transition-all group-hover:brightness-125"
+                    style={{ width: `${percentage}%`, background: category.color }} />
                 </div>
-                <span className="text-sm text-gray-300 w-20 text-right">{fmt(total)}</span>
-                <span className="text-xs text-gray-500 w-10 text-right">{percentage.toFixed(0)}%</span>
+                <span className="text-sm text-gray-300 w-20 text-right font-medium group-hover:text-white transition-colors">
+                  {fmt(total)}
+                </span>
+                <span className="text-xs text-gray-500 w-10 text-right group-hover:text-gray-300 transition-colors">
+                  {percentage.toFixed(0)}%
+                </span>
               </div>
             ))}
           </div>
