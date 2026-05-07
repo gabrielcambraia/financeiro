@@ -20,11 +20,22 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
-      - name: Build JAR (inclui frontend)
-        working-directory: backend
-        run: mvn package -DskipTests -B
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
 
-      - name: Montar pacote de distribuição
+      - name: Build frontend
+        working-directory: frontend
+        run: npm ci && npm run build
+
+      - name: Build JAR (frontend ja buildado, pula o plugin)
+        working-directory: backend
+        run: mvn package -DskipTests -B -P '!with-frontend'
+
+      - name: Montar pacote de distribuicao
         run: |
           mkdir -p dist
           cp backend/target/backend-1.0.0.jar dist/financeiro.jar
@@ -40,11 +51,19 @@ jobs:
         with:
           name: "Financeiro ${{ github.ref_name }}"
           body: |
-            ## Como instalar / atualizar
+            ## Como instalar
 
             1. Baixe o arquivo `financeiro-${{ github.ref_name }}.zip`
-            2. Extraia na mesma pasta onde já está instalado (ou em uma nova pasta)
+            2. Extraia em uma pasta de sua preferencia (ex: `C:\financeiro\`)
+            3. **Clique com botao direito no `start.bat` → Propriedades → marque "Desbloquear" → OK**
+               _(necessario apenas na primeira vez — o Windows bloqueia arquivos baixados da internet)_
+            4. Execute o `start.bat`
+
+            ## Como atualizar
+
+            1. Baixe o ZIP da nova versao
+            2. Extraia **na mesma pasta** onde ja esta instalado (substitui apenas o `.jar` e o `.bat`)
             3. Execute o `start.bat`
 
-            > O banco de dados **não é apagado** ao atualizar — seus dados ficam preservados.
+            > O banco de dados **nao e apagado** ao atualizar — seus dados ficam preservados.
           files: financeiro-${{ github.ref_name }}.zip

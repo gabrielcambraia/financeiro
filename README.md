@@ -10,9 +10,12 @@ Aplicativo de gestão financeira pessoal. Roda localmente no Windows sem precisa
 2. Vá em tags
 3. Baixe o arquivo `financeiro-vX.X.X.zip` da versão mais recente
 4. Extraia em uma pasta de sua preferência (ex: `C:\financeiro\`)
-5. Execute o `start.bat`
+5. **Clique com botão direito no `start.bat` → Propriedades → marque "Desbloquear" → OK**
+6. Execute o `start.bat`
 
-Na primeira execução, se Java não estiver instalado, o instalador cuida disso automaticamente.
+> **Por que o passo 5?** O Windows bloqueia arquivos baixados da internet por segurança (Smart App Control). Desbloquear o `.bat` é necessário apenas na primeira vez.
+
+Na primeira execução, se Java não estiver instalado, o programa cuida disso automaticamente.
 
 ### Atualizar
 
