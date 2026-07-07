@@ -4,6 +4,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 @Data
@@ -54,7 +55,7 @@ public class PainelDTO {
     @Data
     @Builder
     public static class SaldoDiario {
-        private String data;
+        private LocalDate data;
         private BigDecimal saldo;
     }
 }

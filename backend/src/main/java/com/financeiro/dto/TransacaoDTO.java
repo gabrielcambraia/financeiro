@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Positive;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 @Data
 public class TransacaoDTO {
@@ -30,7 +31,7 @@ public class TransacaoDTO {
     private String descricao;
 
     @NotNull
-    private String data;
+    private LocalDate data;
 
     private boolean fixa;
 
@@ -41,4 +42,5 @@ public class TransacaoDTO {
     private CategoriaDTO categoria;
     private Integer numeroParcela;
     private String grupoParcelaId;
+    private Long usuarioId;
 }

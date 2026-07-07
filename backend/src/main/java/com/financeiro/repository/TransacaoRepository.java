@@ -3,32 +3,37 @@ package com.financeiro.repository;
 import com.financeiro.entity.Transacao;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
 
-    List<Transacao> findByDataBetweenOrderByDataDesc(String start, String end);
+    Optional<Transacao> findByIdAndEspacoId(Long id, Long espacoId);
 
-    List<Transacao> findByContaIdAndDataBetweenOrderByDataDesc(Long contaId, String start, String end);
+    List<Transacao> findByEspacoIdAndDataBetweenOrderByDataDesc(Long espacoId, LocalDate start, LocalDate end);
 
-    List<Transacao> findByFixaTrueAndDataBetween(String start, String end);
+    List<Transacao> findByEspacoIdAndContaIdAndDataBetweenOrderByDataDesc(Long espacoId, Long contaId, LocalDate start, LocalDate end);
 
-    List<Transacao> findByGrupoParcelaId(String grupoId);
+    List<Transacao> findByEspacoIdAndDataBetweenOrderByDataAsc(Long espacoId, LocalDate start, LocalDate end);
 
-    List<Transacao> findByGrupoParcelaIdAndDataGreaterThanEqual(String grupoId, String fromDate);
+    List<Transacao> findByEspacoIdAndContaIdAndDataBetweenOrderByDataAsc(Long espacoId, Long contaId, LocalDate start, LocalDate end);
 
-    List<Transacao> findByFixaTrueAndDataGreaterThanEqual(String fromDate);
+    List<Transacao> findByEspacoIdAndGrupoParcelaId(Long espacoId, String grupoId);
 
-    List<Transacao> findByFixaTrueAndSaldoAjustadoFalseAndDataBetween(String start, String end);
+    List<Transacao> findByEspacoIdAndGrupoParcelaIdAndDataGreaterThanEqual(Long espacoId, String grupoId, LocalDate fromDate);
 
-    List<Transacao> findBySaldoAjustadoFalseAndDataLessThanEqual(String data);
+    List<Transacao> findByEspacoIdAndFixaTrueAndDataGreaterThanEqual(Long espacoId, LocalDate fromDate);
 
-    boolean existsByFixaTrueAndContaIdAndValorAndTipoAndDescricaoAndDataBetween(
-            Long contaId, java.math.BigDecimal valor,
+    // Métodos globais usados apenas pelo AgendadorTransacaoFixa (job em background,
+    // sem contexto de espaço — processa todos os espaços e propaga o espacoId de
+    // cada linha de origem para as cópias que cria).
+    List<Transacao> findBySaldoAjustadoFalseAndDataLessThanEqual(LocalDate data);
+
+    List<Transacao> findByFixaTrueAndDataBetween(LocalDate start, LocalDate end);
+
+    boolean existsByEspacoIdAndFixaTrueAndContaIdAndValorAndTipoAndDescricaoAndDataBetween(
+            Long espacoId, Long contaId, java.math.BigDecimal valor,
             com.financeiro.entity.enums.TipoTransacao tipo,
-            String descricao, String start, String end);
-
-    List<Transacao> findByDataBetweenOrderByDataAsc(String start, String end);
-
-    List<Transacao> findByContaIdAndDataBetweenOrderByDataAsc(Long contaId, String start, String end);
+            String descricao, LocalDate start, LocalDate end);
 }

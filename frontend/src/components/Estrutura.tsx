@@ -1,8 +1,9 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
-  LayoutDashboard, ArrowLeftRight, Wallet, Tags, ChevronLeft, ChevronRight
+  LayoutDashboard, ArrowLeftRight, Wallet, Tags, Users, ChevronLeft, ChevronRight, LogOut
 } from 'lucide-react'
 import { useState } from 'react'
+import { useLojaAutenticacao } from '../store/lojaAutenticacao'
 
 const itensNavegacao = [
   { to: '/', icon: LayoutDashboard, label: 'Painel' },
@@ -13,6 +14,18 @@ const itensNavegacao = [
 
 export default function Estrutura() {
   const [recolhido, setRecolhido] = useState(false)
+  const navigate = useNavigate()
+  const sessao = useLojaAutenticacao(s => s.sessao)
+  const limparSessao = useLojaAutenticacao(s => s.limparSessao)
+
+  const itens = sessao?.papel === 'DONO'
+    ? [...itensNavegacao, { to: '/membros', icon: Users, label: 'Membros' }]
+    : itensNavegacao
+
+  const handleSair = () => {
+    limparSessao()
+    navigate('/login')
+  }
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -25,7 +38,7 @@ export default function Estrutura() {
         </div>
 
         <nav className="flex-1 p-2 space-y-1">
-          {itensNavegacao.map(({ to, icon: Icon, label }) => (
+          {itens.map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}
               to={to}
@@ -43,7 +56,14 @@ export default function Estrutura() {
           ))}
         </nav>
 
-        <div className="p-3 border-t border-gray-800">
+        <div className="p-3 border-t border-gray-800 space-y-2">
+          {sessao && (
+            <button onClick={handleSair}
+              className="flex items-center gap-3 px-3 py-2 rounded-xl w-full text-sm font-medium text-gray-400 hover:text-white hover:bg-gray-800 transition-colors">
+              <LogOut size={18} className="shrink-0" />
+              {!recolhido && <span>Sair</span>}
+            </button>
+          )}
           {!recolhido && <p className="text-xs text-gray-600 text-center">Controle Financeiro</p>}
         </div>
       </aside>

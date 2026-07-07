@@ -1,5 +1,7 @@
 package com.financeiro.service;
 
+import com.financeiro.context.ContextoEspaco;
+import com.financeiro.context.ContextoUsuario;
 import com.financeiro.dto.CategoriaDTO;
 import com.financeiro.dto.ContaDTO;
 import com.financeiro.dto.TransacaoDTO;
@@ -29,14 +31,17 @@ public class TransacaoService {
     private final ContaRepository contaRepository;
     private final CategoriaRepository categoriaRepository;
     private final ContaService contaService;
+    private final ContextoEspaco contextoEspaco;
+    private final ContextoUsuario contextoUsuario;
 
     public List<TransacaoDTO> findByFilters(String month, Long contaId, TipoTransacao tipo, Long categoriaId) {
+        Long espacoId = contextoEspaco.espacoAtual();
         YearMonth ym = YearMonth.parse(month);
-        String start = ym.atDay(1).toString();
-        String end = ym.atEndOfMonth().toString();
+        LocalDate start = ym.atDay(1);
+        LocalDate end = ym.atEndOfMonth();
         List<Transacao> raw = contaId != null
-                ? repository.findByContaIdAndDataBetweenOrderByDataDesc(contaId, start, end)
-                : repository.findByDataBetweenOrderByDataDesc(start, end);
+                ? repository.findByEspacoIdAndContaIdAndDataBetweenOrderByDataDesc(espacoId, contaId, start, end)
+                : repository.findByEspacoIdAndDataBetweenOrderByDataDesc(espacoId, start, end);
         return raw.stream()
                 .filter(t -> tipo == null || t.getTipo() == tipo)
                 .filter(t -> categoriaId == null
@@ -47,25 +52,27 @@ public class TransacaoService {
 
     @Transactional
     public List<TransacaoDTO> create(TransacaoDTO dto) {
-        Conta conta = contaRepository.findById(dto.getContaId())
+        Long espacoId = contextoEspaco.espacoAtual();
+        Long usuarioId = contextoUsuario.usuarioAtual();
+        Conta conta = contaRepository.findByIdAndEspacoId(dto.getContaId(), espacoId)
                 .orElseThrow(() -> new RuntimeException("Conta não encontrada"));
         Categoria categoria = dto.getCategoriaId() != null
-                ? categoriaRepository.findById(dto.getCategoriaId()).orElse(null)
+                ? categoriaRepository.findByIdAndEspacoId(dto.getCategoriaId(), espacoId).orElse(null)
                 : null;
 
         List<Transacao> criadas = new ArrayList<>();
 
         if (dto.getTotalParcelas() != null && dto.getTotalParcelas() > 1) {
             String grupoId = UUID.randomUUID().toString();
-            LocalDate dataBase = LocalDate.parse(dto.getData());
+            LocalDate dataBase = dto.getData();
             for (int i = 1; i <= dto.getTotalParcelas(); i++) {
                 LocalDate dataParcela = dataBase.plusMonths(i - 1);
                 boolean dataAlcancada = !dataParcela.isAfter(LocalDate.now());
-                Transacao t = buildTransacao(dto, conta, categoria);
+                Transacao t = buildTransacao(dto, conta, categoria, espacoId, usuarioId);
                 t.setTotalParcelas(dto.getTotalParcelas());
                 t.setNumeroParcela(i);
                 t.setGrupoParcelaId(grupoId);
-                t.setData(dataParcela.toString());
+                t.setData(dataParcela);
                 t.setFixa(false);
                 t.setSaldoAjustado(dataAlcancada);
                 criadas.add(repository.save(t));
@@ -75,16 +82,16 @@ public class TransacaoService {
             }
             return criadas.stream().map(this::toDTO).toList();
         } else {
-            boolean dataAlcancada = !LocalDate.parse(dto.getData()).isAfter(LocalDate.now());
-            Transacao t = buildTransacao(dto, conta, categoria);
+            boolean dataAlcancada = !dto.getData().isAfter(LocalDate.now());
+            Transacao t = buildTransacao(dto, conta, categoria, espacoId, usuarioId);
             t.setSaldoAjustado(dataAlcancada);
             criadas.add(repository.save(t));
 
             if (dto.isFixa()) {
-                LocalDate dataBase = LocalDate.parse(dto.getData());
+                LocalDate dataBase = dto.getData();
                 for (int i = 1; i <= 11; i++) {
-                    Transacao futura = buildTransacao(dto, conta, categoria);
-                    futura.setData(dataBase.plusMonths(i).toString());
+                    Transacao futura = buildTransacao(dto, conta, categoria, espacoId, usuarioId);
+                    futura.setData(dataBase.plusMonths(i));
                     futura.setSaldoAjustado(false);
                     repository.save(futura);
                 }
@@ -99,16 +106,17 @@ public class TransacaoService {
 
     @Transactional
     public TransacaoDTO update(Long id, TransacaoDTO dto) {
-        Transacao existente = repository.findById(id)
+        Long espacoId = contextoEspaco.espacoAtual();
+        Transacao existente = repository.findByIdAndEspacoId(id, espacoId)
                 .orElseThrow(() -> new RuntimeException("Transação não encontrada"));
-        Conta novaConta = contaRepository.findById(dto.getContaId())
+        Conta novaConta = contaRepository.findByIdAndEspacoId(dto.getContaId(), espacoId)
                 .orElseThrow(() -> new RuntimeException("Conta não encontrada"));
         Categoria novaCategoria = dto.getCategoriaId() != null
-                ? categoriaRepository.findById(dto.getCategoriaId()).orElse(null)
+                ? categoriaRepository.findByIdAndEspacoId(dto.getCategoriaId(), espacoId).orElse(null)
                 : null;
 
         boolean estavaAjustada = existente.isSaldoAjustado();
-        boolean novaDataAlcancada = !LocalDate.parse(dto.getData()).isAfter(LocalDate.now());
+        boolean novaDataAlcancada = !dto.getData().isAfter(LocalDate.now());
 
         // Reverte o saldo antigo apenas se ele foi aplicado
         if (estavaAjustada) {
@@ -137,23 +145,24 @@ public class TransacaoService {
 
     @Transactional
     public void delete(Long id, String scope) {
-        Transacao t = repository.findById(id)
+        Long espacoId = contextoEspaco.espacoAtual();
+        Transacao t = repository.findByIdAndEspacoId(id, espacoId)
                 .orElseThrow(() -> new RuntimeException("Transação não encontrada"));
 
         if ("GRUPO".equals(scope) && t.getGrupoParcelaId() != null) {
-            List<Transacao> grupo = repository.findByGrupoParcelaId(t.getGrupoParcelaId());
+            List<Transacao> grupo = repository.findByEspacoIdAndGrupoParcelaId(espacoId, t.getGrupoParcelaId());
             grupo.stream().filter(Transacao::isSaldoAjustado).forEach(tx ->
                     contaService.adjustBalance(tx.getConta(), computeDelta(tx.getTipo(), tx.getValor()).negate()));
             repository.deleteAll(grupo);
         } else if ("FUTURAS".equals(scope)) {
             if (t.getGrupoParcelaId() != null) {
-                List<Transacao> futuras = repository.findByGrupoParcelaIdAndDataGreaterThanEqual(
-                        t.getGrupoParcelaId(), t.getData());
+                List<Transacao> futuras = repository.findByEspacoIdAndGrupoParcelaIdAndDataGreaterThanEqual(
+                        espacoId, t.getGrupoParcelaId(), t.getData());
                 futuras.stream().filter(Transacao::isSaldoAjustado).forEach(tx ->
                         contaService.adjustBalance(tx.getConta(), computeDelta(tx.getTipo(), tx.getValor()).negate()));
                 repository.deleteAll(futuras);
             } else if (t.isFixa()) {
-                List<Transacao> futuras = repository.findByFixaTrueAndDataGreaterThanEqual(t.getData());
+                List<Transacao> futuras = repository.findByEspacoIdAndFixaTrueAndDataGreaterThanEqual(espacoId, t.getData());
                 futuras.stream().filter(Transacao::isSaldoAjustado).forEach(tx ->
                         contaService.adjustBalance(tx.getConta(), computeDelta(tx.getTipo(), tx.getValor()).negate()));
                 repository.deleteAll(futuras);
@@ -171,7 +180,7 @@ public class TransacaoService {
         }
     }
 
-    private Transacao buildTransacao(TransacaoDTO dto, Conta conta, Categoria categoria) {
+    private Transacao buildTransacao(TransacaoDTO dto, Conta conta, Categoria categoria, Long espacoId, Long usuarioId) {
         return Transacao.builder()
                 .conta(conta)
                 .categoria(categoria)
@@ -181,6 +190,8 @@ public class TransacaoService {
                 .descricao(dto.getDescricao())
                 .data(dto.getData())
                 .fixa(dto.isFixa())
+                .espacoId(espacoId)
+                .usuarioId(usuarioId)
                 .build();
     }
 
@@ -201,6 +212,7 @@ public class TransacaoService {
         dto.setTotalParcelas(t.getTotalParcelas());
         dto.setNumeroParcela(t.getNumeroParcela());
         dto.setGrupoParcelaId(t.getGrupoParcelaId());
+        dto.setUsuarioId(t.getUsuarioId());
 
         ContaDTO contaDTO = new ContaDTO();
         contaDTO.setId(t.getConta().getId());

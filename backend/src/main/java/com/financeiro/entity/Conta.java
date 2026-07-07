@@ -33,4 +33,7 @@ public class Conta {
 
     @Column(nullable = false)
     private String icone;
+
+    @Column(name = "espaco_id", nullable = false)
+    private Long espacoId;
 }

@@ -1,5 +1,9 @@
 # Financeiro — Contexto do Projeto
 
+## Convenção de idioma
+
+Todo código novo (métodos, variáveis, classes, DTOs, comentários, mensagens) deve ser escrito em português. Não usar nomes em inglês para identificadores novos, mesmo que o restante do ecossistema (Spring, React) use termos em inglês.
+
 ## O que é
 
 Aplicativo de gestão financeira pessoal desktop-local. Roda inteiramente na máquina do usuário via um arquivo `.bat` — sem servidor externo, sem conta, sem internet necessária para uso.

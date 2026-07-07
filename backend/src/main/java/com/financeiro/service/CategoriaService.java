@@ -1,5 +1,6 @@
 package com.financeiro.service;
 
+import com.financeiro.context.ContextoEspaco;
 import com.financeiro.dto.CategoriaDTO;
 import com.financeiro.entity.Categoria;
 import com.financeiro.entity.enums.TipoTransacao;
@@ -14,9 +15,13 @@ import java.util.List;
 public class CategoriaService {
 
     private final CategoriaRepository repository;
+    private final ContextoEspaco contextoEspaco;
 
     public List<CategoriaDTO> findAll(TipoTransacao tipo) {
-        List<Categoria> list = tipo != null ? repository.findByTipo(tipo) : repository.findAll();
+        Long espacoId = contextoEspaco.espacoAtual();
+        List<Categoria> list = tipo != null
+                ? repository.findByTipoAndEspacoId(tipo, espacoId)
+                : repository.findByEspacoId(espacoId);
         return list.stream().map(this::toDTO).toList();
     }
 
@@ -26,12 +31,13 @@ public class CategoriaService {
                 .tipo(dto.getTipo())
                 .cor(dto.getCor())
                 .icone(dto.getIcone())
+                .espacoId(contextoEspaco.espacoAtual())
                 .build();
         return toDTO(repository.save(cat));
     }
 
     public CategoriaDTO update(Long id, CategoriaDTO dto) {
-        Categoria cat = repository.findById(id)
+        Categoria cat = repository.findByIdAndEspacoId(id, contextoEspaco.espacoAtual())
                 .orElseThrow(() -> new RuntimeException("Categoria não encontrada: " + id));
         cat.setNome(dto.getNome());
         cat.setTipo(dto.getTipo());
@@ -41,7 +47,9 @@ public class CategoriaService {
     }
 
     public void delete(Long id) {
-        repository.deleteById(id);
+        Categoria cat = repository.findByIdAndEspacoId(id, contextoEspaco.espacoAtual())
+                .orElseThrow(() -> new RuntimeException("Categoria não encontrada: " + id));
+        repository.delete(cat);
     }
 
     public CategoriaDTO toDTO(Categoria c) {

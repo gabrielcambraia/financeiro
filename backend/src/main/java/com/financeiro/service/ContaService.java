@@ -1,5 +1,6 @@
 package com.financeiro.service;
 
+import com.financeiro.context.ContextoEspaco;
 import com.financeiro.dto.ContaDTO;
 import com.financeiro.entity.Conta;
 import com.financeiro.repository.ContaRepository;
@@ -13,9 +14,10 @@ import java.util.List;
 public class ContaService {
 
     private final ContaRepository repository;
+    private final ContextoEspaco contextoEspaco;
 
     public List<ContaDTO> findAll() {
-        return repository.findAll().stream().map(this::toDTO).toList();
+        return repository.findByEspacoId(contextoEspaco.espacoAtual()).stream().map(this::toDTO).toList();
     }
 
     public ContaDTO create(ContaDTO dto) {
@@ -25,12 +27,13 @@ public class ContaService {
                 .saldo(dto.getSaldo())
                 .cor(dto.getCor())
                 .icone(dto.getIcone())
+                .espacoId(contextoEspaco.espacoAtual())
                 .build();
         return toDTO(repository.save(conta));
     }
 
     public ContaDTO update(Long id, ContaDTO dto) {
-        Conta conta = repository.findById(id)
+        Conta conta = repository.findByIdAndEspacoId(id, contextoEspaco.espacoAtual())
                 .orElseThrow(() -> new RuntimeException("Conta não encontrada: " + id));
         conta.setNome(dto.getNome());
         conta.setTipo(dto.getTipo());
@@ -41,7 +44,9 @@ public class ContaService {
     }
 
     public void delete(Long id) {
-        repository.deleteById(id);
+        Conta conta = repository.findByIdAndEspacoId(id, contextoEspaco.espacoAtual())
+                .orElseThrow(() -> new RuntimeException("Conta não encontrada: " + id));
+        repository.delete(conta);
     }
 
     public ContaDTO toDTO(Conta c) {

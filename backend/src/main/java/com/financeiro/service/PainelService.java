@@ -1,5 +1,6 @@
 package com.financeiro.service;
 
+import com.financeiro.context.ContextoEspaco;
 import com.financeiro.dto.CategoriaDTO;
 import com.financeiro.dto.PainelDTO;
 import com.financeiro.entity.Transacao;
@@ -23,19 +24,21 @@ public class PainelService {
     private final TransacaoRepository transacaoRepository;
     private final ContaRepository contaRepository;
     private final ContaService contaService;
+    private final ContextoEspaco contextoEspaco;
 
     public PainelDTO getDashboard(String month, Long contaId) {
+        Long espacoId = contextoEspaco.espacoAtual();
         YearMonth ym = YearMonth.parse(month);
-        String start = ym.atDay(1).toString();
-        String end = ym.atEndOfMonth().toString();
-        String today = LocalDate.now().toString();
+        LocalDate start = ym.atDay(1);
+        LocalDate end = ym.atEndOfMonth();
+        LocalDate today = LocalDate.now();
 
-        List<Transacao> mesTx = fetch(contaId, start, end, false);
+        List<Transacao> mesTx = fetch(espacoId, contaId, start, end, false);
 
         List<Transacao> realizadasTx = mesTx.stream()
-                .filter(t -> t.getData().compareTo(today) <= 0).toList();
+                .filter(t -> !t.getData().isAfter(today)).toList();
         List<Transacao> pendentesTx = mesTx.stream()
-                .filter(t -> t.getData().compareTo(today) > 0).toList();
+                .filter(t -> t.getData().isAfter(today)).toList();
 
         BigDecimal totalReceitas = sum(mesTx, TipoTransacao.RECEITA);
         BigDecimal totalDespesas = sum(mesTx, TipoTransacao.DESPESA);
@@ -48,8 +51,8 @@ public class PainelService {
                 .pendente(buildResumoFluxo(pendentesTx))
                 .despesasPorCategoria(buildResumoCategoria(mesTx, TipoTransacao.DESPESA, totalDespesas))
                 .receitasPorCategoria(buildResumoCategoria(mesTx, TipoTransacao.RECEITA, totalReceitas))
-                .tendenciaMensal(buildTendenciaMensal(ym, contaId))
-                .saldosContas(buildSaldosContas())
+                .tendenciaMensal(buildTendenciaMensal(espacoId, ym, contaId))
+                .saldosContas(buildSaldosContas(espacoId))
                 .saldoDiario(buildSaldoDiario(mesTx, ym))
                 .build();
     }
@@ -64,15 +67,15 @@ public class PainelService {
                 .build();
     }
 
-    private List<Transacao> fetch(Long contaId, String start, String end, boolean asc) {
+    private List<Transacao> fetch(Long espacoId, Long contaId, LocalDate start, LocalDate end, boolean asc) {
         if (contaId != null) {
             return asc
-                    ? transacaoRepository.findByContaIdAndDataBetweenOrderByDataAsc(contaId, start, end)
-                    : transacaoRepository.findByContaIdAndDataBetweenOrderByDataDesc(contaId, start, end);
+                    ? transacaoRepository.findByEspacoIdAndContaIdAndDataBetweenOrderByDataAsc(espacoId, contaId, start, end)
+                    : transacaoRepository.findByEspacoIdAndContaIdAndDataBetweenOrderByDataDesc(espacoId, contaId, start, end);
         }
         return asc
-                ? transacaoRepository.findByDataBetweenOrderByDataAsc(start, end)
-                : transacaoRepository.findByDataBetweenOrderByDataDesc(start, end);
+                ? transacaoRepository.findByEspacoIdAndDataBetweenOrderByDataAsc(espacoId, start, end)
+                : transacaoRepository.findByEspacoIdAndDataBetweenOrderByDataDesc(espacoId, start, end);
     }
 
     private BigDecimal sum(List<Transacao> transacoes, TipoTransacao tipo) {
@@ -107,19 +110,19 @@ public class PainelService {
         }).sorted(Comparator.comparing(PainelDTO.ResumoCategoria::getTotal).reversed()).toList();
     }
 
-    private List<PainelDTO.TendenciaMensal> buildTendenciaMensal(YearMonth atual, Long contaId) {
-        String dataInicio = atual.minusMonths(5).atDay(1).toString();
-        String dataFim = atual.atEndOfMonth().toString();
+    private List<PainelDTO.TendenciaMensal> buildTendenciaMensal(Long espacoId, YearMonth atual, Long contaId) {
+        LocalDate dataInicio = atual.minusMonths(5).atDay(1);
+        LocalDate dataFim = atual.atEndOfMonth();
 
-        List<Transacao> todas = fetch(contaId, dataInicio, dataFim, true);
+        List<Transacao> todas = fetch(espacoId, contaId, dataInicio, dataFim, true);
 
         List<PainelDTO.TendenciaMensal> tendencia = new ArrayList<>();
         for (int i = 5; i >= 0; i--) {
             YearMonth m = atual.minusMonths(i);
-            String ms = m.atDay(1).toString();
-            String me = m.atEndOfMonth().toString();
+            LocalDate ms = m.atDay(1);
+            LocalDate me = m.atEndOfMonth();
             List<Transacao> mesTx = todas.stream()
-                    .filter(t -> t.getData().compareTo(ms) >= 0 && t.getData().compareTo(me) <= 0)
+                    .filter(t -> !t.getData().isBefore(ms) && !t.getData().isAfter(me))
                     .toList();
             tendencia.add(PainelDTO.TendenciaMensal.builder()
                     .mes(m.toString())
@@ -130,8 +133,8 @@ public class PainelService {
         return tendencia;
     }
 
-    private List<PainelDTO.SaldoConta> buildSaldosContas() {
-        return contaRepository.findAll().stream().map(c ->
+    private List<PainelDTO.SaldoConta> buildSaldosContas(Long espacoId) {
+        return contaRepository.findByEspacoId(espacoId).stream().map(c ->
                 PainelDTO.SaldoConta.builder()
                         .conta(contaService.toDTO(c))
                         .saldo(c.getSaldo())
@@ -143,14 +146,14 @@ public class PainelService {
         List<PainelDTO.SaldoDiario> resultado = new ArrayList<>();
         BigDecimal acumulado = BigDecimal.ZERO;
         for (int dia = 1; dia <= ym.lengthOfMonth(); dia++) {
-            String dataStr = ym.atDay(dia).toString();
+            LocalDate data = ym.atDay(dia);
             for (Transacao t : transacoes) {
-                if (dataStr.equals(t.getData())) {
+                if (data.equals(t.getData())) {
                     acumulado = acumulado.add(t.getTipo() == TipoTransacao.RECEITA
                             ? t.getValor() : t.getValor().negate());
                 }
             }
-            resultado.add(PainelDTO.SaldoDiario.builder().data(dataStr).saldo(acumulado).build());
+            resultado.add(PainelDTO.SaldoDiario.builder().data(data).saldo(acumulado).build());
         }
         return resultado;
     }

@@ -15,7 +15,8 @@
       "Bash(curl -s -X POST http://localhost:8080/api/transacoes -H 'Content-Type: application/json' -d '{ *)",
       "Bash(curl -s -X DELETE \"http://localhost:8080/api/transacoes/1?scope=UNICA\" -w \"\\\\nstatus: %{http_code}\\\\n\")",
       "Bash(powershell -Command \"Get-Process -Name java -ErrorAction SilentlyContinue | Stop-Process -Force\")",
-      "Bash(sqlite3 financeiro.db \"SELECT id, nome, tipo, saldo FROM contas;\")"
+      "Bash(sqlite3 financeiro.db \"SELECT id, nome, tipo, saldo FROM contas;\")",
+      "Skill(update-config)"
     ]
   }
 }

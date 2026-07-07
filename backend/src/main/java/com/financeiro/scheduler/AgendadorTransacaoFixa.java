@@ -43,7 +43,7 @@ public class AgendadorTransacaoFixa {
 
         // 1. Ajusta saldo de qualquer transação (fixa ou não) cuja data já chegou
         List<Transacao> vencidas = repository.findBySaldoAjustadoFalseAndDataLessThanEqual(
-                LocalDate.now().toString());
+                LocalDate.now());
 
         for (Transacao t : vencidas) {
             contaService.adjustBalance(t.getConta(),
@@ -60,21 +60,26 @@ public class AgendadorTransacaoFixa {
         }
     }
 
+    // Nota: este agendador roda em background (startup + cron mensal), sem
+    // contexto de request/usuário. Por isso processa TODOS os espaços de uma
+    // vez em vez de usar ContextoEspaco — cada transação já carrega seu
+    // próprio espacoId (herdado da conta original), então maturar/estender
+    // por linha nunca mistura dados entre espaços.
     private void extendTo(YearMonth mesOrigem, YearMonth mesAlvo) {
         List<Transacao> modelos = repository.findByFixaTrueAndDataBetween(
-                mesOrigem.atDay(1).toString(), mesOrigem.atEndOfMonth().toString());
+                mesOrigem.atDay(1), mesOrigem.atEndOfMonth());
 
         for (Transacao original : modelos) {
-            boolean existe = repository.existsByFixaTrueAndContaIdAndValorAndTipoAndDescricaoAndDataBetween(
+            boolean existe = repository.existsByEspacoIdAndFixaTrueAndContaIdAndValorAndTipoAndDescricaoAndDataBetween(
+                    original.getEspacoId(),
                     original.getConta().getId(),
                     original.getValor(),
                     original.getTipo(),
                     original.getDescricao(),
-                    mesAlvo.atDay(1).toString(),
-                    mesAlvo.atEndOfMonth().toString());
+                    mesAlvo.atDay(1), mesAlvo.atEndOfMonth());
 
             if (!existe) {
-                int dia = Math.min(LocalDate.parse(original.getData()).getDayOfMonth(), mesAlvo.lengthOfMonth());
+                int dia = Math.min(original.getData().getDayOfMonth(), mesAlvo.lengthOfMonth());
                 Transacao copia = Transacao.builder()
                         .conta(original.getConta())
                         .categoria(original.getCategoria())
@@ -82,9 +87,11 @@ public class AgendadorTransacaoFixa {
                         .tipoPagamento(original.getTipoPagamento())
                         .valor(original.getValor())
                         .descricao(original.getDescricao())
-                        .data(mesAlvo.atDay(dia).toString())
+                        .data(mesAlvo.atDay(dia))
                         .fixa(true)
                         .saldoAjustado(false)
+                        .espacoId(original.getEspacoId())
+                        .usuarioId(original.getUsuarioId())
                         .build();
                 repository.save(copia);
                 log.info("Entrada criada para {} (conta={})", mesAlvo, original.getConta().getId());

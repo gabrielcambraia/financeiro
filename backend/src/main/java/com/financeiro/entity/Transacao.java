@@ -1,13 +1,15 @@
 package com.financeiro.entity;
 
+import com.financeiro.entity.converter.ConversorLocalDate;
+import com.financeiro.entity.converter.ConversorLocalDateTime;
 import com.financeiro.entity.enums.TipoPagamento;
 import com.financeiro.entity.enums.TipoTransacao;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 
 @Entity
 @Table(name = "transacoes")
@@ -42,8 +44,9 @@ public class Transacao {
 
     private String descricao;
 
+    @Convert(converter = ConversorLocalDate.class)
     @Column(nullable = false)
-    private String data;
+    private LocalDate data;
 
     @Column(name = "fixa", nullable = false)
     private boolean fixa;
@@ -61,13 +64,20 @@ public class Transacao {
     @Column(name = "grupo_parcela_id")
     private String grupoParcelaId;
 
+    @Convert(converter = ConversorLocalDateTime.class)
     @Column(name = "criado_em", nullable = false)
-    private String criadoEm;
+    private LocalDateTime criadoEm;
+
+    @Column(name = "espaco_id", nullable = false)
+    private Long espacoId;
+
+    @Column(name = "usuario_id", nullable = false)
+    private Long usuarioId;
 
     @PrePersist
     public void prePersist() {
         if (this.criadoEm == null) {
-            this.criadoEm = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+            this.criadoEm = LocalDateTime.now();
         }
     }
 }
