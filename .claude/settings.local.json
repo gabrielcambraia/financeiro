@@ -1,7 +1,21 @@
 {
   "permissions": {
     "allow": [
-      "PowerShell(git *)"
+      "PowerShell(git *)",
+      "Bash(.maven/apache-maven-3.9.6/bin/mvn -q -o compile -DskipTests)",
+      "Bash(npx tsc *)",
+      "Bash(.maven/apache-maven-3.9.6/bin/mvn -q package -DskipTests)",
+      "Bash(curl -s http://localhost:8080/api/contas)",
+      "Bash(curl -s \"http://localhost:8080/api/categorias?tipo=DESPESA\")",
+      "Bash(curl -s \"http://localhost:8080/api/painel?month=$\\(date +%Y-%m\\)\")",
+      "Skill(run)",
+      "Bash(chromium-cli --help)",
+      "Bash(curl -s http://localhost:8080/ -o /tmp/index.html -w \"status: %{http_code}\\\\n\")",
+      "Read(//tmp/**)",
+      "Bash(curl -s -X POST http://localhost:8080/api/transacoes -H 'Content-Type: application/json' -d '{ *)",
+      "Bash(curl -s -X DELETE \"http://localhost:8080/api/transacoes/1?scope=UNICA\" -w \"\\\\nstatus: %{http_code}\\\\n\")",
+      "Bash(powershell -Command \"Get-Process -Name java -ErrorAction SilentlyContinue | Stop-Process -Force\")",
+      "Bash(sqlite3 financeiro.db \"SELECT id, nome, tipo, saldo FROM contas;\")"
     ]
   }
 }

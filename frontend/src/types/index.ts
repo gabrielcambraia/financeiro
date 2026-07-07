@@ -1,78 +1,78 @@
-export type AccountType = 'CHECKING' | 'SAVINGS' | 'WALLET' | 'INVESTMENT'
-export type TransactionType = 'INCOME' | 'EXPENSE'
-export type PaymentType = 'DEBIT' | 'CREDIT'
+export type TipoConta = 'CORRENTE' | 'POUPANCA' | 'CARTEIRA' | 'INVESTIMENTO'
+export type TipoTransacao = 'RECEITA' | 'DESPESA'
+export type TipoPagamento = 'DEBITO' | 'CREDITO'
 
-export interface Account {
+export interface Conta {
   id: number
-  name: string
-  type: AccountType
-  balance: number
-  color: string
-  icon: string
+  nome: string
+  tipo: TipoConta
+  saldo: number
+  cor: string
+  icone: string
 }
 
-export interface Category {
+export interface Categoria {
   id: number
-  name: string
-  type: TransactionType
-  color: string
-  icon: string
+  nome: string
+  tipo: TipoTransacao
+  cor: string
+  icone: string
 }
 
-export interface Transaction {
+export interface Transacao {
   id: number
-  account: Account
-  category?: Category
-  accountId: number
-  categoryId?: number
-  type: TransactionType
-  paymentType: PaymentType
-  amount: number
-  description?: string
-  date: string
-  fixed: boolean
-  installmentTotal?: number
-  installmentNumber?: number
-  installmentGroupId?: string
+  conta: Conta
+  categoria?: Categoria
+  contaId: number
+  categoriaId?: number
+  tipo: TipoTransacao
+  tipoPagamento: TipoPagamento
+  valor: number
+  descricao?: string
+  data: string
+  fixa: boolean
+  totalParcelas?: number
+  numeroParcela?: number
+  grupoParcelaId?: string
 }
 
-export interface FlowSummary {
-  income: number
-  expense: number
-  balance: number
+export interface ResumoFluxo {
+  receita: number
+  despesa: number
+  saldo: number
 }
 
-export interface DashboardData {
-  totalIncome: number
-  totalExpense: number
-  netBalance: number
-  realized: FlowSummary
-  pending: FlowSummary
-  expensesByCategory: CategorySummary[]
-  incomesByCategory: CategorySummary[]
-  monthlyTrend: MonthlyTrend[]
-  accountBalances: AccountBalance[]
-  dailyBalance: DailyBalance[]
+export interface DadosPainel {
+  totalReceitas: number
+  totalDespesas: number
+  saldoLiquido: number
+  realizado: ResumoFluxo
+  pendente: ResumoFluxo
+  despesasPorCategoria: ResumoCategoria[]
+  receitasPorCategoria: ResumoCategoria[]
+  tendenciaMensal: TendenciaMensal[]
+  saldosContas: SaldoConta[]
+  saldoDiario: SaldoDiario[]
 }
 
-export interface CategorySummary {
-  category: Category
+export interface ResumoCategoria {
+  categoria: Categoria
   total: number
-  percentage: number
+  percentual: number
 }
 
-export interface MonthlyTrend {
-  month: string
-  income: number
-  expense: number
+export interface TendenciaMensal {
+  mes: string
+  receita: number
+  despesa: number
 }
 
-export interface AccountBalance {
-  account: Account
-  balance: number
+export interface SaldoConta {
+  conta: Conta
+  saldo: number
 }
 
-export interface DailyBalance {
-  date: string
-  balance: number
+export interface SaldoDiario {
+  data: string
+  saldo: number
 }

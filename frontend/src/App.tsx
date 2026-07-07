@@ -1,10 +1,10 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import Layout from './components/Layout'
-import Dashboard from './pages/Dashboard'
-import Transactions from './pages/Transactions'
-import Accounts from './pages/Accounts'
-import Categories from './pages/Categories'
+import Estrutura from './components/Estrutura'
+import Painel from './pages/Painel'
+import Transacoes from './pages/Transacoes'
+import Contas from './pages/Contas'
+import Categorias from './pages/Categorias'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -17,11 +17,11 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Layout />}>
-            <Route index element={<Dashboard />} />
-            <Route path="transactions" element={<Transactions />} />
-            <Route path="accounts" element={<Accounts />} />
-            <Route path="categories" element={<Categories />} />
+          <Route path="/" element={<Estrutura />}>
+            <Route index element={<Painel />} />
+            <Route path="transacoes" element={<Transacoes />} />
+            <Route path="contas" element={<Contas />} />
+            <Route path="categorias" element={<Categorias />} />
           </Route>
         </Routes>
       </BrowserRouter>
