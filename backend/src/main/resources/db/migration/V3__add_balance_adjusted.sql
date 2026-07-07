@@ -1,1 +1,0 @@
-ALTER TABLE transactions ADD COLUMN balance_adjusted INTEGER NOT NULL DEFAULT 1;
