@@ -4,7 +4,6 @@ import com.financeiro.seguranca.FiltroAutenticacaoJwt;
 import com.financeiro.seguranca.FiltroTrocaSenhaObrigatoria;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -16,10 +15,8 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /**
- * Duas cadeias de segurança, selecionadas por perfil:
- * - perfil "nuvem": exige JWT em toda a API, exceto /api/auth/**.
- * - qualquer outro perfil (modo desktop-local, sem login): libera tudo,
- *   mantendo o comportamento anterior a esta PR.
+ * Cadeia de segurança única: exige JWT em toda a API, exceto /api/auth/register,
+ * /api/auth/login e /api/auth/config.
  */
 @Configuration
 public class ConfiguracaoSeguranca {
@@ -30,8 +27,7 @@ public class ConfiguracaoSeguranca {
     }
 
     @Bean
-    @Profile("nuvem")
-    public SecurityFilterChain cadeiaSegurancaNuvem(
+    public SecurityFilterChain cadeiaSeguranca(
             HttpSecurity http, FiltroAutenticacaoJwt filtroJwt, FiltroTrocaSenhaObrigatoria filtroTrocaSenha) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
@@ -46,16 +42,6 @@ public class ConfiguracaoSeguranca {
                                 response.sendError(HttpStatus.UNAUTHORIZED.value(), "Não autenticado")))
                 .addFilterBefore(filtroJwt, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(filtroTrocaSenha, FiltroAutenticacaoJwt.class);
-
-        return http.build();
-    }
-
-    @Bean
-    @Profile("!nuvem")
-    public SecurityFilterChain cadeiaSegurancaLocal(HttpSecurity http) throws Exception {
-        http
-                .csrf(AbstractHttpConfigurer::disable)
-                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
 
         return http.build();
     }

@@ -1,0 +1,8 @@
+**/target
+**/node_modules
+.git
+backend/.maven
+backend/.node
+backend/src/main/resources/static
+**/*.db
+**/*.db.bak

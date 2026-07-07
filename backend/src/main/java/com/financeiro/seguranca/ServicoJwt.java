@@ -4,7 +4,6 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
@@ -13,12 +12,12 @@ import java.time.Instant;
 import java.util.Date;
 
 /**
- * Gera e valida os tokens JWT usados no perfil "nuvem". O token carrega
- * {@code usuarioId} e {@code espacoId} — é a partir dessas claims que
- * {@link ContextoEspacoSeguranca} resolve o tenant ativo da requisição.
+ * Gera e valida os tokens JWT. O token carrega {@code usuarioId} e
+ * {@code espacoId} — é a partir dessas claims que
+ * {@link com.financeiro.context.ContextoEspacoSeguranca} resolve o tenant
+ * ativo da requisição.
  */
 @Service
-@Profile("nuvem")
 public class ServicoJwt {
 
     private final SecretKey chave;

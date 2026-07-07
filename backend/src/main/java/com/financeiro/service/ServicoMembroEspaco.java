@@ -11,7 +11,6 @@ import com.financeiro.entity.enums.PapelUsuario;
 import com.financeiro.repository.UsuarioEspacoRepository;
 import com.financeiro.repository.UsuarioRepository;
 import com.financeiro.seguranca.GeradorSenhaTemporaria;
-import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -24,7 +23,6 @@ import org.springframework.web.server.ResponseStatusException;
  * no espaço já existente do DONO — nunca ganha espaço nem categorias próprias.
  */
 @Service
-@Profile("nuvem")
 public class ServicoMembroEspaco {
 
     private final UsuarioRepository usuarioRepository;

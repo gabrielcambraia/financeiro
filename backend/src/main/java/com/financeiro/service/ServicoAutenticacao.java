@@ -16,7 +16,6 @@ import com.financeiro.repository.EspacoRepository;
 import com.financeiro.repository.UsuarioEspacoRepository;
 import com.financeiro.repository.UsuarioRepository;
 import com.financeiro.seguranca.ServicoJwt;
-import org.springframework.context.annotation.Profile;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -25,12 +24,11 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 
 /**
- * Orquestra registro e login no perfil "nuvem". O registro cria, numa única
- * transação, o usuário, o espaço pessoal dele, o vínculo (DONO) e as
- * categorias padrão — se algo falhar no meio, nada fica órfão.
+ * Orquestra registro e login. O registro cria, numa única transação, o
+ * usuário, o espaço pessoal dele, o vínculo (DONO) e as categorias padrão —
+ * se algo falhar no meio, nada fica órfão.
  */
 @Service
-@Profile("nuvem")
 public class ServicoAutenticacao {
 
     private final UsuarioRepository usuarioRepository;
