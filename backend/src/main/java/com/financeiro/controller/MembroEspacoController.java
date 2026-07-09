@@ -1,13 +1,17 @@
 package com.financeiro.controller;
 
 import com.financeiro.dto.RequisicaoAdicionarMembro;
+import com.financeiro.dto.RespostaMembro;
 import com.financeiro.dto.RespostaMembroAdicionado;
 import com.financeiro.service.ServicoMembroEspaco;
 import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/espacos/membros")
@@ -22,5 +26,10 @@ public class MembroEspacoController {
     @PostMapping
     public RespostaMembroAdicionado adicionar(@Valid @RequestBody RequisicaoAdicionarMembro requisicao) {
         return servicoMembroEspaco.adicionar(requisicao);
+    }
+
+    @GetMapping
+    public List<RespostaMembro> listar() {
+        return servicoMembroEspaco.listar();
     }
 }

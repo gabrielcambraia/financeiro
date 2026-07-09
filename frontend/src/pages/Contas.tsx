@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Pencil, Trash2, Wallet, PiggyBank, CreditCard, TrendingUp } from 'lucide-react'
 import { buscarContas, criarConta, atualizarConta, excluirConta } from '../api/contas'
+import SobreposicaoModal from '../components/SobreposicaoModal'
+import SeletorCor from '../components/SeletorCor'
 import type { Conta, TipoConta } from '../types'
 
 const fmt = (v: number) =>
@@ -56,8 +58,8 @@ export default function Contas() {
     <div className="p-6 space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Contas</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Saldo total: <span className={`font-semibold ${saldoTotal >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmt(saldoTotal)}</span></p>
+          <h1 className="text-2xl font-bold text-conteudo">Contas</h1>
+          <p className="text-sm text-conteudo-suave mt-0.5">Saldo total: <span className={`font-semibold ${saldoTotal >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{fmt(saldoTotal)}</span></p>
         </div>
         <button onClick={openCreate} className="btn-primary flex items-center gap-2">
           <Plus size={16} /> Nova Conta
@@ -68,28 +70,28 @@ export default function Contas() {
         {contas.map(conta => {
           const IconeTipo = TIPOS_CONTA.find(t => t.value === conta.tipo)?.icon ?? Wallet
           return (
-            <div key={conta.id} className="card hover:border-gray-700 transition-colors group">
+            <div key={conta.id} className="card hover:border-conteudo-suave transition-colors group">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 rounded-xl" style={{ background: `${conta.cor}20` }}>
                     <IconeTipo size={20} style={{ color: conta.cor }} />
                   </div>
                   <div>
-                    <p className="font-semibold text-white">{conta.nome}</p>
-                    <p className="text-xs text-gray-500">{TIPOS_CONTA.find(t => t.value === conta.tipo)?.label}</p>
+                    <p className="font-semibold text-conteudo">{conta.nome}</p>
+                    <p className="text-xs text-conteudo-suave">{TIPOS_CONTA.find(t => t.value === conta.tipo)?.label}</p>
                   </div>
                 </div>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => openEdit(conta)} className="p-1.5 rounded-lg hover:bg-gray-700 text-gray-400 hover:text-white transition-colors">
+                  <button onClick={() => openEdit(conta)} className="p-1.5 rounded-lg hover:bg-superficie-2 text-conteudo-suave hover:text-conteudo transition-colors">
                     <Pencil size={14} />
                   </button>
                   <button onClick={() => { if (confirm('Excluir esta conta?')) deleteMutation.mutate(conta.id) }}
-                    className="p-1.5 rounded-lg hover:bg-red-900/40 text-gray-400 hover:text-red-400 transition-colors">
+                    className="p-1.5 rounded-lg hover:bg-red-900/40 text-conteudo-suave hover:text-red-400 transition-colors">
                     <Trash2 size={14} />
                   </button>
                 </div>
               </div>
-              <p className={`text-2xl font-bold ${conta.saldo >= 0 ? 'text-white' : 'text-red-400'}`}>
+              <p className={`text-2xl font-bold ${conta.saldo >= 0 ? 'text-conteudo' : 'text-red-500'}`}>
                 {fmt(conta.saldo)}
               </p>
               <div className="mt-3 h-1 rounded-full" style={{ background: conta.cor, opacity: 0.4 }} />
@@ -98,7 +100,7 @@ export default function Contas() {
         })}
 
         {contas.length === 0 && (
-          <div className="card col-span-3 text-center py-12 text-gray-600">
+          <div className="card col-span-3 text-center py-12 text-conteudo-suave">
             Nenhuma conta cadastrada. Crie a primeira!
           </div>
         )}
@@ -106,10 +108,10 @@ export default function Contas() {
 
       {/* Modal do formulário */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <SobreposicaoModal>
           <div className="card w-full max-w-md">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-semibold text-white">{editing ? 'Editar Conta' : 'Nova Conta'}</h2>
+              <h2 className="text-lg font-semibold text-conteudo">{editing ? 'Editar Conta' : 'Nova Conta'}</h2>
               <button onClick={closeForm} className="btn-ghost p-1.5 text-sm">✕</button>
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -131,18 +133,12 @@ export default function Contas() {
               </div>
               <div>
                 <label className="label">Cor</label>
-                <div className="flex gap-2 flex-wrap">
-                  {CORES.map(c => (
-                    <button key={c} type="button"
-                      onClick={() => setForm(f => ({ ...f, cor: c }))}
-                      className={`w-8 h-8 rounded-full border-2 transition-all ${form.cor === c ? 'border-white scale-110' : 'border-transparent'}`}
-                      style={{ background: c }} />
-                  ))}
-                </div>
+                <SeletorCor cores={CORES} corSelecionada={form.cor}
+                  aoSelecionar={c => setForm(f => ({ ...f, cor: c }))} />
               </div>
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={closeForm}
-                  className="flex-1 py-2.5 rounded-lg border border-gray-700 text-gray-400 hover:text-white transition-colors text-sm font-medium">
+                  className="flex-1 py-2.5 rounded-lg border border-borda text-conteudo-suave hover:text-conteudo transition-colors text-sm font-medium">
                   Cancelar
                 </button>
                 <button type="submit" disabled={saveMutation.isPending} className="flex-1 btn-primary">
@@ -151,7 +147,7 @@ export default function Contas() {
               </div>
             </form>
           </div>
-        </div>
+        </SobreposicaoModal>
       )}
     </div>
   )

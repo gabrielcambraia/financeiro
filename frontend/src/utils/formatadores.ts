@@ -1,0 +1,2 @@
+export const iniciaisDoNome = (nome: string) =>
+  nome.split(' ').filter(Boolean).slice(0, 2).map(p => p[0]!.toUpperCase()).join('')

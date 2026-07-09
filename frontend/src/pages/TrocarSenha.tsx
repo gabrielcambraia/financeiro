@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { trocarSenha } from '../api/autenticacao'
 import { useLojaAutenticacao } from '../store/lojaAutenticacao'
+import CampoSenha from '../components/CampoSenha'
 
 export default function TrocarSenha() {
   const navigate = useNavigate()
@@ -30,24 +31,24 @@ export default function TrocarSenha() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="card w-full max-w-sm">
-        <h1 className="text-2xl font-bold text-white mb-1">Troca de senha obrigatória</h1>
-        <p className="text-sm text-gray-500 mb-6">
+        <h1 className="text-2xl font-bold text-conteudo mb-1">Troca de senha obrigatória</h1>
+        <p className="text-sm text-conteudo-suave mb-6">
           Sua senha é temporária. Defina uma nova senha para continuar.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="label">Senha temporária</label>
-            <input className="input" type="password" required
+            <CampoSenha required
               value={senhaAtual} onChange={e => setSenhaAtual(e.target.value)} />
           </div>
           <div>
             <label className="label">Nova senha</label>
-            <input className="input" type="password" required minLength={8}
+            <CampoSenha required minLength={8}
               value={novaSenha} onChange={e => setNovaSenha(e.target.value)} />
           </div>
 
-          {erro && <p className="text-sm text-red-400">{erro}</p>}
+          {erro && <p className="text-sm text-red-500">{erro}</p>}
 
           <button type="submit" disabled={carregando} className="w-full btn-primary">
             {carregando ? 'Salvando...' : 'Trocar senha'}

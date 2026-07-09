@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { buscarCategorias, criarCategoria, atualizarCategoria, excluirCategoria } from '../api/categorias'
+import SobreposicaoModal from '../components/SobreposicaoModal'
+import SeletorCor from '../components/SeletorCor'
 import type { Categoria, TipoTransacao } from '../types'
 
 const CORES = ['#ef4444','#f97316','#eab308','#22c55e','#10b981','#06b6d4','#3b82f6','#8b5cf6','#ec4899','#6b7280','#6366f1','#84cc16']
@@ -44,20 +46,20 @@ export default function Categorias() {
   return (
     <div className="p-6 space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-white">Categorias</h1>
+        <h1 className="text-2xl font-bold text-conteudo">Categorias</h1>
         <button onClick={openCreate} className="btn-primary flex items-center gap-2">
           <Plus size={16} /> Nova Categoria
         </button>
       </div>
 
       {/* Abas */}
-      <div className="flex rounded-xl overflow-hidden border border-gray-800 w-fit">
+      <div className="flex rounded-xl overflow-hidden border border-borda w-fit">
         {(['DESPESA', 'RECEITA'] as TipoTransacao[]).map(t => (
           <button key={t} onClick={() => setAba(t)}
             className={`px-6 py-2.5 text-sm font-medium transition-colors
               ${aba === t
                 ? t === 'DESPESA' ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white'
-                : 'text-gray-400 hover:text-white'}`}>
+                : 'text-conteudo-suave hover:text-conteudo'}`}>
             {t === 'DESPESA' ? 'Despesas' : 'Receitas'}
           </button>
         ))}
@@ -65,37 +67,37 @@ export default function Categorias() {
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
         {categorias.map(cat => (
-          <div key={cat.id} className="card flex items-center gap-3 group hover:border-gray-700 transition-colors">
+          <div key={cat.id} className="card flex items-center gap-3 group hover:border-conteudo-suave transition-colors">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg shrink-0"
               style={{ background: `${cat.cor}20`, color: cat.cor }}>
               #
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">{cat.nome}</p>
+              <p className="text-sm font-medium text-conteudo truncate">{cat.nome}</p>
             </div>
             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button onClick={() => openEdit(cat)} className="p-1 rounded hover:bg-gray-700 text-gray-500 hover:text-white transition-colors">
+              <button onClick={() => openEdit(cat)} className="p-1 rounded hover:bg-superficie-2 text-conteudo-suave hover:text-conteudo transition-colors">
                 <Pencil size={13} />
               </button>
               <button onClick={() => { if (confirm('Excluir esta categoria?')) deleteMutation.mutate(cat.id) }}
-                className="p-1 rounded hover:bg-red-900/40 text-gray-500 hover:text-red-400 transition-colors">
+                className="p-1 rounded hover:bg-red-900/40 text-conteudo-suave hover:text-red-400 transition-colors">
                 <Trash2 size={13} />
               </button>
             </div>
           </div>
         ))}
         {categorias.length === 0 && (
-          <div className="card col-span-4 text-center py-10 text-gray-600 text-sm">
+          <div className="card col-span-4 text-center py-10 text-conteudo-suave text-sm">
             Nenhuma categoria cadastrada.
           </div>
         )}
       </div>
 
       {showForm && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <SobreposicaoModal>
           <div className="card w-full max-w-md">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-semibold text-white">{editing ? 'Editar Categoria' : 'Nova Categoria'}</h2>
+              <h2 className="text-lg font-semibold text-conteudo">{editing ? 'Editar Categoria' : 'Nova Categoria'}</h2>
               <button onClick={closeForm} className="btn-ghost p-1.5 text-sm">✕</button>
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -106,13 +108,13 @@ export default function Categorias() {
               </div>
               <div>
                 <label className="label">Tipo</label>
-                <div className="flex rounded-xl overflow-hidden border border-gray-700">
+                <div className="flex rounded-xl overflow-hidden border border-borda">
                   {(['DESPESA', 'RECEITA'] as TipoTransacao[]).map(t => (
                     <button key={t} type="button" onClick={() => setForm(f => ({ ...f, tipo: t }))}
                       className={`flex-1 py-2.5 text-sm font-medium transition-colors
                         ${form.tipo === t
                           ? t === 'DESPESA' ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white'
-                          : 'text-gray-400 hover:text-white'}`}>
+                          : 'text-conteudo-suave hover:text-conteudo'}`}>
                       {t === 'DESPESA' ? 'Despesa' : 'Receita'}
                     </button>
                   ))}
@@ -120,17 +122,12 @@ export default function Categorias() {
               </div>
               <div>
                 <label className="label">Cor</label>
-                <div className="flex gap-2 flex-wrap">
-                  {CORES.map(c => (
-                    <button key={c} type="button" onClick={() => setForm(f => ({ ...f, cor: c }))}
-                      className={`w-7 h-7 rounded-full border-2 transition-all ${form.cor === c ? 'border-white scale-110' : 'border-transparent'}`}
-                      style={{ background: c }} />
-                  ))}
-                </div>
+                <SeletorCor cores={CORES} corSelecionada={form.cor} tamanho="sm"
+                  aoSelecionar={c => setForm(f => ({ ...f, cor: c }))} />
               </div>
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={closeForm}
-                  className="flex-1 py-2.5 rounded-lg border border-gray-700 text-gray-400 hover:text-white transition-colors text-sm font-medium">
+                  className="flex-1 py-2.5 rounded-lg border border-borda text-conteudo-suave hover:text-conteudo transition-colors text-sm font-medium">
                   Cancelar
                 </button>
                 <button type="submit" disabled={saveMutation.isPending} className="flex-1 btn-primary">
@@ -139,7 +136,7 @@ export default function Categorias() {
               </div>
             </form>
           </div>
-        </div>
+        </SobreposicaoModal>
       )}
     </div>
   )

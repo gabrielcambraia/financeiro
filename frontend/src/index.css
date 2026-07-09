@@ -2,24 +2,44 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --fundo: 226 232 240;
+  --superficie: 255 255 255;
+  --superficie-2: 241 245 249;
+  --conteudo: 15 23 42;
+  --conteudo-suave: 100 116 139;
+  --borda: 226 232 240;
+  --acento: 5 150 105;
+}
+
+.dark {
+  --fundo: 2 6 23;
+  --superficie: 15 23 42;
+  --superficie-2: 30 41 59;
+  --conteudo: 241 245 249;
+  --conteudo-suave: 148 163 184;
+  --borda: 30 41 59;
+  --acento: 99 102 241;
+}
+
 @layer base {
   body {
-    @apply bg-gray-950 text-gray-100 antialiased;
+    @apply bg-fundo text-conteudo antialiased;
     margin: 0;
   }
   ::-webkit-scrollbar { @apply w-1.5 h-1.5; }
-  ::-webkit-scrollbar-track { @apply bg-gray-900; }
-  ::-webkit-scrollbar-thumb { @apply bg-gray-700 rounded-full; }
+  ::-webkit-scrollbar-track { @apply bg-superficie-2; }
+  ::-webkit-scrollbar-thumb { @apply bg-borda rounded-full; }
 }
 
 @layer components {
-  .card { @apply bg-gray-900 border border-gray-800 rounded-2xl p-5; }
-  .btn-primary { @apply bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50; }
-  .btn-ghost { @apply hover:bg-gray-800 text-gray-400 hover:text-white px-3 py-2 rounded-lg transition-colors; }
+  .card { @apply bg-superficie border border-borda rounded-2xl p-5; }
+  .btn-primary { @apply bg-acento hover:opacity-90 text-white px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50; }
+  .btn-ghost { @apply hover:bg-superficie-2 text-conteudo-suave hover:text-conteudo px-3 py-2 rounded-lg transition-colors; }
   .btn-danger { @apply bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors; }
-  .input { @apply bg-gray-800 border border-gray-700 text-gray-100 rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent placeholder:text-gray-500; }
-  .select { @apply bg-gray-800 border border-gray-700 text-gray-100 rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent; }
-  .label { @apply block text-sm font-medium text-gray-400 mb-1; }
-  .badge-income { @apply inline-flex items-center gap-1 text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full text-xs font-medium; }
-  .badge-expense { @apply inline-flex items-center gap-1 text-red-400 bg-red-400/10 px-2 py-0.5 rounded-full text-xs font-medium; }
+  .input { @apply bg-superficie-2 border border-borda text-conteudo rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-acento focus:border-transparent placeholder:text-conteudo-suave; }
+  .select { @apply bg-superficie-2 border border-borda text-conteudo rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-acento focus:border-transparent; }
+  .label { @apply block text-sm font-medium text-conteudo-suave mb-1; }
+  .badge-income { @apply inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full text-xs font-medium; }
+  .badge-expense { @apply inline-flex items-center gap-1 text-red-600 dark:text-red-400 bg-red-400/10 px-2 py-0.5 rounded-full text-xs font-medium; }
 }

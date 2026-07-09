@@ -5,6 +5,7 @@ import { format } from 'date-fns'
 import { buscarContas } from '../../api/contas'
 import { buscarCategorias } from '../../api/categorias'
 import { criarTransacao, atualizarTransacao } from '../../api/transacoes'
+import SobreposicaoModal from '../SobreposicaoModal'
 import type { Transacao, TipoTransacao, TipoPagamento } from '../../types'
 
 interface Props {
@@ -69,10 +70,10 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
   const set = (k: string, v: unknown) => setForm(f => ({ ...f, [k]: v }))
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <SobreposicaoModal>
       <div className="card w-full max-w-lg">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-semibold text-white">
+          <h2 className="text-lg font-semibold text-conteudo">
             {editing ? 'Editar Lançamento' : 'Novo Lançamento'}
           </h2>
           <button onClick={onClose} className="btn-ghost p-1.5"><X size={18} /></button>
@@ -80,7 +81,7 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Tipo */}
-          <div className="flex rounded-xl overflow-hidden border border-gray-700">
+          <div className="flex rounded-xl overflow-hidden border border-borda">
             {(['DESPESA', 'RECEITA'] as TipoTransacao[]).map(t => (
               <button
                 key={t}
@@ -89,7 +90,7 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
                 className={`flex-1 py-2.5 text-sm font-medium transition-colors
                   ${tipo === t
                     ? t === 'DESPESA' ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white'
-                    : 'text-gray-400 hover:text-white'}`}
+                    : 'text-conteudo-suave hover:text-conteudo'}`}
               >
                 {t === 'DESPESA' ? 'Despesa' : 'Receita'}
               </button>
@@ -102,14 +103,14 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
               <label className="label">Conta</label>
               <select className="select" value={form.contaId} onChange={e => set('contaId', e.target.value)} required>
                 <option value="">Selecione...</option>
-                {contas.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                {[...contas].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
               </select>
             </div>
             <div>
               <label className="label">Categoria</label>
               <select className="select" value={form.categoriaId} onChange={e => set('categoriaId', e.target.value)}>
                 <option value="">Sem categoria</option>
-                {categorias.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                {[...categorias].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
               </select>
             </div>
           </div>
@@ -151,8 +152,8 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
                   onClick={() => set('tipoPagamento', p)}
                   className={`flex-1 py-2 text-sm rounded-lg border transition-colors
                     ${form.tipoPagamento === p
-                      ? 'border-indigo-500 bg-indigo-600/20 text-indigo-300'
-                      : 'border-gray-700 text-gray-400 hover:border-gray-600'}`}
+                      ? 'border-acento bg-acento/20 text-acento'
+                      : 'border-borda text-conteudo-suave hover:border-conteudo-suave'}`}
                 >
                   {p === 'DEBITO' ? 'Débito' : 'Crédito'}
                 </button>
@@ -163,14 +164,14 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
           {/* Fixa / Parcelada — só para despesas ou sem parcelamento para receitas */}
           {!editing && (
             <div className="space-y-3">
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-800">
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-superficie-2">
                 <input
                   id="fixa" type="checkbox"
                   checked={form.fixa}
                   onChange={e => { set('fixa', e.target.checked); if (e.target.checked) set('totalParcelas', '') }}
-                  className="w-4 h-4 accent-indigo-500"
+                  className="w-4 h-4 accent-acento"
                 />
-                <label htmlFor="fixa" className="text-sm text-gray-300">
+                <label htmlFor="fixa" className="text-sm text-conteudo">
                   Repetir todo mês (fixa)
                 </label>
               </div>
@@ -189,7 +190,7 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
           )}
 
           <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-lg border border-gray-700 text-gray-400 hover:text-white hover:border-gray-600 transition-colors text-sm font-medium">
+            <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-lg border border-borda text-conteudo-suave hover:text-conteudo hover:border-conteudo-suave transition-colors text-sm font-medium">
               Cancelar
             </button>
             <button type="submit" disabled={mutation.isPending} className="flex-1 btn-primary">
@@ -198,6 +199,6 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
           </div>
         </form>
       </div>
-    </div>
+    </SobreposicaoModal>
   )
 }

@@ -9,7 +9,7 @@ import Categorias from './pages/Categorias'
 import Login from './pages/Login'
 import Registro from './pages/Registro'
 import TrocarSenha from './pages/TrocarSenha'
-import Membros from './pages/Membros'
+import Perfil from './pages/Perfil'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -31,7 +31,7 @@ export default function App() {
               <Route path="transacoes" element={<Transacoes />} />
               <Route path="contas" element={<Contas />} />
               <Route path="categorias" element={<Categorias />} />
-              <Route path="membros" element={<Membros />} />
+              <Route path="perfil" element={<Perfil />} />
             </Route>
           </Route>
         </Routes>
