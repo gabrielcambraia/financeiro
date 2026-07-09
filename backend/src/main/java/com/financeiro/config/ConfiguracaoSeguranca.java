@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -16,9 +17,12 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 /**
  * Cadeia de segurança única: exige JWT em toda a API, exceto /api/auth/register,
- * /api/auth/login e /api/auth/config.
+ * /api/auth/login e /api/auth/config. {@code @EnableMethodSecurity} habilita
+ * {@code @PreAuthorize} para checagens de papel (ex.: DONO) direto nos
+ * métodos de serviço, via bean SpEL {@code AutorizacaoEspaco}.
  */
 @Configuration
+@EnableMethodSecurity
 public class ConfiguracaoSeguranca {
 
     @Bean

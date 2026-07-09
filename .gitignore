@@ -5,6 +5,7 @@ backend/.node/
 backend/financeiro.db
 backend/financeiro.db.bak
 backend/src/main/resources/static/
+backend/.env.local
 
 # Frontend
 frontend/node_modules/

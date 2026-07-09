@@ -1,29 +1,12 @@
 # Financeiro
 
-Aplicativo de gestão financeira pessoal. Roda localmente no Windows sem precisar de internet ou conta em serviço externo.
+Aplicativo de gestão financeira. Servidor multi-tenant (Spring Boot + React), com login obrigatório e dados em PostgreSQL. Hospedado no [Render](https://render.com) com banco gerenciado no [Neon](https://neon.tech).
 
 ---
 
-## Para usuários finais
+## Rodando em produção
 
-1. Acesse a página de [Releases](../../releases) do repositório
-2. Vá em tags
-3. Baixe o arquivo `financeiro-vX.X.X.zip` da versão mais recente
-4. Extraia em uma pasta de sua preferência (ex: `C:\financeiro\`)
-5. **Clique com botão direito no `start.bat` → Propriedades → marque "Desbloquear" → OK**
-6. Execute o `start.bat`
-
-> **Por que o passo 5?** O Windows bloqueia arquivos baixados da internet por segurança (Smart App Control). Desbloquear o `.bat` é necessário apenas na primeira vez.
-
-Na primeira execução, se Java não estiver instalado, o programa cuida disso automaticamente.
-
-### Atualizar
-
-1. Baixe o ZIP da nova versão
-2. Extraia **na mesma pasta** onde já está instalado
-3. Execute o `start.bat` normalmente
-
-> Seus dados ficam no arquivo `financeiro.db`, que não é apagado na atualização.
+O deploy é automático via `render.yaml` (Blueprint do Render) a cada push na `main`. Não há passo manual.
 
 ---
 
@@ -34,13 +17,32 @@ Na primeira execução, se Java não estiver instalado, o programa cuida disso a
 - Java 21+
 - Maven (ou usar o bundled em `backend/.maven/`)
 - Node.js 20+ (ou deixar o `frontend-maven-plugin` baixar automaticamente)
+- Docker (para o Postgres local)
+
+### Subir o Postgres local
+
+```bash
+docker compose up -d
+```
+
+Isso sobe um Postgres 16 em `localhost:5432` (usuário/senha/banco `financeiro`), com dado persistido num volume Docker.
 
 ### Rodar em modo desenvolvimento
 
+Na primeira vez, copie o template de variáveis de ambiente do backend:
+
 ```bash
-# Terminal 1 — backend (porta 8080)
 cd backend
-.maven\apache-maven-3.9.6\bin\mvn.cmd spring-boot:run
+copy .env.local.example .env.local
+```
+
+`.env.local` não vai pro git (mesmo esquema do `frontend/.env.local`) — ajuste os valores se seu Postgres local usar outras credenciais.
+
+```bash
+# Terminal 1 — backend (porta 8080), lê backend/.env.local automaticamente
+cd backend
+./dev.sh        # Git Bash / WSL / Linux / macOS
+.\dev.ps1       # PowerShell
 
 # Terminal 2 — frontend com hot reload (porta 5173)
 cd frontend
@@ -49,6 +51,8 @@ npm run dev
 ```
 
 Acesse `http://localhost:5173`. As chamadas `/api` são redirecionadas automaticamente para o backend.
+
+Na primeira execução o Flyway aplica o schema (`V1__esquema_inicial.sql`) sozinho num banco vazio. Como login é sempre obrigatório, crie o primeiro usuário pela tela de Registro (ou `POST /api/auth/register`) — isso já cria o espaço pessoal e semeia as categorias padrão.
 
 ### Build do JAR
 
@@ -60,36 +64,23 @@ cd backend
 O Maven builda o frontend e o embute no JAR automaticamente.
 JAR gerado em: `backend/target/backend-1.0.0.jar`
 
+Para rodar o JAR localmente, defina as mesmas env vars (`SPRING_DATASOURCE_URL/USERNAME/PASSWORD`, `JWT_SECRET`) antes de `java -jar`.
+
 ### Publicar uma nova versão
 
-1. Faça commit de todas as alterações e suba para o `main`
-2. Crie e suba uma tag com a versão:
-
-```bash
-git tag v1.0.1
-git push origin main --tags
-```
-
-O GitHub Actions vai automaticamente:
-- Buildar o JAR (com frontend embutido)
-- Criar o arquivo `financeiro-v1.0.1.zip`
-- Publicar um Release no GitHub com o ZIP e as instruções de instalação
-
-Acompanhe o progresso em: `Actions` → `Release`
+Basta dar push na `main` — o Render builda a imagem (`Dockerfile`) e faz o deploy automaticamente.
 
 ### Estrutura do projeto
 
 ```
 financeiro/
-├── backend/          # Spring Boot + Java 21
-├── frontend/         # React + Vite + TypeScript
-├── start.bat         # Inicialização para desenvolvimento
-├── start-release.bat # Inicialização para usuário final (incluído no ZIP)
-└── .github/
-    └── workflows/
-        └── release.yml   # Pipeline de build e publicação
+├── backend/            # Spring Boot + Java 21
+├── frontend/           # React + Vite + TypeScript
+├── docker-compose.yml  # Postgres local para desenvolvimento
+├── Dockerfile          # Imagem usada no deploy (Render)
+└── render.yaml         # Blueprint de deploy do Render
 ```
 
 ### Banco de dados
 
-O banco SQLite (`financeiro.db`) é criado automaticamente na primeira execução, na mesma pasta do JAR. As migrações são gerenciadas pelo Flyway — ao atualizar o JAR, novas migrações são aplicadas automaticamente sem perder dados.
+PostgreSQL, gerenciado via Flyway (`backend/src/main/resources/db/migration`). Em produção, o banco é o Neon; localmente, use o `docker-compose.yml` acima. Nunca edite uma migration já aplicada — sempre crie uma nova (`V7__...sql`, `V8__...sql`, etc.).

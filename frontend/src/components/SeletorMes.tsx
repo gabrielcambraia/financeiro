@@ -8,11 +8,11 @@ export default function SeletorMes() {
   const data = parseISO(`${mes}-01`)
 
   return (
-    <div className="flex items-center gap-2 bg-gray-800 rounded-xl px-3 py-1.5">
+    <div className="flex items-center justify-between md:justify-start gap-2 bg-superficie-2 rounded-xl px-3 py-1.5 w-full md:w-auto">
       <button onClick={() => definirMes(format(subMonths(data, 1), 'yyyy-MM'))} className="btn-ghost p-1">
         <ChevronLeft size={16} />
       </button>
-      <span className="text-sm font-medium text-white min-w-[120px] text-center capitalize">
+      <span className="text-sm font-medium text-conteudo min-w-[120px] text-center capitalize">
         {format(data, 'MMMM yyyy', { locale: ptBR })}
       </span>
       <button onClick={() => definirMes(format(addMonths(data, 1), 'yyyy-MM'))} className="btn-ghost p-1">
