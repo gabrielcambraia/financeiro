@@ -8,7 +8,7 @@ export default function SeletorMes() {
   const data = parseISO(`${mes}-01`)
 
   return (
-    <div className="flex items-center gap-2 bg-superficie-2 rounded-xl px-3 py-1.5">
+    <div className="flex items-center justify-between md:justify-start gap-2 bg-superficie-2 rounded-xl px-3 py-1.5 w-full md:w-auto">
       <button onClick={() => definirMes(format(subMonths(data, 1), 'yyyy-MM'))} className="btn-ghost p-1">
         <ChevronLeft size={16} />
       </button>

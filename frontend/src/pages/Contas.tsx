@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Pencil, Trash2, Wallet, PiggyBank, CreditCard, TrendingUp } from 'lucide-react'
+import { Pencil, Trash2, Wallet, PiggyBank, CreditCard, TrendingUp } from 'lucide-react'
 import { buscarContas, criarConta, atualizarConta, excluirConta } from '../api/contas'
 import SobreposicaoModal from '../components/SobreposicaoModal'
 import SeletorCor from '../components/SeletorCor'
+import AcaoNova from '../components/AcaoNova'
 import type { Conta, TipoConta } from '../types'
 
 const fmt = (v: number) =>
@@ -61,9 +62,7 @@ export default function Contas() {
           <h1 className="text-2xl font-bold text-conteudo">Contas</h1>
           <p className="text-sm text-conteudo-suave mt-0.5">Saldo total: <span className={`font-semibold ${saldoTotal >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{fmt(saldoTotal)}</span></p>
         </div>
-        <button onClick={openCreate} className="btn-primary flex items-center gap-2">
-          <Plus size={16} /> Nova Conta
-        </button>
+        <AcaoNova aoClicar={openCreate} rotulo="Nova conta" />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -81,7 +80,7 @@ export default function Contas() {
                     <p className="text-xs text-conteudo-suave">{TIPOS_CONTA.find(t => t.value === conta.tipo)?.label}</p>
                   </div>
                 </div>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                   <button onClick={() => openEdit(conta)} className="p-1.5 rounded-lg hover:bg-superficie-2 text-conteudo-suave hover:text-conteudo transition-colors">
                     <Pencil size={14} />
                   </button>
@@ -100,7 +99,7 @@ export default function Contas() {
         })}
 
         {contas.length === 0 && (
-          <div className="card col-span-3 text-center py-12 text-conteudo-suave">
+          <div className="card col-span-full text-center py-12 text-conteudo-suave">
             Nenhuma conta cadastrada. Crie a primeira!
           </div>
         )}
@@ -108,13 +107,13 @@ export default function Contas() {
 
       {/* Modal do formulário */}
       {showForm && (
-        <SobreposicaoModal>
-          <div className="card w-full max-w-md">
-            <div className="flex items-center justify-between mb-5">
+        <SobreposicaoModal aoFechar={closeForm}>
+          <div className="cartao-modal max-w-md">
+            <div className="cartao-modal-cabecalho">
               <h2 className="text-lg font-semibold text-conteudo">{editing ? 'Editar Conta' : 'Nova Conta'}</h2>
               <button onClick={closeForm} className="btn-ghost p-1.5 text-sm">✕</button>
             </div>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="cartao-modal-corpo">
               <div>
                 <label className="label">Nome</label>
                 <input className="input" placeholder="Ex: Nubank, Carteira..." required

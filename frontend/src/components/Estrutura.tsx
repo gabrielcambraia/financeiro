@@ -1,18 +1,11 @@
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
-import {
-  LayoutDashboard, ArrowLeftRight, Wallet, Tags, ChevronLeft, ChevronRight, LogOut
-} from 'lucide-react'
+import { ChevronLeft, ChevronRight, LogOut } from 'lucide-react'
 import { useState } from 'react'
 import { useLojaAutenticacao } from '../store/lojaAutenticacao'
 import { iniciaisDoNome } from '../utils/formatadores'
 import AlternadorTema from './AlternadorTema'
-
-const itensNavegacao = [
-  { to: '/', icon: LayoutDashboard, label: 'Painel' },
-  { to: '/transacoes', icon: ArrowLeftRight, label: 'Lançamentos' },
-  { to: '/contas', icon: Wallet, label: 'Contas' },
-  { to: '/categorias', icon: Tags, label: 'Categorias' },
-]
+import NavegacaoInferior from './NavegacaoInferior'
+import { itensNavegacao } from '../config/navegacao'
 
 export default function Estrutura() {
   const [recolhido, setRecolhido] = useState(false)
@@ -26,9 +19,9 @@ export default function Estrutura() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-fundo p-3 gap-3">
+    <div className="flex h-screen overflow-hidden bg-fundo p-0 md:p-3 gap-0 md:gap-3">
       {/* Sidebar arredondada e flutuante — cinza no tema claro, preta no escuro */}
-      <aside className={`flex flex-col bg-superficie rounded-3xl transition-all duration-300 ${recolhido ? 'w-16' : 'w-56'}`}>
+      <aside className={`hidden md:flex flex-col bg-superficie rounded-3xl transition-all duration-300 ${recolhido ? 'w-16' : 'w-56'}`}>
         <div className="flex items-center justify-between p-4">
           {!recolhido && <span className="font-bold text-conteudo text-lg">Financeiro</span>}
           <button onClick={() => setRecolhido(!recolhido)} className="p-1.5 ml-auto text-conteudo-suave hover:text-conteudo rounded-lg hover:bg-superficie-2 transition-colors">
@@ -70,18 +63,11 @@ export default function Estrutura() {
               )}
             </Link>
           )}
-          {sessao && (
-            <button onClick={handleSair}
-              className="flex items-center gap-3 px-3 py-2 rounded-xl w-full text-sm font-medium text-conteudo-suave hover:text-conteudo hover:bg-superficie-2 transition-colors">
-              <LogOut size={18} className="shrink-0" />
-              {!recolhido && <span>Sair</span>}
-            </button>
-          )}
         </div>
       </aside>
 
       {/* Painel central branco flutuante e arredondado */}
-      <div className="flex-1 flex flex-col bg-superficie rounded-3xl overflow-hidden">
+      <div className="flex-1 flex flex-col bg-superficie rounded-none md:rounded-3xl overflow-hidden">
         <header className="flex items-center justify-end gap-3 px-6 py-3 border-b border-borda shrink-0">
           <AlternadorTema />
           {sessao && (
@@ -90,11 +76,18 @@ export default function Estrutura() {
               {iniciaisDoNome(sessao.nome)}
             </Link>
           )}
+          {sessao && (
+            <button onClick={handleSair} aria-label="Sair" className="btn-ghost p-1.5">
+              <LogOut size={18} />
+            </button>
+          )}
         </header>
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-auto pb-20 md:pb-0">
           <Outlet />
         </main>
       </div>
+
+      <NavegacaoInferior />
     </div>
   )
 }

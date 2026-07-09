@@ -78,11 +78,11 @@ export default function Painel() {
   return (
     <div className="p-6 space-y-6">
       {/* Cabeçalho */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <h1 className="text-2xl font-bold text-conteudo">Painel</h1>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center">
           <select
-            className="select w-44"
+            className="select w-full md:w-44"
             value={contaId ?? ''}
             onChange={e => definirContaId(e.target.value ? Number(e.target.value) : undefined)}
           >
@@ -94,15 +94,15 @@ export default function Painel() {
       </div>
 
       {/* Cartões resumo */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         {cartoesResumo.map(({ label, value, icon: Icon, color, bg }) => (
-          <div key={label} className="card flex items-start gap-4">
-            <div className={`${bg} ${color} p-3 rounded-xl`}>
+          <div key={label} className="card flex items-start gap-3 md:gap-4">
+            <div className={`${bg} ${color} p-2.5 md:p-3 rounded-xl shrink-0`}>
               <Icon size={20} />
             </div>
-            <div>
-              <p className="text-xs text-conteudo-suave mb-0.5">{label}</p>
-              <p className={`text-xl font-bold ${color}`}>{fmt(value)}</p>
+            <div className="min-w-0">
+              <p className="text-xs text-conteudo-suave mb-0.5 truncate">{label}</p>
+              <p className={`text-base md:text-xl font-bold ${color} truncate`}>{fmt(value)}</p>
             </div>
           </div>
         ))}
@@ -277,17 +277,17 @@ export default function Painel() {
                 className="flex items-center gap-3 px-3 py-2 rounded-xl transition-colors hover:bg-superficie-2 group cursor-default">
                 <div className="w-2.5 h-2.5 rounded-full shrink-0 transition-transform group-hover:scale-125"
                   style={{ background: categoria.cor }} />
-                <span className="text-sm text-conteudo-suave w-32 truncate group-hover:text-conteudo transition-colors">
+                <span className="text-sm text-conteudo-suave w-24 md:w-32 truncate group-hover:text-conteudo transition-colors">
                   {categoria.nome}
                 </span>
                 <div className="flex-1 bg-superficie-2 rounded-full h-2">
                   <div className="h-2 rounded-full transition-all group-hover:brightness-125"
                     style={{ width: `${percentual}%`, background: categoria.cor }} />
                 </div>
-                <span className="text-sm text-conteudo w-20 text-right font-medium transition-colors">
+                <span className="text-sm text-conteudo w-14 md:w-20 text-right font-medium transition-colors">
                   {fmt(total)}
                 </span>
-                <span className="text-xs text-conteudo-suave w-10 text-right transition-colors">
+                <span className="hidden sm:block text-xs text-conteudo-suave w-10 text-right transition-colors">
                   {percentual.toFixed(0)}%
                 </span>
               </div>

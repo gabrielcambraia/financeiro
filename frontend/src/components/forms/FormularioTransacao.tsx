@@ -70,16 +70,16 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
   const set = (k: string, v: unknown) => setForm(f => ({ ...f, [k]: v }))
 
   return (
-    <SobreposicaoModal>
-      <div className="card w-full max-w-lg">
-        <div className="flex items-center justify-between mb-5">
+    <SobreposicaoModal aoFechar={onClose}>
+      <div className="cartao-modal max-w-lg">
+        <div className="cartao-modal-cabecalho">
           <h2 className="text-lg font-semibold text-conteudo">
             {editing ? 'Editar Lançamento' : 'Novo Lançamento'}
           </h2>
           <button onClick={onClose} className="btn-ghost p-1.5"><X size={18} /></button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="cartao-modal-corpo">
           {/* Tipo */}
           <div className="flex rounded-xl overflow-hidden border border-borda">
             {(['DESPESA', 'RECEITA'] as TipoTransacao[]).map(t => (
@@ -98,7 +98,7 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
           </div>
 
           {/* Conta e Categoria */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="label">Conta</label>
               <select className="select" value={form.contaId} onChange={e => set('contaId', e.target.value)} required>
@@ -116,7 +116,7 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
           </div>
 
           {/* Valor e Data */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="label">Valor (R$)</label>
               <input
@@ -202,3 +202,4 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
     </SobreposicaoModal>
   )
 }
+

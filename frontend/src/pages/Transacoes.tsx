@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Trash2, Pencil, CreditCard, Banknote, Repeat, Layers } from 'lucide-react'
+import { Trash2, Pencil, CreditCard, Banknote, Repeat, Layers } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { buscarTransacoes, excluirTransacao, type EscopoExclusao } from '../api/transacoes'
@@ -9,6 +9,7 @@ import { useLojaFiltro } from '../store/lojaFiltro'
 import SeletorMes from '../components/SeletorMes'
 import FormularioTransacao from '../components/forms/FormularioTransacao'
 import SobreposicaoModal from '../components/SobreposicaoModal'
+import AcaoNova from '../components/AcaoNova'
 import type { Transacao, TipoTransacao } from '../types'
 
 const fmt = (v: number) =>
@@ -72,64 +73,62 @@ export default function Transacoes() {
 
   return (
     <div className="p-6 space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <h1 className="text-2xl font-bold text-conteudo">Lançamentos</h1>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 md:w-auto">
           <SeletorMes />
-          <button onClick={() => { setEditing(undefined); setShowForm(true) }} className="btn-primary flex items-center gap-2">
-            <Plus size={16} /> Novo
-          </button>
+          <AcaoNova aoClicar={() => { setEditing(undefined); setShowForm(true) }} rotulo="Novo lançamento" />
         </div>
       </div>
 
       {/* Barra de resumo */}
       <div className="space-y-2">
-        <div className="grid grid-cols-3 gap-4">
-          <div className="card text-center">
+        <div className="grid grid-cols-3 gap-2 md:gap-4">
+          <div className="card text-center p-3 md:p-5">
             <p className="text-xs text-conteudo-suave mb-1">Receitas</p>
-            <p className="text-lg font-bold text-emerald-500">{fmt(totalReceitas)}</p>
+            <p className="text-sm md:text-lg font-bold text-emerald-500">{fmt(totalReceitas)}</p>
           </div>
-          <div className="card text-center">
+          <div className="card text-center p-3 md:p-5">
             <p className="text-xs text-conteudo-suave mb-1">Despesas</p>
-            <p className="text-lg font-bold text-red-500">{fmt(totalDespesas)}</p>
+            <p className="text-sm md:text-lg font-bold text-red-500">{fmt(totalDespesas)}</p>
           </div>
-          <div className="card text-center">
+          <div className="card text-center p-3 md:p-5">
             <p className="text-xs text-conteudo-suave mb-1">Saldo</p>
-            <p className={`text-lg font-bold ${totalReceitas - totalDespesas >= 0 ? 'text-acento' : 'text-orange-500'}`}>
+            <p className={`text-sm md:text-lg font-bold ${totalReceitas - totalDespesas >= 0 ? 'text-acento' : 'text-orange-500'}`}>
               {fmt(totalReceitas - totalDespesas)}
             </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
-          <div className="card text-center border border-emerald-400/20">
+        <div className="grid grid-cols-3 gap-2 md:gap-4">
+          <div className="card text-center p-3 md:p-5 border border-emerald-400/20">
             <p className="text-xs text-conteudo-suave mb-1">Receitas recebidas</p>
-            <p className="text-base font-bold text-emerald-500">{fmt(receitasRealizadas)}</p>
+            <p className="text-sm md:text-base font-bold text-emerald-500">{fmt(receitasRealizadas)}</p>
           </div>
-          <div className="card text-center border border-emerald-400/20">
+          <div className="card text-center p-3 md:p-5 border border-emerald-400/20">
             <p className="text-xs text-conteudo-suave mb-1">Despesas pagas</p>
-            <p className="text-base font-bold text-red-500">{fmt(despesasRealizadas)}</p>
+            <p className="text-sm md:text-base font-bold text-red-500">{fmt(despesasRealizadas)}</p>
           </div>
-          <div className="card text-center border border-emerald-400/20">
+          <div className="card text-center p-3 md:p-5 border border-emerald-400/20">
             <p className="text-xs text-conteudo-suave mb-1">Saldo atual</p>
-            <p className={`text-base font-bold ${receitasRealizadas - despesasRealizadas >= 0 ? 'text-acento' : 'text-orange-500'}`}>
+            <p className={`text-sm md:text-base font-bold ${receitasRealizadas - despesasRealizadas >= 0 ? 'text-acento' : 'text-orange-500'}`}>
               {fmt(receitasRealizadas - despesasRealizadas)}
             </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
-          <div className="card text-center border border-amber-400/20">
+        <div className="grid grid-cols-3 gap-2 md:gap-4">
+          <div className="card text-center p-3 md:p-5 border border-amber-400/20">
             <p className="text-xs text-conteudo-suave mb-1">Receitas a receber</p>
-            <p className="text-base font-bold text-emerald-500">{fmt(receitasPendentes)}</p>
+            <p className="text-sm md:text-base font-bold text-emerald-500">{fmt(receitasPendentes)}</p>
           </div>
-          <div className="card text-center border border-amber-400/20">
+          <div className="card text-center p-3 md:p-5 border border-amber-400/20">
             <p className="text-xs text-conteudo-suave mb-1">Despesas a pagar</p>
-            <p className="text-base font-bold text-red-500">{fmt(despesasPendentes)}</p>
+            <p className="text-sm md:text-base font-bold text-red-500">{fmt(despesasPendentes)}</p>
           </div>
-          <div className="card text-center border border-amber-400/20">
+          <div className="card text-center p-3 md:p-5 border border-amber-400/20">
             <p className="text-xs text-conteudo-suave mb-1">Saldo futuro</p>
-            <p className={`text-base font-bold ${receitasPendentes - despesasPendentes >= 0 ? 'text-acento' : 'text-orange-500'}`}>
+            <p className={`text-sm md:text-base font-bold ${receitasPendentes - despesasPendentes >= 0 ? 'text-acento' : 'text-orange-500'}`}>
               {fmt(receitasPendentes - despesasPendentes)}
             </p>
           </div>
@@ -137,13 +136,13 @@ export default function Transacoes() {
       </div>
 
       {/* Filtros */}
-      <div className="flex gap-3">
-        <select className="select w-40" value={filtroTipo} onChange={e => setFiltroTipo(e.target.value as any)}>
+      <div className="flex flex-col gap-3 md:flex-row">
+        <select className="select w-full md:w-40" value={filtroTipo} onChange={e => setFiltroTipo(e.target.value as any)}>
           <option value="">Todos</option>
           <option value="RECEITA">Receitas</option>
           <option value="DESPESA">Despesas</option>
         </select>
-        <select className="select w-48" value={filtroCategoria} onChange={e => setFiltroCategoria(e.target.value ? Number(e.target.value) : '')}>
+        <select className="select w-full md:w-48" value={filtroCategoria} onChange={e => setFiltroCategoria(e.target.value ? Number(e.target.value) : '')}>
           <option value="">Todas categorias</option>
           {categorias.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
         </select>
@@ -212,7 +211,7 @@ export default function Transacoes() {
                     </span>
 
                     {/* Ações */}
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                       <button onClick={() => { setEditing(tx); setShowForm(true) }}
                         className="p-1.5 rounded-lg hover:bg-superficie-2 text-conteudo-suave hover:text-conteudo transition-colors">
                         <Pencil size={14} />
@@ -239,43 +238,47 @@ export default function Transacoes() {
 
       {/* Modal de exclusão */}
       {deleteModal && (
-        <SobreposicaoModal>
-          <div className="card w-full max-w-sm">
-            <h3 className="text-base font-semibold text-conteudo mb-2">Excluir lançamento</h3>
-            <p className="text-sm text-conteudo-suave mb-5">
-              {deleteModal.tx.grupoParcelaId
-                ? 'Este lançamento faz parte de um parcelamento.'
-                : deleteModal.tx.fixa
-                  ? 'Este é um lançamento fixo.'
-                  : 'Tem certeza que deseja excluir?'}
-            </p>
-            <div className="space-y-2">
-              <button onClick={() => deleteMutation.mutate({ id: deleteModal.tx.id, scope: 'UNICA' })}
-                className="w-full btn-danger">
-                Excluir só este
-              </button>
-              {deleteModal.tx.grupoParcelaId && (
-                <button onClick={() => deleteMutation.mutate({ id: deleteModal.tx.id, scope: 'FUTURAS' })}
-                  className="w-full py-2.5 rounded-lg border border-red-800 text-red-500 hover:bg-red-900/20 transition-colors text-sm font-medium">
-                  Excluir este e os próximos
+        <SobreposicaoModal aoFechar={() => setDeleteModal(null)}>
+          <div className="cartao-modal max-w-sm">
+            <div className="cartao-modal-cabecalho">
+              <h3 className="text-base font-semibold text-conteudo">Excluir lançamento</h3>
+            </div>
+            <div className="cartao-modal-corpo">
+              <p className="text-sm text-conteudo-suave">
+                {deleteModal.tx.grupoParcelaId
+                  ? 'Este lançamento faz parte de um parcelamento.'
+                  : deleteModal.tx.fixa
+                    ? 'Este é um lançamento fixo.'
+                    : 'Tem certeza que deseja excluir?'}
+              </p>
+              <div className="space-y-2">
+                <button onClick={() => deleteMutation.mutate({ id: deleteModal.tx.id, scope: 'UNICA' })}
+                  className="w-full btn-danger">
+                  Excluir só este
                 </button>
-              )}
-              {deleteModal.tx.grupoParcelaId && (
-                <button onClick={() => deleteMutation.mutate({ id: deleteModal.tx.id, scope: 'GRUPO' })}
-                  className="w-full py-2.5 rounded-lg border border-red-800 text-red-500 hover:bg-red-900/20 transition-colors text-sm font-medium">
-                  Excluir todas as parcelas
+                {deleteModal.tx.grupoParcelaId && (
+                  <button onClick={() => deleteMutation.mutate({ id: deleteModal.tx.id, scope: 'FUTURAS' })}
+                    className="w-full py-2.5 rounded-lg border border-red-800 text-red-500 hover:bg-red-900/20 transition-colors text-sm font-medium">
+                    Excluir este e os próximos
+                  </button>
+                )}
+                {deleteModal.tx.grupoParcelaId && (
+                  <button onClick={() => deleteMutation.mutate({ id: deleteModal.tx.id, scope: 'GRUPO' })}
+                    className="w-full py-2.5 rounded-lg border border-red-800 text-red-500 hover:bg-red-900/20 transition-colors text-sm font-medium">
+                    Excluir todas as parcelas
+                  </button>
+                )}
+                {deleteModal.tx.fixa && (
+                  <button onClick={() => deleteMutation.mutate({ id: deleteModal.tx.id, scope: 'FUTURAS' })}
+                    className="w-full py-2.5 rounded-lg border border-red-800 text-red-500 hover:bg-red-900/20 transition-colors text-sm font-medium">
+                    Excluir este e os próximos meses
+                  </button>
+                )}
+                <button onClick={() => setDeleteModal(null)}
+                  className="w-full py-2.5 rounded-lg border border-borda text-conteudo-suave hover:text-conteudo transition-colors text-sm font-medium">
+                  Cancelar
                 </button>
-              )}
-              {deleteModal.tx.fixa && (
-                <button onClick={() => deleteMutation.mutate({ id: deleteModal.tx.id, scope: 'FUTURAS' })}
-                  className="w-full py-2.5 rounded-lg border border-red-800 text-red-500 hover:bg-red-900/20 transition-colors text-sm font-medium">
-                  Excluir este e os próximos meses
-                </button>
-              )}
-              <button onClick={() => setDeleteModal(null)}
-                className="w-full py-2.5 rounded-lg border border-borda text-conteudo-suave hover:text-conteudo transition-colors text-sm font-medium">
-                Cancelar
-              </button>
+              </div>
             </div>
           </div>
         </SobreposicaoModal>

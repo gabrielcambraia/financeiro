@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { Pencil, Trash2 } from 'lucide-react'
 import { buscarCategorias, criarCategoria, atualizarCategoria, excluirCategoria } from '../api/categorias'
 import SobreposicaoModal from '../components/SobreposicaoModal'
 import SeletorCor from '../components/SeletorCor'
+import AcaoNova from '../components/AcaoNova'
 import type { Categoria, TipoTransacao } from '../types'
 
 const CORES = ['#ef4444','#f97316','#eab308','#22c55e','#10b981','#06b6d4','#3b82f6','#8b5cf6','#ec4899','#6b7280','#6366f1','#84cc16']
@@ -47,9 +48,7 @@ export default function Categorias() {
     <div className="p-6 space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-conteudo">Categorias</h1>
-        <button onClick={openCreate} className="btn-primary flex items-center gap-2">
-          <Plus size={16} /> Nova Categoria
-        </button>
+        <AcaoNova aoClicar={openCreate} rotulo="Nova categoria" />
       </div>
 
       {/* Abas */}
@@ -65,7 +64,7 @@ export default function Categorias() {
         ))}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
         {categorias.map(cat => (
           <div key={cat.id} className="card flex items-center gap-3 group hover:border-conteudo-suave transition-colors">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg shrink-0"
@@ -75,7 +74,7 @@ export default function Categorias() {
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-conteudo truncate">{cat.nome}</p>
             </div>
-            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
               <button onClick={() => openEdit(cat)} className="p-1 rounded hover:bg-superficie-2 text-conteudo-suave hover:text-conteudo transition-colors">
                 <Pencil size={13} />
               </button>
@@ -87,20 +86,20 @@ export default function Categorias() {
           </div>
         ))}
         {categorias.length === 0 && (
-          <div className="card col-span-4 text-center py-10 text-conteudo-suave text-sm">
+          <div className="card col-span-full text-center py-10 text-conteudo-suave text-sm">
             Nenhuma categoria cadastrada.
           </div>
         )}
       </div>
 
       {showForm && (
-        <SobreposicaoModal>
-          <div className="card w-full max-w-md">
-            <div className="flex items-center justify-between mb-5">
+        <SobreposicaoModal aoFechar={closeForm}>
+          <div className="cartao-modal max-w-md">
+            <div className="cartao-modal-cabecalho">
               <h2 className="text-lg font-semibold text-conteudo">{editing ? 'Editar Categoria' : 'Nova Categoria'}</h2>
               <button onClick={closeForm} className="btn-ghost p-1.5 text-sm">✕</button>
             </div>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="cartao-modal-corpo">
               <div>
                 <label className="label">Nome</label>
                 <input className="input" placeholder="Ex: Alimentação, Salário..." required
