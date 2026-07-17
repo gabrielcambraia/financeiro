@@ -16,6 +16,8 @@ import com.financeiro.repository.EspacoRepository;
 import com.financeiro.repository.UsuarioEspacoRepository;
 import com.financeiro.repository.UsuarioRepository;
 import com.financeiro.seguranca.ServicoJwt;
+import com.financeiro.seguranca.ServicoTokenAtualizacao;
+import com.financeiro.seguranca.TokenRenovado;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -36,6 +38,7 @@ public class ServicoAutenticacao {
     private final UsuarioEspacoRepository usuarioEspacoRepository;
     private final PasswordEncoder passwordEncoder;
     private final ServicoJwt servicoJwt;
+    private final ServicoTokenAtualizacao servicoTokenAtualizacao;
     private final SemeadorCategoriasPadrao semeadorCategoriasPadrao;
     private final ContextoUsuario contextoUsuario;
 
@@ -45,6 +48,7 @@ public class ServicoAutenticacao {
             UsuarioEspacoRepository usuarioEspacoRepository,
             PasswordEncoder passwordEncoder,
             ServicoJwt servicoJwt,
+            ServicoTokenAtualizacao servicoTokenAtualizacao,
             SemeadorCategoriasPadrao semeadorCategoriasPadrao,
             ContextoUsuario contextoUsuario) {
         this.usuarioRepository = usuarioRepository;
@@ -52,12 +56,16 @@ public class ServicoAutenticacao {
         this.usuarioEspacoRepository = usuarioEspacoRepository;
         this.passwordEncoder = passwordEncoder;
         this.servicoJwt = servicoJwt;
+        this.servicoTokenAtualizacao = servicoTokenAtualizacao;
         this.semeadorCategoriasPadrao = semeadorCategoriasPadrao;
         this.contextoUsuario = contextoUsuario;
     }
 
+    public record ResultadoAutenticacao(RespostaAutenticacao resposta, String tokenAtualizacaoBruto) {
+    }
+
     @Transactional
-    public RespostaAutenticacao registrar(RequisicaoRegistro requisicao) {
+    public ResultadoAutenticacao registrar(RequisicaoRegistro requisicao, String userAgent) {
         if (usuarioRepository.findByEmail(requisicao.getEmail()).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "E-mail já cadastrado");
         }
@@ -82,11 +90,14 @@ public class ServicoAutenticacao {
         semeadorCategoriasPadrao.semear(espaco.getId());
 
         String token = servicoJwt.gerarToken(usuario.getId(), espaco.getId(), usuario.getEmail(), false);
-        return new RespostaAutenticacao(token, usuario.getId(), usuario.getNome(), usuario.getEmail(),
-                espaco.getId(), PapelUsuario.DONO, false);
+        TokenRenovado tokenAtualizacao = servicoTokenAtualizacao.emitir(usuario.getId(), espaco.getId(), userAgent);
+        RespostaAutenticacao resposta = new RespostaAutenticacao(token, usuario.getId(), usuario.getNome(),
+                usuario.getEmail(), espaco.getId(), PapelUsuario.DONO, false);
+        return new ResultadoAutenticacao(resposta, tokenAtualizacao.tokenBruto());
     }
 
-    public RespostaAutenticacao login(RequisicaoLogin requisicao) {
+    @Transactional
+    public ResultadoAutenticacao login(RequisicaoLogin requisicao, String userAgent) {
         Usuario usuario = usuarioRepository.findByEmail(requisicao.getEmail())
                 .orElseThrow(() -> new BadCredentialsException("Credenciais inválidas"));
 
@@ -100,12 +111,15 @@ public class ServicoAutenticacao {
 
         String token = servicoJwt.gerarToken(usuario.getId(), vinculo.getId().getEspacoId(), usuario.getEmail(),
                 usuario.isPrecisaTrocarSenha());
-        return new RespostaAutenticacao(token, usuario.getId(), usuario.getNome(), usuario.getEmail(),
-                vinculo.getId().getEspacoId(), vinculo.getPapel(), usuario.isPrecisaTrocarSenha());
+        TokenRenovado tokenAtualizacao = servicoTokenAtualizacao.emitir(
+                usuario.getId(), vinculo.getId().getEspacoId(), userAgent);
+        RespostaAutenticacao resposta = new RespostaAutenticacao(token, usuario.getId(), usuario.getNome(),
+                usuario.getEmail(), vinculo.getId().getEspacoId(), vinculo.getPapel(), usuario.isPrecisaTrocarSenha());
+        return new ResultadoAutenticacao(resposta, tokenAtualizacao.tokenBruto());
     }
 
     @Transactional
-    public RespostaAutenticacao trocarSenha(RequisicaoTrocarSenha requisicao) {
+    public ResultadoAutenticacao trocarSenha(RequisicaoTrocarSenha requisicao, String userAgent) {
         Usuario usuario = usuarioRepository.findById(contextoUsuario.usuarioAtual())
                 .orElseThrow(() -> new IllegalStateException("Usuário autenticado não encontrado"));
 
@@ -122,7 +136,36 @@ public class ServicoAutenticacao {
                 .orElseThrow(() -> new IllegalStateException("Usuário sem espaço vinculado"));
 
         String token = servicoJwt.gerarToken(usuario.getId(), vinculo.getId().getEspacoId(), usuario.getEmail(), false);
-        return new RespostaAutenticacao(token, usuario.getId(), usuario.getNome(), usuario.getEmail(),
-                vinculo.getId().getEspacoId(), vinculo.getPapel(), false);
+        // Revoga tokens de outros dispositivos: uma troca de senha (inclusive por
+        // suspeita de comprometimento) não deve deixar sessões antigas vivas.
+        TokenRenovado tokenAtualizacao = servicoTokenAtualizacao.emitir(
+                usuario.getId(), vinculo.getId().getEspacoId(), userAgent);
+        RespostaAutenticacao resposta = new RespostaAutenticacao(token, usuario.getId(), usuario.getNome(),
+                usuario.getEmail(), vinculo.getId().getEspacoId(), vinculo.getPapel(), false);
+        return new ResultadoAutenticacao(resposta, tokenAtualizacao.tokenBruto());
+    }
+
+    @Transactional
+    public ResultadoAutenticacao renovar(String tokenAtualizacaoBruto, String userAgent) {
+        TokenRenovado renovado = servicoTokenAtualizacao.rotacionar(tokenAtualizacaoBruto, userAgent);
+
+        Usuario usuario = usuarioRepository.findById(renovado.usuarioId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Sessão inválida"));
+        UsuarioEspaco vinculo = usuarioEspacoRepository.findByIdUsuarioId(usuario.getId()).stream()
+                .filter(v -> v.getId().getEspacoId().equals(renovado.espacoId()))
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Sessão inválida"));
+
+        String token = servicoJwt.gerarToken(usuario.getId(), vinculo.getId().getEspacoId(), usuario.getEmail(),
+                usuario.isPrecisaTrocarSenha());
+        RespostaAutenticacao resposta = new RespostaAutenticacao(token, usuario.getId(), usuario.getNome(),
+                usuario.getEmail(), vinculo.getId().getEspacoId(), vinculo.getPapel(), usuario.isPrecisaTrocarSenha());
+        return new ResultadoAutenticacao(resposta, renovado.tokenBruto());
+    }
+
+    public void sair(String tokenAtualizacaoBruto) {
+        if (tokenAtualizacaoBruto != null) {
+            servicoTokenAtualizacao.revogar(tokenAtualizacaoBruto);
+        }
     }
 }

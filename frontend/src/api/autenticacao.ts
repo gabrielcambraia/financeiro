@@ -26,3 +26,9 @@ export const obterConfigAuth = () =>
 
 export const trocarSenha = (dados: { senhaAtual: string; novaSenha: string }) =>
   cliente.post<RespostaAutenticacao>('/auth/trocar-senha', dados).then(r => r.data)
+
+export const renovar = () =>
+  cliente.post<RespostaAutenticacao>('/auth/renovar').then(r => r.data)
+
+export const sair = () =>
+  cliente.post('/auth/sair')

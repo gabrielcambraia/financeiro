@@ -3,6 +3,7 @@ package com.financeiro.service;
 import com.financeiro.context.ContextoEspaco;
 import com.financeiro.dto.ContaDTO;
 import com.financeiro.entity.Conta;
+import com.financeiro.erro.ExcecaoRecursoNaoEncontrado;
 import com.financeiro.repository.ContaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -34,7 +35,7 @@ public class ContaService {
 
     public ContaDTO update(Long id, ContaDTO dto) {
         Conta conta = repository.findByIdAndEspacoId(id, contextoEspaco.espacoAtual())
-                .orElseThrow(() -> new RuntimeException("Conta não encontrada: " + id));
+                .orElseThrow(() -> new ExcecaoRecursoNaoEncontrado("Conta não encontrada: " + id));
         conta.setNome(dto.getNome());
         conta.setTipo(dto.getTipo());
         conta.setSaldo(dto.getSaldo());
@@ -45,7 +46,7 @@ public class ContaService {
 
     public void delete(Long id) {
         Conta conta = repository.findByIdAndEspacoId(id, contextoEspaco.espacoAtual())
-                .orElseThrow(() -> new RuntimeException("Conta não encontrada: " + id));
+                .orElseThrow(() -> new ExcecaoRecursoNaoEncontrado("Conta não encontrada: " + id));
         repository.delete(conta);
     }
 

@@ -1,6 +1,7 @@
 export type TipoConta = 'CORRENTE' | 'POUPANCA' | 'CARTEIRA' | 'INVESTIMENTO'
 export type TipoTransacao = 'RECEITA' | 'DESPESA'
 export type TipoPagamento = 'DEBITO' | 'CREDITO'
+export type StatusTransacao = 'PENDENTE' | 'PAGA' | 'ATRASADA' | 'CANCELADA'
 
 export interface Conta {
   id: number
@@ -30,6 +31,10 @@ export interface Transacao {
   valor: number
   descricao?: string
   data: string
+  dataVencimento?: string
+  dataPagamento?: string
+  dataCancelamento?: string
+  status: StatusTransacao
   fixa: boolean
   totalParcelas?: number
   numeroParcela?: number

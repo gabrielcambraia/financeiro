@@ -13,3 +13,5 @@ services:
         sync: false
       - key: JWT_SECRET
         generateValue: true
+      - key: CORS_ORIGENS_PERMITIDAS
+        sync: false

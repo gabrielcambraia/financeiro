@@ -48,6 +48,18 @@ public class Transacao {
     @Column(nullable = false)
     private LocalDate data;
 
+    @Convert(converter = ConversorLocalDate.class)
+    @Column(name = "data_vencimento")
+    private LocalDate dataVencimento;
+
+    @Convert(converter = ConversorLocalDate.class)
+    @Column(name = "data_pagamento")
+    private LocalDate dataPagamento;
+
+    @Convert(converter = ConversorLocalDate.class)
+    @Column(name = "data_cancelamento")
+    private LocalDate dataCancelamento;
+
     @Column(name = "fixa", nullable = false)
     private boolean fixa;
 
@@ -78,6 +90,9 @@ public class Transacao {
     public void prePersist() {
         if (this.criadoEm == null) {
             this.criadoEm = LocalDateTime.now();
+        }
+        if (this.dataVencimento == null) {
+            this.dataVencimento = this.data;
         }
     }
 }

@@ -1,4 +1,4 @@
-# Financeiro
+cd # Financeiro
 
 Aplicativo de gestão financeira. Servidor multi-tenant (Spring Boot + React), com login obrigatório e dados em PostgreSQL. Hospedado no [Render](https://render.com) com banco gerenciado no [Neon](https://neon.tech).
 

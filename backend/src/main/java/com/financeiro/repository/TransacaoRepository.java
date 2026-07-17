@@ -25,11 +25,9 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
 
     List<Transacao> findByEspacoIdAndFixaTrueAndDataGreaterThanEqual(Long espacoId, LocalDate fromDate);
 
-    // Métodos globais usados apenas pelo AgendadorTransacaoFixa (job em background,
+    // Método global usado apenas pelo AgendadorTransacaoFixa (job em background,
     // sem contexto de espaço — processa todos os espaços e propaga o espacoId de
     // cada linha de origem para as cópias que cria).
-    List<Transacao> findBySaldoAjustadoFalseAndDataLessThanEqual(LocalDate data);
-
     List<Transacao> findByFixaTrueAndDataBetween(LocalDate start, LocalDate end);
 
     boolean existsByEspacoIdAndFixaTrueAndContaIdAndValorAndTipoAndDescricaoAndDataBetween(

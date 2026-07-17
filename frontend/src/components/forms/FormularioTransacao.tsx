@@ -16,16 +16,23 @@ interface Props {
 export default function FormularioTransacao({ onClose, editing }: Props) {
   const qc = useQueryClient()
   const [tipo, setTipo] = useState<TipoTransacao>(editing?.tipo ?? 'DESPESA')
+  const hoje = format(new Date(), 'yyyy-MM-dd')
+  const dataInicial = editing?.data ?? hoje
   const [form, setForm] = useState({
     contaId: editing?.contaId ?? '',
     categoriaId: editing?.categoriaId ?? '',
     tipoPagamento: (editing?.tipoPagamento ?? 'DEBITO') as TipoPagamento,
     valor: editing?.valor ?? '',
     descricao: editing?.descricao ?? '',
-    data: editing?.data ?? format(new Date(), 'yyyy-MM-dd'),
+    data: dataInicial,
+    dataVencimento: editing?.dataVencimento ?? dataInicial,
+    // Vazio = pendente. Ao criar, nasce preenchida se a data já chegou (mantém
+    // o fluxo leve de hoje); o usuário pode desmarcar para deixar a pagar.
+    dataPagamento: editing ? (editing.dataPagamento ?? '') : (dataInicial <= hoje ? dataInicial : ''),
     fixa: editing?.fixa ?? false,
     totalParcelas: editing?.totalParcelas ?? '',
   })
+  const paga = form.dataPagamento !== ''
 
   const { data: contas = [] } = useQuery({ queryKey: ['contas'], queryFn: buscarContas })
 
@@ -44,10 +51,12 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
       if (editing) { await atualizarTransacao(editing.id, payload); return [] }
       return criarTransacao(payload)
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['transacoes'] })
-      qc.invalidateQueries({ queryKey: ['painel'] })
-      qc.invalidateQueries({ queryKey: ['contas'] })
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ['transacoes'] }),
+        qc.invalidateQueries({ queryKey: ['painel'] }),
+        qc.invalidateQueries({ queryKey: ['contas'] }),
+      ])
       onClose()
     },
   })
@@ -62,6 +71,9 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
       valor: Number(form.valor),
       descricao: form.descricao || undefined,
       data: form.data,
+      dataVencimento: form.dataVencimento || form.data,
+      dataPagamento: paga ? (form.dataPagamento || form.data) : undefined,
+      quitarNaCriacao: paga,
       fixa: form.fixa,
       totalParcelas: form.totalParcelas ? Number(form.totalParcelas) : undefined,
     })
@@ -131,6 +143,39 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
                 value={form.data} onChange={e => set('data', e.target.value)} required
               />
             </div>
+          </div>
+
+          {/* Vencimento e pagamento */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="label">Vencimento</label>
+              <input
+                className="input" type="date"
+                value={form.dataVencimento} onChange={e => set('dataVencimento', e.target.value)} required
+              />
+            </div>
+            {paga && (
+              <div>
+                <label className="label">Data de pagamento</label>
+                <input
+                  className="input" type="date" max={hoje}
+                  value={form.dataPagamento} onChange={e => set('dataPagamento', e.target.value)}
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-superficie-2">
+            <input
+              id="paga" type="checkbox"
+              checked={paga}
+              onChange={e => set('dataPagamento', e.target.checked ? (form.dataPagamento || (form.data <= hoje ? form.data : hoje)) : '')}
+              className="w-4 h-4 accent-acento"
+            />
+            <label htmlFor="paga" className="text-sm text-conteudo">
+              {tipo === 'RECEITA' ? 'Já foi recebida' : 'Já foi paga'}
+              <span className="block text-xs text-conteudo-suave">Desmarque para deixar como pendente (não afeta o saldo até ser paga)</span>
+            </label>
           </div>
 
           {/* Descrição */}

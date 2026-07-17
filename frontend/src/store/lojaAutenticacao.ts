@@ -18,26 +18,11 @@ interface EstadoAutenticacao {
   limparSessao: () => void
 }
 
-const CHAVE_STORAGE = 'financeiro.sessao'
-
-const carregarSessaoInicial = (): SessaoAutenticacao | null => {
-  const bruto = localStorage.getItem(CHAVE_STORAGE)
-  if (!bruto) return null
-  try {
-    return JSON.parse(bruto) as SessaoAutenticacao
-  } catch {
-    return null
-  }
-}
-
+// O access token vive só em memória (nunca em localStorage) — sobrevive
+// enquanto a aba estiver aberta e é reidratado a cada carregamento via
+// POST /auth/renovar, que usa o cookie httpOnly de refresh token.
 export const useLojaAutenticacao = create<EstadoAutenticacao>(set => ({
-  sessao: carregarSessaoInicial(),
-  definirSessao: sessao => {
-    localStorage.setItem(CHAVE_STORAGE, JSON.stringify(sessao))
-    set({ sessao })
-  },
-  limparSessao: () => {
-    localStorage.removeItem(CHAVE_STORAGE)
-    set({ sessao: null })
-  },
+  sessao: null,
+  definirSessao: sessao => set({ sessao }),
+  limparSessao: () => set({ sessao: null }),
 }))
