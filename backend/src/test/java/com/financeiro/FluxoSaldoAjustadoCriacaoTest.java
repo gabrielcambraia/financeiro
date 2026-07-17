@@ -34,11 +34,11 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Trava o comportamento de {@code TransacaoService.create()} quanto ao campo
- * {@code saldoAjustado}: transações com data já alcançada ajustam o saldo da
- * conta imediatamente; transações futuras (inclusive as pré-criadas por
- * transações fixas e parcelas) não mexem no saldo até a data chegar. Ver
- * regra em CLAUDE.md "Lógica de saldo (balance_adjusted)".
+ * Trava o comportamento de {@code TransacaoService.create()} quanto à
+ * quitação na criação ({@code quitarNaCriacao}, default {@code true}):
+ * transações com data já alcançada ajustam o saldo da conta imediatamente;
+ * transações futuras (inclusive as pré-criadas por transações fixas e
+ * parcelas) nascem {@code PENDENTES} e não mexem no saldo até serem pagas.
  */
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -116,7 +116,7 @@ class FluxoSaldoAjustadoCriacaoTest {
         for (int i = 1; i <= 11; i++) {
             List<Map> doMes = transacoesDoMes(token, mesAtual.plusMonths(i));
             assertThat(doMes).as("mês +%d", i).hasSize(1);
-            assertThat(doMes.get(0).get("saldoAjustado")).isEqualTo(false);
+            assertThat(doMes.get(0).get("status")).isEqualTo("PENDENTE");
         }
     }
 

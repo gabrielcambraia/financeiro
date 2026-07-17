@@ -35,12 +35,12 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Trava o comportamento de {@link AgendadorTransacaoFixa}: maturação de
- * transações vencidas (saldoAjustado false -> true, saldo aplicado) e
+ * Trava o comportamento de {@link AgendadorTransacaoFixa}: a quitação de
+ * transações é manual (ver {@code TransacaoService.pagar}) — o agendador não
+ * ajusta mais saldo sozinho quando uma data é alcançada, ele só garante a
  * extensão da janela de 12 meses para transações fixas. Semeia estados que
- * a API nunca produz sozinha (transação passada ainda não ajustada) direto
- * no repositório — a única forma de reproduzir a pré-condição que o
- * agendador existe para corrigir (ex.: app ficou dias desligado).
+ * a API nunca produz sozinha (transação passada ainda não paga) direto no
+ * repositório para travar que o agendador não mexe nelas.
  */
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -77,14 +77,14 @@ class AgendadorTransacaoFixaTest {
     private ContaRepository contaRepository;
 
     @Test
-    void maturacao_vencidaNaoAjustada_ajustaSaldoEMarca() {
+    void agendador_naoMaturaVencida_saldoIntacto() {
         Usuario u = registrarComConta(BigDecimal.valueOf(100));
         Transacao t = seedTransacao(u, LocalDate.now().minusDays(1), BigDecimal.valueOf(30), false, false);
 
         agendador.onStartup();
 
-        assertThat(saldoAtual(u.contaId)).isEqualByComparingTo("70");
-        assertThat(transacaoRepository.findById(t.getId()).orElseThrow().isSaldoAjustado()).isTrue();
+        assertThat(saldoAtual(u.contaId)).isEqualByComparingTo("100");
+        assertThat(transacaoRepository.findById(t.getId()).orElseThrow().isSaldoAjustado()).isFalse();
     }
 
     @Test
@@ -128,7 +128,7 @@ class AgendadorTransacaoFixaTest {
     }
 
     @Test
-    void maturacao_multiplosEspacos_naoMistura() {
+    void agendador_naoMatura_multiplosEspacos() {
         Usuario a = registrarComConta(BigDecimal.valueOf(100));
         Usuario b = registrarComConta(BigDecimal.valueOf(200));
 
@@ -137,8 +137,8 @@ class AgendadorTransacaoFixaTest {
 
         agendador.onStartup();
 
-        assertThat(saldoAtual(a.contaId)).isEqualByComparingTo("90");
-        assertThat(saldoAtual(b.contaId)).isEqualByComparingTo("150");
+        assertThat(saldoAtual(a.contaId)).isEqualByComparingTo("100");
+        assertThat(saldoAtual(b.contaId)).isEqualByComparingTo("200");
     }
 
     private record Usuario(String token, Long usuarioId, Long espacoId, Long contaId) {

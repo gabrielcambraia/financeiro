@@ -66,7 +66,7 @@ class FluxoSaldoAjustadoAtualizacaoRemocaoTest {
     // ---------- update() ----------
 
     @Test
-    void update_moveFuturoParaPassado_aplicaSaldo() {
+    void update_comDataPagamento_aplicaSaldo() {
         String token = registrar();
         Long contaId = criarConta(token, BigDecimal.valueOf(100));
 
@@ -75,6 +75,7 @@ class FluxoSaldoAjustadoAtualizacaoRemocaoTest {
         assertThat(saldoConta(token, contaId)).isEqualByComparingTo("100");
 
         TransacaoDTO alteracao = transacao(contaId, TipoTransacao.DESPESA, BigDecimal.valueOf(40), LocalDate.now().minusDays(1));
+        alteracao.setDataPagamento(LocalDate.now().minusDays(1));
         atualizarTransacao(token, criada.getId(), alteracao);
 
         assertThat(saldoConta(token, contaId)).isEqualByComparingTo("60");
@@ -105,6 +106,7 @@ class FluxoSaldoAjustadoAtualizacaoRemocaoTest {
         assertThat(saldoConta(token, contaId)).isEqualByComparingTo("50");
 
         TransacaoDTO alteracao = transacao(contaId, TipoTransacao.DESPESA, BigDecimal.valueOf(80), LocalDate.now().minusDays(1));
+        alteracao.setDataPagamento(LocalDate.now().minusDays(1));
         atualizarTransacao(token, criada.getId(), alteracao);
 
         assertThat(saldoConta(token, contaId)).isEqualByComparingTo("20");
@@ -122,6 +124,7 @@ class FluxoSaldoAjustadoAtualizacaoRemocaoTest {
         assertThat(saldoConta(token, contaB)).isEqualByComparingTo("100");
 
         TransacaoDTO alteracao = transacao(contaB, TipoTransacao.DESPESA, BigDecimal.valueOf(30), LocalDate.now().minusDays(1));
+        alteracao.setDataPagamento(LocalDate.now().minusDays(1));
         atualizarTransacao(token, criada.getId(), alteracao);
 
         assertThat(saldoConta(token, contaA)).isEqualByComparingTo("100");
@@ -138,6 +141,7 @@ class FluxoSaldoAjustadoAtualizacaoRemocaoTest {
         assertThat(saldoConta(token, contaId)).isEqualByComparingTo("120");
 
         TransacaoDTO alteracao = transacao(contaId, TipoTransacao.DESPESA, BigDecimal.valueOf(20), LocalDate.now().minusDays(1));
+        alteracao.setDataPagamento(LocalDate.now().minusDays(1));
         atualizarTransacao(token, criada.getId(), alteracao);
 
         assertThat(saldoConta(token, contaId)).isEqualByComparingTo("80");

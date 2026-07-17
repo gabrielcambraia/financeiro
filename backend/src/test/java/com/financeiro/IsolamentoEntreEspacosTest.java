@@ -24,6 +24,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -64,8 +65,8 @@ class IsolamentoEntreEspacosTest {
 
     @BeforeEach
     void criarDoisUsuariosEmEspacosDistintos() {
-        tokenA = registrar("Usuária A", "usuaria.a@teste.com");
-        tokenB = registrar("Usuário B", "usuario.b@teste.com");
+        tokenA = registrar("Usuária A", "usuaria.a+" + UUID.randomUUID() + "@teste.com");
+        tokenB = registrar("Usuário B", "usuario.b+" + UUID.randomUUID() + "@teste.com");
     }
 
     @Test
