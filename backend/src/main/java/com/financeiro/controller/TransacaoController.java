@@ -8,7 +8,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/transacoes")
@@ -43,5 +45,25 @@ public class TransacaoController {
             @PathVariable Long id,
             @RequestParam(defaultValue = "UNICA") String scope) {
         service.delete(id, scope);
+    }
+
+    @PatchMapping("/{id}/pagar")
+    public TransacaoDTO pagar(@PathVariable Long id, @RequestBody(required = false) Map<String, String> body) {
+        LocalDate dataPagamento = body != null && body.get("dataPagamento") != null
+                ? LocalDate.parse(body.get("dataPagamento"))
+                : null;
+        return service.pagar(id, dataPagamento);
+    }
+
+    @PatchMapping("/{id}/estornar")
+    public TransacaoDTO estornar(@PathVariable Long id) {
+        return service.estornar(id);
+    }
+
+    @PatchMapping("/{id}/cancelar")
+    public TransacaoDTO cancelar(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "UNICA") String scope) {
+        return service.cancelar(id, scope);
     }
 }

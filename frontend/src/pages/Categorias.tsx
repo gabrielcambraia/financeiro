@@ -27,12 +27,12 @@ export default function Categorias() {
   const saveMutation = useMutation({
     mutationFn: (data: Omit<Categoria, 'id'>) =>
       editing ? atualizarCategoria(editing.id, data) : criarCategoria(data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['categorias'] }); closeForm() },
+    onSuccess: async () => { await qc.invalidateQueries({ queryKey: ['categorias'] }); closeForm() },
   })
 
   const deleteMutation = useMutation({
     mutationFn: excluirCategoria,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['categorias'] }),
+    onSuccess: async () => { await qc.invalidateQueries({ queryKey: ['categorias'] }) },
   })
 
   const openCreate = () => { setEditing(null); setForm({ ...formPadrao, tipo: aba }); setShowForm(true) }

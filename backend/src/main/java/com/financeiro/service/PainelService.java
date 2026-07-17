@@ -31,17 +31,22 @@ public class PainelService {
         YearMonth ym = YearMonth.parse(month);
         LocalDate start = ym.atDay(1);
         LocalDate end = ym.atEndOfMonth();
-        LocalDate today = LocalDate.now();
 
         List<Transacao> mesTx = fetch(espacoId, contaId, start, end, false);
 
-        List<Transacao> realizadasTx = mesTx.stream()
-                .filter(t -> !t.getData().isAfter(today)).toList();
-        List<Transacao> pendentesTx = mesTx.stream()
-                .filter(t -> t.getData().isAfter(today)).toList();
+        // Canceladas nunca aconteceram de fato — ficam fora de qualquer total.
+        List<Transacao> ativasTx = mesTx.stream()
+                .filter(t -> t.getDataCancelamento() == null).toList();
 
-        BigDecimal totalReceitas = sum(mesTx, TipoTransacao.RECEITA);
-        BigDecimal totalDespesas = sum(mesTx, TipoTransacao.DESPESA);
+        // Quitação é manual (ver TransacaoService): "realizado" é quem já foi
+        // pago (saldoAjustado), não mais quem tem data <= hoje.
+        List<Transacao> realizadasTx = ativasTx.stream()
+                .filter(Transacao::isSaldoAjustado).toList();
+        List<Transacao> pendentesTx = ativasTx.stream()
+                .filter(t -> !t.isSaldoAjustado()).toList();
+
+        BigDecimal totalReceitas = sum(ativasTx, TipoTransacao.RECEITA);
+        BigDecimal totalDespesas = sum(ativasTx, TipoTransacao.DESPESA);
 
         return PainelDTO.builder()
                 .totalReceitas(totalReceitas)
@@ -49,11 +54,11 @@ public class PainelService {
                 .saldoLiquido(totalReceitas.subtract(totalDespesas))
                 .realizado(buildResumoFluxo(realizadasTx))
                 .pendente(buildResumoFluxo(pendentesTx))
-                .despesasPorCategoria(buildResumoCategoria(mesTx, TipoTransacao.DESPESA, totalDespesas))
-                .receitasPorCategoria(buildResumoCategoria(mesTx, TipoTransacao.RECEITA, totalReceitas))
+                .despesasPorCategoria(buildResumoCategoria(ativasTx, TipoTransacao.DESPESA, totalDespesas))
+                .receitasPorCategoria(buildResumoCategoria(ativasTx, TipoTransacao.RECEITA, totalReceitas))
                 .tendenciaMensal(buildTendenciaMensal(espacoId, ym, contaId))
                 .saldosContas(buildSaldosContas(espacoId))
-                .saldoDiario(buildSaldoDiario(mesTx, ym))
+                .saldoDiario(buildSaldoDiario(ativasTx, ym))
                 .build();
     }
 
@@ -114,7 +119,8 @@ public class PainelService {
         LocalDate dataInicio = atual.minusMonths(5).atDay(1);
         LocalDate dataFim = atual.atEndOfMonth();
 
-        List<Transacao> todas = fetch(espacoId, contaId, dataInicio, dataFim, true);
+        List<Transacao> todas = fetch(espacoId, contaId, dataInicio, dataFim, true).stream()
+                .filter(t -> t.getDataCancelamento() == null).toList();
 
         List<PainelDTO.TendenciaMensal> tendencia = new ArrayList<>();
         for (int i = 5; i >= 0; i--) {

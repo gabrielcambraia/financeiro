@@ -1,11 +1,11 @@
 package com.financeiro.scheduler;
 
 import com.financeiro.entity.Transacao;
-import com.financeiro.entity.enums.TipoTransacao;
 import com.financeiro.repository.TransacaoRepository;
 import com.financeiro.service.ContaService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -39,24 +40,21 @@ public class AgendadorTransacaoFixa {
     }
 
     private void process() {
-        YearMonth mesAtual = YearMonth.from(LocalDate.now());
+        try {
+            MDC.put("idRequisicao", "agendador-" + UUID.randomUUID());
 
-        // 1. Ajusta saldo de qualquer transação (fixa ou não) cuja data já chegou
-        List<Transacao> vencidas = repository.findBySaldoAjustadoFalseAndDataLessThanEqual(
-                LocalDate.now());
+            YearMonth mesAtual = YearMonth.from(LocalDate.now());
 
-        for (Transacao t : vencidas) {
-            contaService.adjustBalance(t.getConta(),
-                    t.getTipo() == TipoTransacao.RECEITA ? t.getValor() : t.getValor().negate());
-            t.setSaldoAjustado(true);
-            repository.save(t);
-            log.info("Saldo ajustado: id={} data={}", t.getId(), t.getData());
-        }
-
-        // 2. Garante janela de 12 meses à frente para cada transação fixa ativa
-        for (int offset = 1; offset <= 12; offset++) {
-            YearMonth mesAlvo = mesAtual.plusMonths(offset);
-            extendTo(mesAtual, mesAlvo);
+            // Quitação de transações é manual (ver TransacaoService.pagar): o
+            // agendador NÃO ajusta mais saldo sozinho quando uma data é alcançada.
+            // Ele só garante que as transações fixas continuem sendo pré-criadas
+            // com 12 meses de antecedência, sempre nascendo PENDENTES.
+            for (int offset = 1; offset <= 12; offset++) {
+                YearMonth mesAlvo = mesAtual.plusMonths(offset);
+                extendTo(mesAtual, mesAlvo);
+            }
+        } finally {
+            MDC.clear();
         }
     }
 
@@ -80,6 +78,7 @@ public class AgendadorTransacaoFixa {
 
             if (!existe) {
                 int dia = Math.min(original.getData().getDayOfMonth(), mesAlvo.lengthOfMonth());
+                LocalDate dataCopia = mesAlvo.atDay(dia);
                 Transacao copia = Transacao.builder()
                         .conta(original.getConta())
                         .categoria(original.getCategoria())
@@ -87,7 +86,8 @@ public class AgendadorTransacaoFixa {
                         .tipoPagamento(original.getTipoPagamento())
                         .valor(original.getValor())
                         .descricao(original.getDescricao())
-                        .data(mesAlvo.atDay(dia))
+                        .data(dataCopia)
+                        .dataVencimento(dataCopia)
                         .fixa(true)
                         .saldoAjustado(false)
                         .espacoId(original.getEspacoId())

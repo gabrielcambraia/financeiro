@@ -3,6 +3,7 @@ package com.financeiro.service;
 import com.financeiro.context.ContextoEspaco;
 import com.financeiro.dto.CategoriaDTO;
 import com.financeiro.entity.Categoria;
+import com.financeiro.erro.ExcecaoRecursoNaoEncontrado;
 import com.financeiro.entity.enums.TipoTransacao;
 import com.financeiro.repository.CategoriaRepository;
 import lombok.RequiredArgsConstructor;
@@ -38,7 +39,7 @@ public class CategoriaService {
 
     public CategoriaDTO update(Long id, CategoriaDTO dto) {
         Categoria cat = repository.findByIdAndEspacoId(id, contextoEspaco.espacoAtual())
-                .orElseThrow(() -> new RuntimeException("Categoria não encontrada: " + id));
+                .orElseThrow(() -> new ExcecaoRecursoNaoEncontrado("Categoria não encontrada: " + id));
         cat.setNome(dto.getNome());
         cat.setTipo(dto.getTipo());
         cat.setCor(dto.getCor());
@@ -48,7 +49,7 @@ public class CategoriaService {
 
     public void delete(Long id) {
         Categoria cat = repository.findByIdAndEspacoId(id, contextoEspaco.espacoAtual())
-                .orElseThrow(() -> new RuntimeException("Categoria não encontrada: " + id));
+                .orElseThrow(() -> new ExcecaoRecursoNaoEncontrado("Categoria não encontrada: " + id));
         repository.delete(cat);
     }
 

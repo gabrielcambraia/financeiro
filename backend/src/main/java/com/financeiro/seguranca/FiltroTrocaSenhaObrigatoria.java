@@ -24,7 +24,8 @@ import java.util.Set;
 public class FiltroTrocaSenhaObrigatoria extends OncePerRequestFilter {
 
     private static final Set<String> ROTAS_PERMITIDAS = Set.of(
-            "/api/auth/trocar-senha", "/api/auth/config", "/api/auth/login");
+            "/api/auth/trocar-senha", "/api/auth/config", "/api/auth/login",
+            "/api/auth/renovar", "/api/auth/sair");
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)

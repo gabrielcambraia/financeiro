@@ -5,21 +5,43 @@
 :root {
   --fundo: 226 232 240;
   --superficie: 255 255 255;
-  --superficie-2: 241 245 249;
+  --superficie-2: 236 238 244;
   --conteudo: 15 23 42;
   --conteudo-suave: 100 116 139;
   --borda: 226 232 240;
-  --acento: 5 150 105;
+  --acento: 18 58 117;
+
+  /* campo: área onde a barra lateral se funde, cobrindo o fundo do app */
+  --campo: 227 237 251;
+  --campo-texto: 22 50 79;
+  --campo-texto-suave: 92 127 163;
+
+  /* pastel: theme-aware — os cartões-resumo usam esses pares (bg/texto) */
+  --pastel-lilas: 237 233 254;        --pastel-lilas-texto: 109 40 217;
+  --pastel-verde: 209 250 229;        --pastel-verde-texto: 4 120 87;
+  --pastel-bege: 254 243 199;         --pastel-bege-texto: 180 83 9;
+  --pastel-azul: 219 234 254;         --pastel-azul-texto: 29 78 216;
+  --pastel-vermelho: 251 231 231;     --pastel-vermelho-texto: 180 35 24;
 }
 
 .dark {
   --fundo: 2 6 23;
-  --superficie: 15 23 42;
-  --superficie-2: 30 41 59;
+  --superficie: 29 30 40;
+  --superficie-2: 38 40 53;
   --conteudo: 241 245 249;
   --conteudo-suave: 148 163 184;
-  --borda: 30 41 59;
-  --acento: 99 102 241;
+  --borda: 44 46 59;
+  --acento: 68 114 212;
+
+  --campo: 11 11 16;
+  --campo-texto: 238 240 246;
+  --campo-texto-suave: 148 152 171;
+
+  --pastel-lilas: 44 38 80;           --pastel-lilas-texto: 182 168 255;
+  --pastel-verde: 18 53 39;           --pastel-verde-texto: 79 219 157;
+  --pastel-bege: 58 44 16;            --pastel-bege-texto: 240 181 89;
+  --pastel-azul: 20 44 72;            --pastel-azul-texto: 123 182 245;
+  --pastel-vermelho: 58 32 32;        --pastel-vermelho-texto: 240 113 111;
 }
 
 @layer base {

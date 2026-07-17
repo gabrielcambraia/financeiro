@@ -32,12 +32,12 @@ export default function Contas() {
   const saveMutation = useMutation({
     mutationFn: (data: Omit<Conta, 'id'>) =>
       editing ? atualizarConta(editing.id, data) : criarConta(data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['contas'] }); closeForm() },
+    onSuccess: async () => { await qc.invalidateQueries({ queryKey: ['contas'] }); closeForm() },
   })
 
   const deleteMutation = useMutation({
     mutationFn: excluirConta,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['contas'] }),
+    onSuccess: async () => { await qc.invalidateQueries({ queryKey: ['contas'] }) },
   })
 
   const openCreate = () => { setEditing(null); setForm(formPadrao); setShowForm(true) }

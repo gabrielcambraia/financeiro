@@ -11,11 +11,13 @@ import { useLojaFiltro } from '../store/lojaFiltro'
 import SeletorMes from '../components/SeletorMes'
 import { buscarContas } from '../api/contas'
 import { useLojaTema } from '../store/lojaTema'
+import { useLojaAutenticacao } from '../store/lojaAutenticacao'
+import { primeiroNome, saudacaoPorHora } from '../utils/formatadores'
 
 const coresGrafico = (tema: 'claro' | 'escuro') =>
   tema === 'escuro'
-    ? { grade: '#1f2937', eixo: '#6b7280', tooltipFundo: '#111827', tooltipBorda: '#374151', linha: '#6366f1' }
-    : { grade: '#e2e8f0', eixo: '#64748b', tooltipFundo: '#ffffff', tooltipBorda: '#e2e8f0', linha: '#059669' }
+    ? { grade: '#1f2937', eixo: '#6b7280', tooltipFundo: '#111827', tooltipBorda: '#374151', linha: '#4472d4' }
+    : { grade: '#e2e8f0', eixo: '#64748b', tooltipFundo: '#ffffff', tooltipBorda: '#e2e8f0', linha: '#123a75' }
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
@@ -36,6 +38,7 @@ export default function Painel() {
   const { mes, contaId, definirContaId } = useLojaFiltro()
   const tema = useLojaTema(s => s.tema)
   const cores = coresGrafico(tema)
+  const sessao = useLojaAutenticacao(s => s.sessao)
   const { data: contas = [] } = useQuery({ queryKey: ['contas'], queryFn: buscarContas })
   const { data, isLoading } = useQuery({
     queryKey: ['painel', mes, contaId],
@@ -62,7 +65,7 @@ export default function Painel() {
     },
     {
       label: 'Despesas', value: data.totalDespesas, icon: TrendingDown,
-      color: 'text-red-600', bg: 'bg-red-100'
+      color: 'text-pastel-vermelho-texto', bg: 'bg-pastel-vermelho'
     },
     {
       label: 'Saldo do Mês', value: data.saldoLiquido, icon: ArrowLeftRight,
@@ -79,7 +82,13 @@ export default function Painel() {
     <div className="p-6 space-y-6">
       {/* Cabeçalho */}
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <h1 className="text-2xl font-bold text-conteudo">Painel</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-conteudo">
+            {saudacaoPorHora()}
+            {sessao && <>, <span className="text-acento">{primeiroNome(sessao.nome)}</span></>}
+          </h1>
+          <p className="text-sm text-conteudo-suave mt-0.5">Bem-vindo(a) de volta ao seu app de gestão financeira.</p>
+        </div>
         <div className="flex flex-col gap-3 md:flex-row md:items-center">
           <select
             className="select w-full md:w-44"
@@ -96,13 +105,13 @@ export default function Painel() {
       {/* Cartões resumo */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         {cartoesResumo.map(({ label, value, icon: Icon, color, bg }) => (
-          <div key={label} className="card flex items-start gap-3 md:gap-4">
-            <div className={`${bg} ${color} p-2.5 md:p-3 rounded-xl shrink-0`}>
-              <Icon size={20} />
+          <div key={label} className={`${bg} rounded-2xl p-4 md:p-5 flex flex-col gap-3`}>
+            <div className={`${color} bg-white/50 dark:bg-white/10 w-9 h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center shrink-0`}>
+              <Icon size={18} />
             </div>
             <div className="min-w-0">
-              <p className="text-xs text-conteudo-suave mb-0.5 truncate">{label}</p>
-              <p className={`text-base md:text-xl font-bold ${color} truncate`}>{fmt(value)}</p>
+              <p className={`text-xs font-medium ${color} opacity-80 mb-1 truncate`}>{label}</p>
+              <p className={`text-lg md:text-2xl font-bold ${color} truncate`}>{fmt(value)}</p>
             </div>
           </div>
         ))}

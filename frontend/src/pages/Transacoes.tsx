@@ -1,16 +1,41 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Trash2, Pencil, CreditCard, Banknote, Repeat, Layers } from 'lucide-react'
+import { Trash2, Pencil, CreditCard, Banknote, Repeat, Layers, CheckCircle2, Ban, Undo2 } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { buscarTransacoes, excluirTransacao, type EscopoExclusao } from '../api/transacoes'
+import {
+  buscarTransacoes, excluirTransacao, pagarTransacao, estornarTransacao, cancelarTransacao,
+  type EscopoExclusao,
+} from '../api/transacoes'
 import { buscarCategorias } from '../api/categorias'
 import { useLojaFiltro } from '../store/lojaFiltro'
 import SeletorMes from '../components/SeletorMes'
 import FormularioTransacao from '../components/forms/FormularioTransacao'
 import SobreposicaoModal from '../components/SobreposicaoModal'
 import AcaoNova from '../components/AcaoNova'
-import type { Transacao, TipoTransacao } from '../types'
+import type { Transacao, TipoTransacao, StatusTransacao } from '../types'
+
+const rotuloStatus: Record<StatusTransacao, string> = {
+  PAGA: 'Paga',
+  PENDENTE: 'Pendente',
+  ATRASADA: 'Atrasada',
+  CANCELADA: 'Cancelada',
+}
+
+const corStatus: Record<StatusTransacao, string> = {
+  PAGA: 'bg-emerald-500/15 text-emerald-500',
+  PENDENTE: 'bg-amber-500/15 text-amber-500',
+  ATRASADA: 'bg-red-500/15 text-red-500',
+  CANCELADA: 'bg-gray-500/15 text-gray-400 line-through',
+}
+
+function BadgeStatus({ status }: { status: StatusTransacao }) {
+  return (
+    <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${corStatus[status]}`}>
+      {rotuloStatus[status]}
+    </span>
+  )
+}
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
@@ -30,9 +55,11 @@ export default function Transacoes() {
   const { mes, contaId } = useLojaFiltro()
   const [filtroTipo, setFiltroTipo] = useState<TipoTransacao | ''>('')
   const [filtroCategoria, setFiltroCategoria] = useState<number | ''>('')
+  const [filtroStatus, setFiltroStatus] = useState<StatusTransacao | ''>('')
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Transacao | undefined>()
   const [deleteModal, setDeleteModal] = useState<{ tx: Transacao } | null>(null)
+  const [cancelModal, setCancelModal] = useState<{ tx: Transacao } | null>(null)
 
   const { data: transacoes = [], isLoading } = useQuery({
     queryKey: ['transacoes', mes, contaId, filtroTipo, filtroCategoria],
@@ -48,23 +75,61 @@ export default function Transacoes() {
 
   const deleteMutation = useMutation({
     mutationFn: ({ id, scope }: { id: number; scope: EscopoExclusao }) => excluirTransacao(id, scope),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['transacoes'] })
-      qc.invalidateQueries({ queryKey: ['painel'] })
-      qc.invalidateQueries({ queryKey: ['contas'] })
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ['transacoes'] }),
+        qc.invalidateQueries({ queryKey: ['painel'] }),
+        qc.invalidateQueries({ queryKey: ['contas'] }),
+      ])
       setDeleteModal(null)
     },
   })
 
-  const agrupadas = agruparPorData(transacoes)
+  const pagarMutation = useMutation({
+    mutationFn: (id: number) => pagarTransacao(id),
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ['transacoes'] }),
+        qc.invalidateQueries({ queryKey: ['painel'] }),
+        qc.invalidateQueries({ queryKey: ['contas'] }),
+      ])
+    },
+  })
 
-  const hoje = new Date().toISOString().slice(0, 10)
+  const estornarMutation = useMutation({
+    mutationFn: (id: number) => estornarTransacao(id),
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ['transacoes'] }),
+        qc.invalidateQueries({ queryKey: ['painel'] }),
+        qc.invalidateQueries({ queryKey: ['contas'] }),
+      ])
+    },
+  })
 
-  const totalReceitas = transacoes.filter(t => t.tipo === 'RECEITA').reduce((s, t) => s + t.valor, 0)
-  const totalDespesas = transacoes.filter(t => t.tipo === 'DESPESA').reduce((s, t) => s + t.valor, 0)
+  const cancelarMutation = useMutation({
+    mutationFn: ({ id, scope }: { id: number; scope: EscopoExclusao }) => cancelarTransacao(id, scope),
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ['transacoes'] }),
+        qc.invalidateQueries({ queryKey: ['painel'] }),
+        qc.invalidateQueries({ queryKey: ['contas'] }),
+      ])
+      setCancelModal(null)
+    },
+  })
 
-  const realizadas = transacoes.filter(t => t.data <= hoje)
-  const pendentes = transacoes.filter(t => t.data > hoje)
+  const visiveis = filtroStatus ? transacoes.filter(t => t.status === filtroStatus) : transacoes
+  const agrupadas = agruparPorData(visiveis)
+
+  // Cancelada não conta em nenhum total — a transação nunca aconteceu de fato.
+  const ativas = transacoes.filter(t => t.status !== 'CANCELADA')
+
+  const totalReceitas = ativas.filter(t => t.tipo === 'RECEITA').reduce((s, t) => s + t.valor, 0)
+  const totalDespesas = ativas.filter(t => t.tipo === 'DESPESA').reduce((s, t) => s + t.valor, 0)
+
+  const realizadas = ativas.filter(t => t.status === 'PAGA')
+  const pendentes = ativas.filter(t => t.status === 'PENDENTE' || t.status === 'ATRASADA')
 
   const receitasRealizadas = realizadas.filter(t => t.tipo === 'RECEITA').reduce((s, t) => s + t.valor, 0)
   const despesasRealizadas = realizadas.filter(t => t.tipo === 'DESPESA').reduce((s, t) => s + t.valor, 0)
@@ -146,6 +211,13 @@ export default function Transacoes() {
           <option value="">Todas categorias</option>
           {categorias.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
         </select>
+        <select className="select w-full md:w-40" value={filtroStatus} onChange={e => setFiltroStatus(e.target.value as StatusTransacao | '')}>
+          <option value="">Todos status</option>
+          <option value="PENDENTE">Pendente</option>
+          <option value="ATRASADA">Atrasada</option>
+          <option value="PAGA">Paga</option>
+          <option value="CANCELADA">Cancelada</option>
+        </select>
       </div>
 
       {/* Lista de lançamentos */}
@@ -187,6 +259,7 @@ export default function Transacoes() {
                             {tx.numeroParcela}/{tx.totalParcelas}
                           </span>
                         )}
+                        <BadgeStatus status={tx.status} />
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className="text-xs text-conteudo-suave">{tx.conta.nome}</span>
@@ -212,6 +285,27 @@ export default function Transacoes() {
 
                     {/* Ações */}
                     <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                      {(tx.status === 'PENDENTE' || tx.status === 'ATRASADA') && (
+                        <button onClick={() => pagarMutation.mutate(tx.id)}
+                          title={tx.tipo === 'RECEITA' ? 'Marcar como recebida' : 'Marcar como paga'}
+                          className="p-1.5 rounded-lg hover:bg-emerald-900/40 text-conteudo-suave hover:text-emerald-500 transition-colors">
+                          <CheckCircle2 size={14} />
+                        </button>
+                      )}
+                      {tx.status === 'PAGA' && (
+                        <button onClick={() => estornarMutation.mutate(tx.id)}
+                          title="Estornar (voltar para pendente)"
+                          className="p-1.5 rounded-lg hover:bg-amber-900/40 text-conteudo-suave hover:text-amber-500 transition-colors">
+                          <Undo2 size={14} />
+                        </button>
+                      )}
+                      {tx.status !== 'CANCELADA' && (
+                        <button onClick={() => setCancelModal({ tx })}
+                          title="Cancelar"
+                          className="p-1.5 rounded-lg hover:bg-orange-900/40 text-conteudo-suave hover:text-orange-500 transition-colors">
+                          <Ban size={14} />
+                        </button>
+                      )}
                       <button onClick={() => { setEditing(tx); setShowForm(true) }}
                         className="p-1.5 rounded-lg hover:bg-superficie-2 text-conteudo-suave hover:text-conteudo transition-colors">
                         <Pencil size={14} />
@@ -277,6 +371,50 @@ export default function Transacoes() {
                 <button onClick={() => setDeleteModal(null)}
                   className="w-full py-2.5 rounded-lg border border-borda text-conteudo-suave hover:text-conteudo transition-colors text-sm font-medium">
                   Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        </SobreposicaoModal>
+      )}
+
+      {/* Modal de cancelamento */}
+      {cancelModal && (
+        <SobreposicaoModal aoFechar={() => setCancelModal(null)}>
+          <div className="cartao-modal max-w-sm">
+            <div className="cartao-modal-cabecalho">
+              <h3 className="text-base font-semibold text-conteudo">Cancelar lançamento</h3>
+            </div>
+            <div className="cartao-modal-corpo">
+              <p className="text-sm text-conteudo-suave">
+                O lançamento fica marcado como cancelado (e o saldo é revertido, se já estava pago), mas continua no histórico — diferente de excluir.
+              </p>
+              <div className="space-y-2">
+                <button onClick={() => cancelarMutation.mutate({ id: cancelModal.tx.id, scope: 'UNICA' })}
+                  className="w-full py-2.5 rounded-lg border border-orange-800 text-orange-500 hover:bg-orange-900/20 transition-colors text-sm font-medium">
+                  Cancelar só este
+                </button>
+                {cancelModal.tx.grupoParcelaId && (
+                  <button onClick={() => cancelarMutation.mutate({ id: cancelModal.tx.id, scope: 'FUTURAS' })}
+                    className="w-full py-2.5 rounded-lg border border-orange-800 text-orange-500 hover:bg-orange-900/20 transition-colors text-sm font-medium">
+                    Cancelar este e os próximos
+                  </button>
+                )}
+                {cancelModal.tx.grupoParcelaId && (
+                  <button onClick={() => cancelarMutation.mutate({ id: cancelModal.tx.id, scope: 'GRUPO' })}
+                    className="w-full py-2.5 rounded-lg border border-orange-800 text-orange-500 hover:bg-orange-900/20 transition-colors text-sm font-medium">
+                    Cancelar todas as parcelas
+                  </button>
+                )}
+                {cancelModal.tx.fixa && (
+                  <button onClick={() => cancelarMutation.mutate({ id: cancelModal.tx.id, scope: 'FUTURAS' })}
+                    className="w-full py-2.5 rounded-lg border border-orange-800 text-orange-500 hover:bg-orange-900/20 transition-colors text-sm font-medium">
+                    Cancelar este e os próximos meses
+                  </button>
+                )}
+                <button onClick={() => setCancelModal(null)}
+                  className="w-full py-2.5 rounded-lg border border-borda text-conteudo-suave hover:text-conteudo transition-colors text-sm font-medium">
+                  Voltar
                 </button>
               </div>
             </div>

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Fora do perfil "desenvolvimento", cada linha de log sai como um objeto
+  JSON (inclui MDC — idRequisicao/usuarioId/espacoId — e stack trace
+  completa em erros), consumível por qualquer hospedagem/agregador de log
+  sem retrabalho. Em dev, um padrão de texto legível no console.
+-->
+<configuration>
+    <springProfile name="desenvolvimento">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level [%X{idRequisicao}] %logger{36} - %msg%n</pattern>
+            </encoder>
+        </appender>
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="!desenvolvimento">
+        <appender name="CONSOLE_JSON" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>
+        </appender>
+        <root level="INFO">
+            <appender-ref ref="CONSOLE_JSON"/>
+        </root>
+    </springProfile>
+</configuration>

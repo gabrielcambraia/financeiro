@@ -21,13 +21,13 @@ import java.util.Date;
 public class ServicoJwt {
 
     private final SecretKey chave;
-    private final long validadeHoras;
+    private final long validadeMinutos;
 
     public ServicoJwt(
             @Value("${financeiro.jwt.segredo}") String segredo,
-            @Value("${financeiro.jwt.validade-horas:720}") long validadeHoras) {
+            @Value("${financeiro.jwt.validade-acesso-minutos:15}") long validadeMinutos) {
         this.chave = Keys.hmacShaKeyFor(segredo.getBytes(StandardCharsets.UTF_8));
-        this.validadeHoras = validadeHoras;
+        this.validadeMinutos = validadeMinutos;
     }
 
     public String gerarToken(Long usuarioId, Long espacoId, String email, boolean precisaTrocarSenha) {
@@ -38,7 +38,7 @@ public class ServicoJwt {
                 .claim("email", email)
                 .claim("precisaTrocarSenha", precisaTrocarSenha)
                 .issuedAt(Date.from(agora))
-                .expiration(Date.from(agora.plusSeconds(validadeHoras * 3600)))
+                .expiration(Date.from(agora.plusSeconds(validadeMinutos * 60)))
                 .signWith(chave)
                 .compact();
     }
