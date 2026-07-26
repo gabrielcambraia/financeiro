@@ -10,6 +10,7 @@ interface FiltrosTransacao {
 
 interface PayloadCriarTransacao {
   contaId: number
+  contaDestinoId?: number
   categoriaId?: number
   tipo: TipoTransacao
   tipoPagamento: 'DEBITO' | 'CREDITO'

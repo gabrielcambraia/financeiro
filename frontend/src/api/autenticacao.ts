@@ -1,5 +1,6 @@
 import cliente from './cliente'
 import type { PapelUsuario } from '../store/lojaAutenticacao'
+import type { NivelAcesso } from '../types'
 
 export interface RespostaAutenticacao {
   token: string
@@ -9,6 +10,7 @@ export interface RespostaAutenticacao {
   espacoId: number
   papel: PapelUsuario
   precisaTrocarSenha: boolean
+  nivelAcesso: NivelAcesso
 }
 
 export interface RespostaConfigAuth {

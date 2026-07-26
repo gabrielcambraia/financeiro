@@ -8,6 +8,7 @@ import com.financeiro.dto.TransacaoDTO;
 import com.financeiro.entity.Categoria;
 import com.financeiro.entity.Conta;
 import com.financeiro.entity.Transacao;
+import com.financeiro.entity.enums.DirecaoTransferencia;
 import com.financeiro.entity.enums.StatusTransacao;
 import com.financeiro.entity.enums.TipoTransacao;
 import com.financeiro.erro.ExcecaoRecursoNaoEncontrado;
@@ -56,6 +57,10 @@ public class TransacaoService {
 
     @Transactional
     public List<TransacaoDTO> create(TransacaoDTO dto) {
+        if (dto.getTipo() == TipoTransacao.TRANSFERENCIA) {
+            return criarTransferencia(dto);
+        }
+
         Long espacoId = contextoEspaco.espacoAtual();
         Long usuarioId = contextoUsuario.usuarioAtual();
         Conta conta = contaRepository.findByIdAndEspacoId(dto.getContaId(), espacoId)
@@ -89,7 +94,7 @@ public class TransacaoService {
                 t.setDataPagamento(paga ? dataParcela : null);
                 criadas.add(repository.save(t));
                 if (paga) {
-                    contaService.adjustBalance(conta, computeDelta(dto.getTipo(), dto.getValor()));
+                    contaService.adjustBalance(conta, computeDelta(t));
                 }
             }
             return criadas.stream().map(this::toDTO).toList();
@@ -114,10 +119,52 @@ public class TransacaoService {
             }
 
             if (paga) {
-                contaService.adjustBalance(conta, computeDelta(dto.getTipo(), dto.getValor()));
+                contaService.adjustBalance(conta, computeDelta(t));
             }
             return criadas.stream().map(this::toDTO).toList();
         }
+    }
+
+    private List<TransacaoDTO> criarTransferencia(TransacaoDTO dto) {
+        Long espacoId = contextoEspaco.espacoAtual();
+        Long usuarioId = contextoUsuario.usuarioAtual();
+
+        if (dto.getContaDestinoId() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Conta destino é obrigatória para transferência");
+        }
+        if (dto.getContaDestinoId().equals(dto.getContaId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Conta destino deve ser diferente da conta origem");
+        }
+
+        Conta origem = contaRepository.findByIdAndEspacoId(dto.getContaId(), espacoId)
+                .orElseThrow(() -> new ExcecaoRecursoNaoEncontrado("Conta não encontrada"));
+        Conta destino = contaRepository.findByIdAndEspacoId(dto.getContaDestinoId(), espacoId)
+                .orElseThrow(() -> new ExcecaoRecursoNaoEncontrado("Conta destino não encontrada"));
+
+        boolean quitarNaCriacao = dto.getQuitarNaCriacao() == null || dto.getQuitarNaCriacao();
+        boolean paga = quitarNaCriacao && !dto.getData().isAfter(LocalDate.now());
+        String transferenciaId = UUID.randomUUID().toString();
+
+        Transacao saida = buildTransacao(dto, origem, null, espacoId, usuarioId);
+        saida.setDirecaoTransferencia(DirecaoTransferencia.SAIDA);
+        saida.setTransferenciaId(transferenciaId);
+        saida.setSaldoAjustado(paga);
+        saida.setDataPagamento(paga ? dto.getData() : null);
+        repository.save(saida);
+
+        Transacao entrada = buildTransacao(dto, destino, null, espacoId, usuarioId);
+        entrada.setDirecaoTransferencia(DirecaoTransferencia.ENTRADA);
+        entrada.setTransferenciaId(transferenciaId);
+        entrada.setSaldoAjustado(paga);
+        entrada.setDataPagamento(paga ? dto.getData() : null);
+        repository.save(entrada);
+
+        if (paga) {
+            contaService.adjustBalance(origem, computeDelta(saida));
+            contaService.adjustBalance(destino, computeDelta(entrada));
+        }
+
+        return List.of(toDTO(saida), toDTO(entrada));
     }
 
     @Transactional
@@ -125,15 +172,20 @@ public class TransacaoService {
         Long espacoId = contextoEspaco.espacoAtual();
         Transacao existente = repository.findByIdAndEspacoId(id, espacoId)
                 .orElseThrow(() -> new ExcecaoRecursoNaoEncontrado("Transação não encontrada"));
+
+        if (dto.getDataPagamento() != null) {
+            validarDataPagamento(dto.getDataPagamento());
+        }
+
+        if (existente.getTipo() == TipoTransacao.TRANSFERENCIA) {
+            return atualizarTransferencia(existente, dto);
+        }
+
         Conta novaConta = contaRepository.findByIdAndEspacoId(dto.getContaId(), espacoId)
                 .orElseThrow(() -> new ExcecaoRecursoNaoEncontrado("Conta não encontrada"));
         Categoria novaCategoria = dto.getCategoriaId() != null
                 ? categoriaRepository.findByIdAndEspacoId(dto.getCategoriaId(), espacoId).orElse(null)
                 : null;
-
-        if (dto.getDataPagamento() != null) {
-            validarDataPagamento(dto.getDataPagamento());
-        }
 
         boolean estavaAjustada = existente.isSaldoAjustado();
         // A quitação é guiada pela data de pagamento informada, não mais por
@@ -142,8 +194,7 @@ public class TransacaoService {
 
         // Reverte o saldo antigo apenas se ele foi aplicado
         if (estavaAjustada) {
-            contaService.adjustBalance(existente.getConta(),
-                    computeDelta(existente.getTipo(), existente.getValor()).negate());
+            contaService.adjustBalance(existente.getConta(), computeDelta(existente).negate());
         }
 
         existente.setConta(novaConta);
@@ -161,10 +212,38 @@ public class TransacaoService {
 
         // Aplica o novo saldo apenas se a transação está paga
         if (novaPaga) {
-            contaService.adjustBalance(novaConta, computeDelta(dto.getTipo(), dto.getValor()));
+            contaService.adjustBalance(novaConta, computeDelta(existente));
         }
 
         return toDTO(existente);
+    }
+
+    // Edição de transferência não troca as contas envolvidas (só valor, data,
+    // descrição e quitação) — para mudar origem/destino, cancele e crie outra.
+    private TransacaoDTO atualizarTransferencia(Transacao perna, TransacaoDTO dto) {
+        Long espacoId = contextoEspaco.espacoAtual();
+        boolean novaPaga = dto.getDataPagamento() != null && perna.getDataCancelamento() == null;
+        LocalDate novaData = dto.getData();
+        LocalDate novoVencimento = dto.getDataVencimento() != null ? dto.getDataVencimento() : novaData;
+
+        List<Transacao> par = repository.findByEspacoIdAndTransferenciaId(espacoId, perna.getTransferenciaId());
+        for (Transacao perna2 : par) {
+            if (perna2.isSaldoAjustado()) {
+                contaService.adjustBalance(perna2.getConta(), computeDelta(perna2).negate());
+            }
+            perna2.setValor(dto.getValor());
+            perna2.setDescricao(dto.getDescricao());
+            perna2.setData(novaData);
+            perna2.setDataVencimento(novoVencimento);
+            perna2.setDataPagamento(novaPaga ? dto.getDataPagamento() : null);
+            perna2.setSaldoAjustado(novaPaga);
+            repository.save(perna2);
+            if (novaPaga) {
+                contaService.adjustBalance(perna2.getConta(), computeDelta(perna2));
+            }
+        }
+
+        return toDTO(repository.findByIdAndEspacoId(perna.getId(), espacoId).orElseThrow());
     }
 
     @Transactional
@@ -173,32 +252,40 @@ public class TransacaoService {
         Transacao t = repository.findByIdAndEspacoId(id, espacoId)
                 .orElseThrow(() -> new ExcecaoRecursoNaoEncontrado("Transação não encontrada"));
 
+        if (t.getTipo() == TipoTransacao.TRANSFERENCIA) {
+            List<Transacao> par = repository.findByEspacoIdAndTransferenciaId(espacoId, t.getTransferenciaId());
+            par.stream().filter(Transacao::isSaldoAjustado).forEach(tx ->
+                    contaService.adjustBalance(tx.getConta(), computeDelta(tx).negate()));
+            repository.deleteAll(par);
+            return;
+        }
+
         if ("GRUPO".equals(scope) && t.getGrupoParcelaId() != null) {
             List<Transacao> grupo = repository.findByEspacoIdAndGrupoParcelaId(espacoId, t.getGrupoParcelaId());
             grupo.stream().filter(Transacao::isSaldoAjustado).forEach(tx ->
-                    contaService.adjustBalance(tx.getConta(), computeDelta(tx.getTipo(), tx.getValor()).negate()));
+                    contaService.adjustBalance(tx.getConta(), computeDelta(tx).negate()));
             repository.deleteAll(grupo);
         } else if ("FUTURAS".equals(scope)) {
             if (t.getGrupoParcelaId() != null) {
                 List<Transacao> futuras = repository.findByEspacoIdAndGrupoParcelaIdAndDataGreaterThanEqual(
                         espacoId, t.getGrupoParcelaId(), t.getData());
                 futuras.stream().filter(Transacao::isSaldoAjustado).forEach(tx ->
-                        contaService.adjustBalance(tx.getConta(), computeDelta(tx.getTipo(), tx.getValor()).negate()));
+                        contaService.adjustBalance(tx.getConta(), computeDelta(tx).negate()));
                 repository.deleteAll(futuras);
             } else if (t.isFixa()) {
                 List<Transacao> futuras = repository.findByEspacoIdAndFixaTrueAndDataGreaterThanEqual(espacoId, t.getData());
                 futuras.stream().filter(Transacao::isSaldoAjustado).forEach(tx ->
-                        contaService.adjustBalance(tx.getConta(), computeDelta(tx.getTipo(), tx.getValor()).negate()));
+                        contaService.adjustBalance(tx.getConta(), computeDelta(tx).negate()));
                 repository.deleteAll(futuras);
             } else {
                 if (t.isSaldoAjustado()) {
-                    contaService.adjustBalance(t.getConta(), computeDelta(t.getTipo(), t.getValor()).negate());
+                    contaService.adjustBalance(t.getConta(), computeDelta(t).negate());
                 }
                 repository.delete(t);
             }
         } else {
             if (t.isSaldoAjustado()) {
-                contaService.adjustBalance(t.getConta(), computeDelta(t.getTipo(), t.getValor()).negate());
+                contaService.adjustBalance(t.getConta(), computeDelta(t).negate());
             }
             repository.delete(t);
         }
@@ -217,13 +304,19 @@ public class TransacaoService {
 
         LocalDate dataPg = dataPagamento != null ? dataPagamento : LocalDate.now();
         validarDataPagamento(dataPg);
-        if (!t.isSaldoAjustado()) {
-            contaService.adjustBalance(t.getConta(), computeDelta(t.getTipo(), t.getValor()));
-            t.setSaldoAjustado(true);
+
+        List<Transacao> alvos = t.getTipo() == TipoTransacao.TRANSFERENCIA
+                ? repository.findByEspacoIdAndTransferenciaId(espacoId, t.getTransferenciaId())
+                : List.of(t);
+        for (Transacao leg : alvos) {
+            if (!leg.isSaldoAjustado()) {
+                contaService.adjustBalance(leg.getConta(), computeDelta(leg));
+                leg.setSaldoAjustado(true);
+            }
+            leg.setDataPagamento(dataPg);
+            repository.save(leg);
         }
-        t.setDataPagamento(dataPg);
-        repository.save(t);
-        return toDTO(t);
+        return toDTO(repository.findByIdAndEspacoId(id, espacoId).orElseThrow());
     }
 
     @Transactional
@@ -232,13 +325,18 @@ public class TransacaoService {
         Transacao t = repository.findByIdAndEspacoId(id, espacoId)
                 .orElseThrow(() -> new ExcecaoRecursoNaoEncontrado("Transação não encontrada"));
 
-        if (t.isSaldoAjustado()) {
-            contaService.adjustBalance(t.getConta(), computeDelta(t.getTipo(), t.getValor()).negate());
-            t.setSaldoAjustado(false);
+        List<Transacao> alvos = t.getTipo() == TipoTransacao.TRANSFERENCIA
+                ? repository.findByEspacoIdAndTransferenciaId(espacoId, t.getTransferenciaId())
+                : List.of(t);
+        for (Transacao leg : alvos) {
+            if (leg.isSaldoAjustado()) {
+                contaService.adjustBalance(leg.getConta(), computeDelta(leg).negate());
+                leg.setSaldoAjustado(false);
+            }
+            leg.setDataPagamento(null);
+            repository.save(leg);
         }
-        t.setDataPagamento(null);
-        repository.save(t);
-        return toDTO(t);
+        return toDTO(repository.findByIdAndEspacoId(id, espacoId).orElseThrow());
     }
 
     @Transactional
@@ -276,14 +374,19 @@ public class TransacaoService {
 
     private void cancelarTransacao(Transacao t) {
         if (t.getDataCancelamento() != null) {
-            return; // já cancelada, idempotente
+            return; // já cancelada, idempotente — também trava a recursão da perna abaixo
         }
         if (t.isSaldoAjustado()) {
-            contaService.adjustBalance(t.getConta(), computeDelta(t.getTipo(), t.getValor()).negate());
+            contaService.adjustBalance(t.getConta(), computeDelta(t).negate());
             t.setSaldoAjustado(false);
         }
         t.setDataCancelamento(LocalDate.now());
         repository.save(t);
+
+        if (t.getTipo() == TipoTransacao.TRANSFERENCIA && t.getTransferenciaId() != null) {
+            repository.findByEspacoIdAndTransferenciaId(t.getEspacoId(), t.getTransferenciaId())
+                    .forEach(this::cancelarTransacao);
+        }
     }
 
     private Transacao buildTransacao(TransacaoDTO dto, Conta conta, Categoria categoria, Long espacoId, Long usuarioId) {
@@ -316,8 +419,11 @@ public class TransacaoService {
         return StatusTransacao.PENDENTE;
     }
 
-    private BigDecimal computeDelta(TipoTransacao tipo, BigDecimal valor) {
-        return tipo == TipoTransacao.RECEITA ? valor : valor.negate();
+    private BigDecimal computeDelta(Transacao t) {
+        if (t.getTipo() == TipoTransacao.TRANSFERENCIA) {
+            return t.getDirecaoTransferencia() == DirecaoTransferencia.ENTRADA ? t.getValor() : t.getValor().negate();
+        }
+        return t.getTipo() == TipoTransacao.RECEITA ? t.getValor() : t.getValor().negate();
     }
 
     public TransacaoDTO toDTO(Transacao t) {
@@ -338,6 +444,15 @@ public class TransacaoService {
         dto.setNumeroParcela(t.getNumeroParcela());
         dto.setGrupoParcelaId(t.getGrupoParcelaId());
         dto.setUsuarioId(t.getUsuarioId());
+        dto.setTransferenciaId(t.getTransferenciaId());
+        dto.setDirecaoTransferencia(t.getDirecaoTransferencia());
+
+        if (t.getTipo() == TipoTransacao.TRANSFERENCIA && t.getTransferenciaId() != null) {
+            repository.findByEspacoIdAndTransferenciaId(t.getEspacoId(), t.getTransferenciaId()).stream()
+                    .filter(perna -> !perna.getId().equals(t.getId()))
+                    .findFirst()
+                    .ifPresent(par -> dto.setContaVinculada(contaService.toDTO(par.getConta())));
+        }
 
         ContaDTO contaDTO = new ContaDTO();
         contaDTO.setId(t.getConta().getId());

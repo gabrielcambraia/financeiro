@@ -1,6 +1,7 @@
 package com.financeiro.entity;
 
 import com.financeiro.entity.converter.ConversorLocalDateTime;
+import com.financeiro.entity.enums.NivelAcesso;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -35,6 +36,13 @@ public class Usuario {
     @Builder.Default
     @Column(name = "precisa_trocar_senha", nullable = false)
     private boolean precisaTrocarSenha = false;
+
+    // Papel global (não por espaço, ver PapelUsuario) — só ADMIN gerencia
+    // recursos que não pertencem a espaço nenhum (hoje, o catálogo de bancos).
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "nivel_acesso", nullable = false)
+    private NivelAcesso nivelAcesso = NivelAcesso.USUARIO;
 
     @Convert(converter = ConversorLocalDateTime.class)
     @Column(name = "criado_em", nullable = false)

@@ -2,8 +2,10 @@ package com.financeiro.service;
 
 import com.financeiro.context.ContextoEspaco;
 import com.financeiro.dto.ContaDTO;
+import com.financeiro.entity.Banco;
 import com.financeiro.entity.Conta;
 import com.financeiro.erro.ExcecaoRecursoNaoEncontrado;
+import com.financeiro.repository.BancoRepository;
 import com.financeiro.repository.ContaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -15,6 +17,8 @@ import java.util.List;
 public class ContaService {
 
     private final ContaRepository repository;
+    private final BancoRepository bancoRepository;
+    private final BancoService bancoService;
     private final ContextoEspaco contextoEspaco;
 
     public List<ContaDTO> findAll() {
@@ -28,6 +32,7 @@ public class ContaService {
                 .saldo(dto.getSaldo())
                 .cor(dto.getCor())
                 .icone(dto.getIcone())
+                .banco(resolverBanco(dto.getBancoId()))
                 .espacoId(contextoEspaco.espacoAtual())
                 .build();
         return toDTO(repository.save(conta));
@@ -41,7 +46,12 @@ public class ContaService {
         conta.setSaldo(dto.getSaldo());
         conta.setCor(dto.getCor());
         conta.setIcone(dto.getIcone());
+        conta.setBanco(resolverBanco(dto.getBancoId()));
         return toDTO(repository.save(conta));
+    }
+
+    private Banco resolverBanco(Long bancoId) {
+        return bancoId != null ? bancoRepository.findById(bancoId).orElse(null) : null;
     }
 
     public void delete(Long id) {
@@ -58,6 +68,10 @@ public class ContaService {
         dto.setSaldo(c.getSaldo());
         dto.setCor(c.getCor());
         dto.setIcone(c.getIcone());
+        if (c.getBanco() != null) {
+            dto.setBancoId(c.getBanco().getId());
+            dto.setBanco(bancoService.toDTO(c.getBanco()));
+        }
         return dto;
     }
 

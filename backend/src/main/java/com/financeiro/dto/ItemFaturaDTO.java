@@ -1,0 +1,38 @@
+package com.financeiro.dto;
+
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import lombok.Data;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
+@Data
+public class ItemFaturaDTO {
+    private Long id;
+
+    @NotNull
+    private Long cartaoId;
+
+    private Long categoriaId;
+
+    @NotNull
+    @Positive
+    private BigDecimal valor;
+
+    private String descricao;
+
+    @NotNull
+    private LocalDate data;
+
+    private Integer totalParcelas;
+
+    // campos de resposta
+    private CategoriaDTO categoria;
+    private Integer numeroParcela;
+    private String grupoParcelaId;
+    private Long faturaId;
+    private LocalDate dataCancelamento;
+    private boolean cancelado;
+    private boolean faturado;
+}

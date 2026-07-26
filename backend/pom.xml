@@ -87,6 +87,16 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- O JDK HttpURLConnection (usado por padrão pelo TestRestTemplate) não
+             suporta o método PATCH — necessário para pagar/estornar/cancelar em
+             TransacaoController e demais PATCHs da suíte de integração. Com esta
+             dependência no classpath de teste, o Spring Boot troca automaticamente
+             para HttpComponentsClientHttpRequestFactory (ver ClientHttpRequestFactories). -->
+        <dependency>
+            <groupId>org.apache.httpcomponents.client5</groupId>
+            <artifactId>httpclient5</artifactId>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-testcontainers</artifactId>

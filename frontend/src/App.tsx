@@ -2,10 +2,20 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import Estrutura from './components/Estrutura'
 import RotaProtegida from './components/RotaProtegida'
+import RotaAdmin from './components/RotaAdmin'
 import Painel from './pages/Painel'
 import Transacoes from './pages/Transacoes'
 import Contas from './pages/Contas'
+import Cartoes from './pages/Cartoes'
+import CartaoDetalhe from './pages/CartaoDetalhe'
 import Categorias from './pages/Categorias'
+import Orcamentos from './pages/Orcamentos'
+import Metas from './pages/Metas'
+import Calendario from './pages/Calendario'
+import Dividas from './pages/Dividas'
+import Investimentos from './pages/Investimentos'
+import Simulacao from './pages/Simulacao'
+import AdminBancos from './pages/AdminBancos'
 import Login from './pages/Login'
 import Registro from './pages/Registro'
 import TrocarSenha from './pages/TrocarSenha'
@@ -30,8 +40,19 @@ export default function App() {
               <Route index element={<Painel />} />
               <Route path="transacoes" element={<Transacoes />} />
               <Route path="contas" element={<Contas />} />
+              <Route path="cartoes" element={<Cartoes />} />
+              <Route path="cartoes/:id" element={<CartaoDetalhe />} />
               <Route path="categorias" element={<Categorias />} />
+              <Route path="orcamentos" element={<Orcamentos />} />
+              <Route path="metas" element={<Metas />} />
+              <Route path="calendario" element={<Calendario />} />
+              <Route path="dividas" element={<Dividas />} />
+              <Route path="investimentos" element={<Investimentos />} />
+              <Route path="simulacao" element={<Simulacao />} />
               <Route path="perfil" element={<Perfil />} />
+              <Route element={<RotaAdmin />}>
+                <Route path="admin/bancos" element={<AdminBancos />} />
+              </Route>
             </Route>
           </Route>
         </Routes>

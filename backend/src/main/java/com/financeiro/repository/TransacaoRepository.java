@@ -19,7 +19,14 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
 
     List<Transacao> findByEspacoIdAndContaIdAndDataBetweenOrderByDataAsc(Long espacoId, Long contaId, LocalDate start, LocalDate end);
 
+    List<Transacao> findByEspacoIdAndCategoriaIdAndDataBetween(Long espacoId, Long categoriaId, LocalDate start, LocalDate end);
+
+    // Calendário: agenda por vencimento, não por competência (findByEspacoIdAndDataBetween*).
+    List<Transacao> findByEspacoIdAndDataVencimentoBetweenOrderByDataVencimentoAsc(Long espacoId, LocalDate start, LocalDate end);
+
     List<Transacao> findByEspacoIdAndGrupoParcelaId(Long espacoId, String grupoId);
+
+    List<Transacao> findByEspacoIdAndTransferenciaId(Long espacoId, String transferenciaId);
 
     List<Transacao> findByEspacoIdAndGrupoParcelaIdAndDataGreaterThanEqual(Long espacoId, String grupoId, LocalDate fromDate);
 

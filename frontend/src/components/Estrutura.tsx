@@ -35,7 +35,7 @@ export default function Estrutura() {
         </div>
 
         <nav className="flex-1 p-2 space-y-1">
-          {itensNavegacao.map(({ to, icon: Icon, label }) => (
+          {itensNavegacao(sessao?.nivelAcesso === 'ADMIN').map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}
               to={to}

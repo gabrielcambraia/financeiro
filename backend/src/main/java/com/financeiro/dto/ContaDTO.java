@@ -25,4 +25,9 @@ public class ContaDTO {
 
     @NotBlank
     private String icone;
+
+    private Long bancoId;
+
+    // campo de resposta
+    private BancoDTO banco;
 }
