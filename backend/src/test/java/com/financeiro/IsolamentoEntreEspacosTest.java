@@ -1,25 +1,12 @@
 package com.financeiro;
 
 import com.financeiro.dto.ContaDTO;
-import com.financeiro.dto.RequisicaoRegistro;
-import com.financeiro.dto.RespostaAutenticacao;
 import com.financeiro.entity.enums.TipoConta;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -35,30 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * repository filtrar manualmente por {@code espacoId}, sem um enforcement
  * transversal — este teste trava essa garantia contra regressão futura.
  */
-@Testcontainers
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class IsolamentoEntreEspacosTest {
-
-    @Container
-    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16")
-            .withDatabaseName("financeiro")
-            .withUsername("financeiro")
-            .withPassword("financeiro");
-
-    @DynamicPropertySource
-    static void propriedades(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-        registry.add("spring.datasource.username", POSTGRES::getUsername);
-        registry.add("spring.datasource.password", POSTGRES::getPassword);
-        registry.add("financeiro.jwt.segredo", () -> "segredo-de-teste-com-pelo-menos-32-bytes-1234567890");
-        registry.add("financeiro.cookie.seguro", () -> "false");
-    }
-
-    @LocalServerPort
-    private int porta;
-
-    @Autowired
-    private TestRestTemplate restTemplate;
+class IsolamentoEntreEspacosTest extends TesteIntegracaoBase {
 
     private String tokenA;
     private String tokenB;
@@ -90,9 +54,7 @@ class IsolamentoEntreEspacosTest {
         alteracaoMaliciosa.setCor("#000000");
         alteracaoMaliciosa.setIcone("wallet");
 
-        ResponseEntity<String> resposta = restTemplate.exchange(
-                url("/api/contas/" + contaIdA), HttpMethod.PUT,
-                new HttpEntity<>(alteracaoMaliciosa, autenticado(tokenB)), String.class);
+        ResponseEntity<String> resposta = put("/api/contas/" + contaIdA, alteracaoMaliciosa, tokenB, String.class);
 
         assertThat(resposta.getStatusCode().is2xxSuccessful()).isFalse();
 
@@ -107,25 +69,11 @@ class IsolamentoEntreEspacosTest {
     void usuarioBNaoConsegueApagarContaDoUsuarioA() {
         Long contaIdA = criarConta(tokenA, "Conta da A");
 
-        ResponseEntity<String> resposta = restTemplate.exchange(
-                url("/api/contas/" + contaIdA), HttpMethod.DELETE,
-                new HttpEntity<>(autenticado(tokenB)), String.class);
+        ResponseEntity<Void> resposta = delete("/api/contas/" + contaIdA, tokenB);
 
         assertThat(resposta.getStatusCode().is2xxSuccessful()).isFalse();
         assertThat(listarContas(tokenA)).extracting(c -> ((Number) c.get("id")).longValue())
                 .contains(contaIdA);
-    }
-
-    private String registrar(String nome, String email) {
-        RequisicaoRegistro requisicao = new RequisicaoRegistro();
-        requisicao.setNome(nome);
-        requisicao.setEmail(email);
-        requisicao.setSenha("senha12345");
-
-        ResponseEntity<RespostaAutenticacao> resposta = restTemplate.postForEntity(
-                url("/api/auth/register"), requisicao, RespostaAutenticacao.class);
-        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
-        return resposta.getBody().getToken();
     }
 
     private Long criarConta(String token, String nome) {
@@ -136,29 +84,16 @@ class IsolamentoEntreEspacosTest {
         dto.setCor("#6366f1");
         dto.setIcone("wallet");
 
-        ResponseEntity<ContaDTO> resposta = restTemplate.exchange(
-                url("/api/contas"), HttpMethod.POST, new HttpEntity<>(dto, autenticado(token)), ContaDTO.class);
+        ResponseEntity<ContaDTO> resposta = post("/api/contas", dto, token, ContaDTO.class);
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         return resposta.getBody().getId();
     }
 
     @SuppressWarnings("rawtypes")
     private List<Map> listarContas(String token) {
-        ResponseEntity<List<Map>> resposta = restTemplate.exchange(
-                url("/api/contas"), HttpMethod.GET, new HttpEntity<>(autenticado(token)),
-                new org.springframework.core.ParameterizedTypeReference<List<Map>>() {
-                });
+        ResponseEntity<List<Map>> resposta = get("/api/contas", token, new ParameterizedTypeReference<List<Map>>() {
+        });
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
         return resposta.getBody();
-    }
-
-    private HttpHeaders autenticado(String token) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(token);
-        return headers;
-    }
-
-    private String url(String caminho) {
-        return "http://localhost:" + porta + caminho;
     }
 }

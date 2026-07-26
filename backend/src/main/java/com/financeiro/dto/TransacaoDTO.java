@@ -1,5 +1,6 @@
 package com.financeiro.dto;
 
+import com.financeiro.entity.enums.DirecaoTransferencia;
 import com.financeiro.entity.enums.StatusTransacao;
 import com.financeiro.entity.enums.TipoPagamento;
 import com.financeiro.entity.enums.TipoTransacao;
@@ -16,6 +17,9 @@ public class TransacaoDTO {
 
     @NotNull
     private Long contaId;
+
+    // Só usado na criação quando tipo == TRANSFERENCIA: conta que recebe o valor.
+    private Long contaDestinoId;
 
     private Long categoriaId;
 
@@ -55,4 +59,9 @@ public class TransacaoDTO {
     private String grupoParcelaId;
     private Long usuarioId;
     private StatusTransacao status;
+    // Conta do outro lado da transferência: destino quando esta linha é SAIDA,
+    // origem quando é ENTRADA. Só preenchido para tipo == TRANSFERENCIA.
+    private ContaDTO contaVinculada;
+    private String transferenciaId;
+    private DirecaoTransferencia direcaoTransferencia;
 }

@@ -18,8 +18,18 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
   const [tipo, setTipo] = useState<TipoTransacao>(editing?.tipo ?? 'DESPESA')
   const hoje = format(new Date(), 'yyyy-MM-dd')
   const dataInicial = editing?.data ?? hoje
+  // Numa transferência, a linha editada pode ser a perna de saída ou a de
+  // entrada (o usuário pode clicar em qualquer uma na lista) — normaliza para
+  // sempre mostrar origem/destino na ordem certa, independente de qual foi clicada.
+  const contaOrigemInicial = editing?.tipo === 'TRANSFERENCIA'
+    ? (editing.direcaoTransferencia === 'SAIDA' ? editing.contaId : editing.contaVinculada?.id) ?? ''
+    : editing?.contaId ?? ''
+  const contaDestinoInicial = editing?.tipo === 'TRANSFERENCIA'
+    ? (editing.direcaoTransferencia === 'SAIDA' ? editing.contaVinculada?.id : editing.contaId) ?? ''
+    : ''
   const [form, setForm] = useState({
-    contaId: editing?.contaId ?? '',
+    contaId: contaOrigemInicial,
+    contaDestinoId: contaDestinoInicial,
     categoriaId: editing?.categoriaId ?? '',
     tipoPagamento: (editing?.tipoPagamento ?? 'DEBITO') as TipoPagamento,
     valor: editing?.valor ?? '',
@@ -44,6 +54,7 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
   const { data: categorias = [] } = useQuery({
     queryKey: ['categorias', tipo],
     queryFn: () => buscarCategorias(tipo),
+    enabled: tipo !== 'TRANSFERENCIA',
   })
 
   const mutation = useMutation({
@@ -61,10 +72,18 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
     },
   })
 
+  const [erro, setErro] = useState('')
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    if (tipo === 'TRANSFERENCIA' && Number(form.contaId) === Number(form.contaDestinoId)) {
+      setErro('Conta destino deve ser diferente da conta origem')
+      return
+    }
+    setErro('')
     mutation.mutate({
       contaId: Number(form.contaId),
+      contaDestinoId: tipo === 'TRANSFERENCIA' ? Number(form.contaDestinoId) : undefined,
       categoriaId: form.categoriaId ? Number(form.categoriaId) : undefined,
       tipo,
       tipoPagamento: form.tipoPagamento,
@@ -74,8 +93,8 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
       dataVencimento: form.dataVencimento || form.data,
       dataPagamento: paga ? (form.dataPagamento || form.data) : undefined,
       quitarNaCriacao: paga,
-      fixa: form.fixa,
-      totalParcelas: form.totalParcelas ? Number(form.totalParcelas) : undefined,
+      fixa: tipo === 'TRANSFERENCIA' ? false : form.fixa,
+      totalParcelas: tipo === 'TRANSFERENCIA' ? undefined : (form.totalParcelas ? Number(form.totalParcelas) : undefined),
     })
   }
 
@@ -94,38 +113,60 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
         <form onSubmit={handleSubmit} className="cartao-modal-corpo">
           {/* Tipo */}
           <div className="flex rounded-xl overflow-hidden border border-borda">
-            {(['DESPESA', 'RECEITA'] as TipoTransacao[]).map(t => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => { setTipo(t); set('categoriaId', '') }}
-                className={`flex-1 py-2.5 text-sm font-medium transition-colors
-                  ${tipo === t
-                    ? t === 'DESPESA' ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white'
-                    : 'text-conteudo-suave hover:text-conteudo'}`}
-              >
-                {t === 'DESPESA' ? 'Despesa' : 'Receita'}
-              </button>
-            ))}
+            {(['DESPESA', 'RECEITA', 'TRANSFERENCIA'] as TipoTransacao[]).map(t => {
+              const desabilitado = !!editing && (editing.tipo === 'TRANSFERENCIA' ? t !== 'TRANSFERENCIA' : t === 'TRANSFERENCIA')
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  disabled={desabilitado}
+                  onClick={() => { setTipo(t); set('categoriaId', '') }}
+                  className={`flex-1 py-2.5 text-sm font-medium transition-colors
+                    ${tipo === t
+                      ? t === 'DESPESA' ? 'bg-red-600 text-white' : t === 'RECEITA' ? 'bg-emerald-600 text-white' : 'bg-blue-600 text-white'
+                      : 'text-conteudo-suave hover:text-conteudo'}
+                    ${desabilitado ? 'opacity-40 cursor-not-allowed hover:text-conteudo-suave' : ''}`}
+                >
+                  {t === 'DESPESA' ? 'Despesa' : t === 'RECEITA' ? 'Receita' : 'Transferência'}
+                </button>
+              )
+            })}
           </div>
 
-          {/* Conta e Categoria */}
+          {/* Conta e Categoria (ou Conta origem/destino para transferência) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="label">Conta</label>
-              <select className="select" value={form.contaId} onChange={e => set('contaId', e.target.value)} required>
+              <label className="label">{tipo === 'TRANSFERENCIA' ? 'Conta origem' : 'Conta'}</label>
+              <select
+                className="select" value={form.contaId} onChange={e => set('contaId', e.target.value)}
+                disabled={!!editing && tipo === 'TRANSFERENCIA'} required
+              >
                 <option value="">Selecione...</option>
                 {[...contas].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
               </select>
             </div>
-            <div>
-              <label className="label">Categoria</label>
-              <select className="select" value={form.categoriaId} onChange={e => set('categoriaId', e.target.value)}>
-                <option value="">Sem categoria</option>
-                {[...categorias].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-              </select>
-            </div>
+            {tipo === 'TRANSFERENCIA' ? (
+              <div>
+                <label className="label">Conta destino</label>
+                <select
+                  className="select" value={form.contaDestinoId} onChange={e => set('contaDestinoId', e.target.value)}
+                  disabled={!!editing} required
+                >
+                  <option value="">Selecione...</option>
+                  {[...contas].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                </select>
+              </div>
+            ) : (
+              <div>
+                <label className="label">Categoria</label>
+                <select className="select" value={form.categoriaId} onChange={e => set('categoriaId', e.target.value)}>
+                  <option value="">Sem categoria</option>
+                  {[...categorias].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                </select>
+              </div>
+            )}
           </div>
+          {erro && <p className="text-sm text-red-500">{erro}</p>}
 
           {/* Valor e Data */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -173,7 +214,7 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
               className="w-4 h-4 accent-acento"
             />
             <label htmlFor="paga" className="text-sm text-conteudo">
-              {tipo === 'RECEITA' ? 'Já foi recebida' : 'Já foi paga'}
+              {tipo === 'RECEITA' ? 'Já foi recebida' : tipo === 'TRANSFERENCIA' ? 'Já foi transferida' : 'Já foi paga'}
               <span className="block text-xs text-conteudo-suave">Desmarque para deixar como pendente (não afeta o saldo até ser paga)</span>
             </label>
           </div>
@@ -187,7 +228,8 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
             />
           </div>
 
-          {/* Débito / Crédito */}
+          {/* Débito / Crédito — transferência não usa forma de pagamento */}
+          {tipo !== 'TRANSFERENCIA' && (
           <div>
             <label className="label">Forma de pagamento</label>
             <div className="flex gap-2">
@@ -205,9 +247,10 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
               ))}
             </div>
           </div>
+          )}
 
-          {/* Fixa / Parcelada — só para despesas ou sem parcelamento para receitas */}
-          {!editing && (
+          {/* Fixa / Parcelada — não se aplica a transferências */}
+          {!editing && tipo !== 'TRANSFERENCIA' && (
             <div className="space-y-3">
               <div className="flex items-center gap-3 p-3 rounded-xl bg-superficie-2">
                 <input

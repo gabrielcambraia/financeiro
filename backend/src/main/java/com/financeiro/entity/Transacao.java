@@ -2,6 +2,7 @@ package com.financeiro.entity;
 
 import com.financeiro.entity.converter.ConversorLocalDate;
 import com.financeiro.entity.converter.ConversorLocalDateTime;
+import com.financeiro.entity.enums.DirecaoTransferencia;
 import com.financeiro.entity.enums.TipoPagamento;
 import com.financeiro.entity.enums.TipoTransacao;
 import jakarta.persistence.*;
@@ -75,6 +76,23 @@ public class Transacao {
 
     @Column(name = "grupo_parcela_id")
     private String grupoParcelaId;
+
+    // Preenchidos só quando tipo == TRANSFERENCIA: as duas linhas de uma
+    // transferência (saída na conta origem, entrada na conta destino)
+    // compartilham o mesmo transferenciaId e são sempre tratadas em par
+    // (pagar/estornar/cancelar/excluir propagam para a linha irmã).
+    @Column(name = "transferencia_id")
+    private String transferenciaId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "direcao_transferencia")
+    private DirecaoTransferencia direcaoTransferencia;
+
+    // Preenchido só em aportes/resgates de meta (ver MetaService) — liga a
+    // transação de volta à meta que a originou, sem precisar de um razão à parte.
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "meta_id")
+    private Meta meta;
 
     @Convert(converter = ConversorLocalDateTime.class)
     @Column(name = "criado_em", nullable = false)

@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import type { NivelAcesso } from '../types'
 
 export type PapelUsuario = 'DONO' | 'MEMBRO'
 
@@ -10,6 +11,7 @@ interface SessaoAutenticacao {
   espacoId: number
   papel: PapelUsuario
   precisaTrocarSenha: boolean
+  nivelAcesso: NivelAcesso
 }
 
 interface EstadoAutenticacao {

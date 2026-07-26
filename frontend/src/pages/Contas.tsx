@@ -1,31 +1,31 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Pencil, Trash2, Wallet, PiggyBank, CreditCard, TrendingUp } from 'lucide-react'
+import { Pencil, Trash2, Search } from 'lucide-react'
 import { buscarContas, criarConta, atualizarConta, excluirConta } from '../api/contas'
 import SobreposicaoModal from '../components/SobreposicaoModal'
-import SeletorCor from '../components/SeletorCor'
+import SeletorBanco from '../components/SeletorBanco'
+import LogoBanco from '../components/LogoBanco'
 import AcaoNova from '../components/AcaoNova'
 import type { Conta, TipoConta } from '../types'
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
 
-const TIPOS_CONTA: { value: TipoConta; label: string; icon: typeof Wallet }[] = [
-  { value: 'CORRENTE', label: 'Conta Corrente', icon: Wallet },
-  { value: 'POUPANCA', label: 'Poupança', icon: PiggyBank },
-  { value: 'CARTEIRA', label: 'Carteira', icon: CreditCard },
-  { value: 'INVESTIMENTO', label: 'Investimentos', icon: TrendingUp },
+const TIPOS_CONTA: { value: TipoConta; label: string }[] = [
+  { value: 'CORRENTE', label: 'Conta Corrente' },
+  { value: 'POUPANCA', label: 'Poupança' },
+  { value: 'CARTEIRA', label: 'Carteira' },
+  { value: 'INVESTIMENTO', label: 'Investimentos' },
 ]
 
-const CORES = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16']
-
-const formPadrao = { nome: '', tipo: 'CORRENTE' as TipoConta, saldo: '', cor: CORES[0], icone: 'wallet' }
+const formPadrao = { nome: '', tipo: 'CORRENTE' as TipoConta, saldo: '', cor: '#6366f1', icone: 'wallet', bancoId: undefined as number | undefined }
 
 export default function Contas() {
   const qc = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Conta | null>(null)
   const [form, setForm] = useState(formPadrao)
+  const [busca, setBusca] = useState('')
 
   const { data: contas = [] } = useQuery({ queryKey: ['contas'], queryFn: buscarContas })
 
@@ -43,67 +43,89 @@ export default function Contas() {
   const openCreate = () => { setEditing(null); setForm(formPadrao); setShowForm(true) }
   const openEdit = (c: Conta) => {
     setEditing(c)
-    setForm({ nome: c.nome, tipo: c.tipo, saldo: String(c.saldo), cor: c.cor, icone: c.icone })
+    setForm({ nome: c.nome, tipo: c.tipo, saldo: String(c.saldo), cor: c.cor, icone: c.icone, bancoId: c.bancoId })
     setShowForm(true)
   }
   const closeForm = () => { setShowForm(false); setEditing(null) }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    saveMutation.mutate({ nome: form.nome, tipo: form.tipo, saldo: Number(form.saldo), cor: form.cor, icone: form.icone })
+    saveMutation.mutate({
+      nome: form.nome, tipo: form.tipo, saldo: Number(form.saldo),
+      cor: form.cor, icone: form.icone, bancoId: form.bancoId,
+    })
   }
 
-  const saldoTotal = contas.reduce((s, c) => s + c.saldo, 0)
+  const contasFiltradas = contas.filter(c => c.nome.toLowerCase().includes(busca.toLowerCase()))
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-6 space-y-4">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-conteudo">Contas</h1>
-          <p className="text-sm text-conteudo-suave mt-0.5">Saldo total: <span className={`font-semibold ${saldoTotal >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{fmt(saldoTotal)}</span></p>
-        </div>
+        <h1 className="text-2xl font-bold text-conteudo">Contas</h1>
         <AcaoNova aoClicar={openCreate} rotulo="Nova conta" />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {contas.map(conta => {
-          const IconeTipo = TIPOS_CONTA.find(t => t.value === conta.tipo)?.icon ?? Wallet
-          return (
-            <div key={conta.id} className="card hover:border-conteudo-suave transition-colors group">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl" style={{ background: `${conta.cor}20` }}>
-                    <IconeTipo size={20} style={{ color: conta.cor }} />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-conteudo">{conta.nome}</p>
-                    <p className="text-xs text-conteudo-suave">{TIPOS_CONTA.find(t => t.value === conta.tipo)?.label}</p>
-                  </div>
-                </div>
-                <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => openEdit(conta)} className="p-1.5 rounded-lg hover:bg-superficie-2 text-conteudo-suave hover:text-conteudo transition-colors">
-                    <Pencil size={14} />
-                  </button>
-                  <button onClick={() => { if (confirm('Excluir esta conta?')) deleteMutation.mutate(conta.id) }}
-                    className="p-1.5 rounded-lg hover:bg-red-900/40 text-conteudo-suave hover:text-red-400 transition-colors">
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
-              <p className={`text-2xl font-bold ${conta.saldo >= 0 ? 'text-conteudo' : 'text-red-500'}`}>
-                {fmt(conta.saldo)}
-              </p>
-              <div className="mt-3 h-1 rounded-full" style={{ background: conta.cor, opacity: 0.4 }} />
-            </div>
-          )
-        })}
-
-        {contas.length === 0 && (
-          <div className="card col-span-full text-center py-12 text-conteudo-suave">
-            Nenhuma conta cadastrada. Crie a primeira!
-          </div>
-        )}
+      <div className="relative max-w-sm">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-conteudo-suave" />
+        <input
+          className="input pl-9" placeholder="Buscar contas..."
+          value={busca} onChange={e => setBusca(e.target.value)}
+        />
       </div>
+
+      <div className="card p-0 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-superficie-2 text-xs text-conteudo-suave uppercase tracking-wider">
+                <th className="text-left font-semibold px-5 py-3">Conta</th>
+                <th className="text-left font-semibold px-5 py-3">Tipo</th>
+                <th className="text-right font-semibold px-5 py-3">Saldo</th>
+                <th className="text-right font-semibold px-5 py-3">Ações</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-borda">
+              {contasFiltradas.map(conta => (
+                <tr key={conta.id} className="hover:bg-superficie-2 transition-colors group">
+                  <td className="px-5 py-3">
+                    <div className="flex items-center gap-3">
+                      <LogoBanco banco={conta.banco} tamanho={36} />
+                      <span className="font-medium text-conteudo">{conta.nome}</span>
+                    </div>
+                  </td>
+                  <td className="px-5 py-3">
+                    <span className="text-xs px-2 py-1 rounded-full bg-superficie-2 text-conteudo-suave">
+                      {TIPOS_CONTA.find(t => t.value === conta.tipo)?.label}
+                    </span>
+                  </td>
+                  <td className={`px-5 py-3 text-right font-semibold ${conta.saldo >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                    {fmt(conta.saldo)}
+                  </td>
+                  <td className="px-5 py-3">
+                    <div className="flex gap-1 justify-end md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => openEdit(conta)} className="p-1.5 rounded-lg hover:bg-superficie-2 text-conteudo-suave hover:text-conteudo transition-colors">
+                        <Pencil size={14} />
+                      </button>
+                      <button onClick={() => { if (confirm('Excluir esta conta?')) deleteMutation.mutate(conta.id) }}
+                        className="p-1.5 rounded-lg hover:bg-red-900/40 text-conteudo-suave hover:text-red-400 transition-colors">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {contasFiltradas.length === 0 && (
+            <p className="text-center py-12 text-conteudo-suave text-sm">
+              {contas.length === 0 ? 'Nenhuma conta cadastrada. Crie a primeira!' : 'Nenhuma conta encontrada.'}
+            </p>
+          )}
+        </div>
+      </div>
+      {contasFiltradas.length > 0 && (
+        <p className="text-xs text-conteudo-suave">{contasFiltradas.length} registro{contasFiltradas.length !== 1 ? 's' : ''}</p>
+      )}
 
       {/* Modal do formulário */}
       {showForm && (
@@ -114,6 +136,10 @@ export default function Contas() {
               <button onClick={closeForm} className="btn-ghost p-1.5 text-sm">✕</button>
             </div>
             <form onSubmit={handleSubmit} className="cartao-modal-corpo">
+              <div>
+                <label className="label">Banco</label>
+                <SeletorBanco bancoSelecionado={form.bancoId} aoSelecionar={b => setForm(f => ({ ...f, bancoId: b }))} />
+              </div>
               <div>
                 <label className="label">Nome</label>
                 <input className="input" placeholder="Ex: Nubank, Carteira..." required
@@ -129,11 +155,6 @@ export default function Contas() {
                 <label className="label">{editing ? 'Saldo (R$)' : 'Saldo inicial (R$)'}</label>
                 <input className="input" type="number" step="0.01" placeholder="0,00"
                   value={form.saldo} onChange={e => setForm(f => ({ ...f, saldo: e.target.value }))} required />
-              </div>
-              <div>
-                <label className="label">Cor</label>
-                <SeletorCor cores={CORES} corSelecionada={form.cor}
-                  aoSelecionar={c => setForm(f => ({ ...f, cor: c }))} />
               </div>
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={closeForm}

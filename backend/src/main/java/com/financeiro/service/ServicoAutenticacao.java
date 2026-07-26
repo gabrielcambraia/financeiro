@@ -89,10 +89,10 @@ public class ServicoAutenticacao {
 
         semeadorCategoriasPadrao.semear(espaco.getId());
 
-        String token = servicoJwt.gerarToken(usuario.getId(), espaco.getId(), usuario.getEmail(), false);
+        String token = servicoJwt.gerarToken(usuario.getId(), espaco.getId(), usuario.getEmail(), false, usuario.getNivelAcesso());
         TokenRenovado tokenAtualizacao = servicoTokenAtualizacao.emitir(usuario.getId(), espaco.getId(), userAgent);
         RespostaAutenticacao resposta = new RespostaAutenticacao(token, usuario.getId(), usuario.getNome(),
-                usuario.getEmail(), espaco.getId(), PapelUsuario.DONO, false);
+                usuario.getEmail(), espaco.getId(), PapelUsuario.DONO, false, usuario.getNivelAcesso());
         return new ResultadoAutenticacao(resposta, tokenAtualizacao.tokenBruto());
     }
 
@@ -110,11 +110,12 @@ public class ServicoAutenticacao {
                 .orElseThrow(() -> new IllegalStateException("Usuário sem espaço vinculado"));
 
         String token = servicoJwt.gerarToken(usuario.getId(), vinculo.getId().getEspacoId(), usuario.getEmail(),
-                usuario.isPrecisaTrocarSenha());
+                usuario.isPrecisaTrocarSenha(), usuario.getNivelAcesso());
         TokenRenovado tokenAtualizacao = servicoTokenAtualizacao.emitir(
                 usuario.getId(), vinculo.getId().getEspacoId(), userAgent);
         RespostaAutenticacao resposta = new RespostaAutenticacao(token, usuario.getId(), usuario.getNome(),
-                usuario.getEmail(), vinculo.getId().getEspacoId(), vinculo.getPapel(), usuario.isPrecisaTrocarSenha());
+                usuario.getEmail(), vinculo.getId().getEspacoId(), vinculo.getPapel(), usuario.isPrecisaTrocarSenha(),
+                usuario.getNivelAcesso());
         return new ResultadoAutenticacao(resposta, tokenAtualizacao.tokenBruto());
     }
 
@@ -135,13 +136,14 @@ public class ServicoAutenticacao {
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("Usuário sem espaço vinculado"));
 
-        String token = servicoJwt.gerarToken(usuario.getId(), vinculo.getId().getEspacoId(), usuario.getEmail(), false);
+        String token = servicoJwt.gerarToken(usuario.getId(), vinculo.getId().getEspacoId(), usuario.getEmail(), false,
+                usuario.getNivelAcesso());
         // Revoga tokens de outros dispositivos: uma troca de senha (inclusive por
         // suspeita de comprometimento) não deve deixar sessões antigas vivas.
         TokenRenovado tokenAtualizacao = servicoTokenAtualizacao.emitir(
                 usuario.getId(), vinculo.getId().getEspacoId(), userAgent);
         RespostaAutenticacao resposta = new RespostaAutenticacao(token, usuario.getId(), usuario.getNome(),
-                usuario.getEmail(), vinculo.getId().getEspacoId(), vinculo.getPapel(), false);
+                usuario.getEmail(), vinculo.getId().getEspacoId(), vinculo.getPapel(), false, usuario.getNivelAcesso());
         return new ResultadoAutenticacao(resposta, tokenAtualizacao.tokenBruto());
     }
 
@@ -157,9 +159,10 @@ public class ServicoAutenticacao {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Sessão inválida"));
 
         String token = servicoJwt.gerarToken(usuario.getId(), vinculo.getId().getEspacoId(), usuario.getEmail(),
-                usuario.isPrecisaTrocarSenha());
+                usuario.isPrecisaTrocarSenha(), usuario.getNivelAcesso());
         RespostaAutenticacao resposta = new RespostaAutenticacao(token, usuario.getId(), usuario.getNome(),
-                usuario.getEmail(), vinculo.getId().getEspacoId(), vinculo.getPapel(), usuario.isPrecisaTrocarSenha());
+                usuario.getEmail(), vinculo.getId().getEspacoId(), vinculo.getPapel(), usuario.isPrecisaTrocarSenha(),
+                usuario.getNivelAcesso());
         return new ResultadoAutenticacao(resposta, renovado.tokenBruto());
     }
 

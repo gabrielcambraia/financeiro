@@ -1,5 +1,6 @@
 package com.financeiro.seguranca;
 
+import com.financeiro.entity.enums.NivelAcesso;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -30,13 +31,15 @@ public class ServicoJwt {
         this.validadeMinutos = validadeMinutos;
     }
 
-    public String gerarToken(Long usuarioId, Long espacoId, String email, boolean precisaTrocarSenha) {
+    public String gerarToken(Long usuarioId, Long espacoId, String email, boolean precisaTrocarSenha,
+                              NivelAcesso nivelAcesso) {
         Instant agora = Instant.now();
         return Jwts.builder()
                 .subject(String.valueOf(usuarioId))
                 .claim("espacoId", espacoId)
                 .claim("email", email)
                 .claim("precisaTrocarSenha", precisaTrocarSenha)
+                .claim("nivelAcesso", nivelAcesso.name())
                 .issuedAt(Date.from(agora))
                 .expiration(Date.from(agora.plusSeconds(validadeMinutos * 60)))
                 .signWith(chave)
@@ -54,6 +57,8 @@ public class ServicoJwt {
         Long espacoId = claims.get("espacoId", Long.class);
         String email = claims.get("email", String.class);
         boolean precisaTrocarSenha = Boolean.TRUE.equals(claims.get("precisaTrocarSenha", Boolean.class));
-        return new UsuarioAutenticado(usuarioId, espacoId, email, precisaTrocarSenha);
+        String nivelAcessoBruto = claims.get("nivelAcesso", String.class);
+        NivelAcesso nivelAcesso = nivelAcessoBruto != null ? NivelAcesso.valueOf(nivelAcessoBruto) : NivelAcesso.USUARIO;
+        return new UsuarioAutenticado(usuarioId, espacoId, email, precisaTrocarSenha, nivelAcesso);
     }
 }

@@ -11,4 +11,6 @@ public interface ContaRepository extends JpaRepository<Conta, Long> {
     List<Conta> findByEspacoId(Long espacoId);
 
     Optional<Conta> findByIdAndEspacoId(Long id, Long espacoId);
+
+    boolean existsByBancoId(Long bancoId);
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Trash2, Pencil, CreditCard, Banknote, Repeat, Layers, CheckCircle2, Ban, Undo2 } from 'lucide-react'
+import { Trash2, Pencil, CreditCard, Banknote, Repeat, Layers, CheckCircle2, Ban, Undo2, ArrowRightLeft } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import {
@@ -206,6 +206,7 @@ export default function Transacoes() {
           <option value="">Todos</option>
           <option value="RECEITA">Receitas</option>
           <option value="DESPESA">Despesas</option>
+          <option value="TRANSFERENCIA">Transferências</option>
         </select>
         <select className="select w-full md:w-48" value={filtroCategoria} onChange={e => setFiltroCategoria(e.target.value ? Number(e.target.value) : '')}>
           <option value="">Todas categorias</option>
@@ -244,13 +245,15 @@ export default function Transacoes() {
                   <div key={tx.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-superficie-2 transition-colors group">
                     {/* Bolinha de cor */}
                     <div className="w-3 h-3 rounded-full shrink-0"
-                      style={{ background: tx.categoria?.cor ?? '#6b7280' }} />
+                      style={{ background: tx.tipo === 'TRANSFERENCIA' ? '#3b82f6' : tx.categoria?.cor ?? '#6b7280' }} />
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium text-conteudo truncate">
-                          {tx.descricao || tx.categoria?.nome || '—'}
+                          {tx.tipo === 'TRANSFERENCIA'
+                            ? (tx.descricao || 'Transferência')
+                            : (tx.descricao || tx.categoria?.nome || '—')}
                         </span>
                         {tx.fixa && <Repeat size={12} className="text-acento shrink-0" aria-label="Fixa" />}
                         {tx.totalParcelas && (
@@ -262,32 +265,49 @@ export default function Transacoes() {
                         <BadgeStatus status={tx.status} />
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-xs text-conteudo-suave">{tx.conta.nome}</span>
-                        {tx.categoria && (
-                          <span className="text-xs px-1.5 py-0.5 rounded-full" style={{
-                            background: `${tx.categoria.cor}20`, color: tx.categoria.cor
-                          }}>
-                            {tx.categoria.nome}
+                        {tx.tipo === 'TRANSFERENCIA' ? (
+                          <span className="text-xs text-conteudo-suave flex items-center gap-1">
+                            <ArrowRightLeft size={11} />
+                            {tx.direcaoTransferencia === 'SAIDA'
+                              ? `${tx.conta.nome} → ${tx.contaVinculada?.nome ?? '—'}`
+                              : `${tx.contaVinculada?.nome ?? '—'} → ${tx.conta.nome}`}
                           </span>
-                        )}
-                        {tx.tipoPagamento === 'CREDITO' ? (
-                          <CreditCard size={11} className="text-conteudo-suave" />
                         ) : (
-                          <Banknote size={11} className="text-conteudo-suave" />
+                          <>
+                            <span className="text-xs text-conteudo-suave">{tx.conta.nome}</span>
+                            {tx.categoria && (
+                              <span className="text-xs px-1.5 py-0.5 rounded-full" style={{
+                                background: `${tx.categoria.cor}20`, color: tx.categoria.cor
+                              }}>
+                                {tx.categoria.nome}
+                              </span>
+                            )}
+                            {tx.tipoPagamento === 'CREDITO' ? (
+                              <CreditCard size={11} className="text-conteudo-suave" />
+                            ) : (
+                              <Banknote size={11} className="text-conteudo-suave" />
+                            )}
+                          </>
                         )}
                       </div>
                     </div>
 
                     {/* Valor */}
-                    <span className={`text-base font-bold ${tx.tipo === 'RECEITA' ? 'text-emerald-500' : 'text-red-500'}`}>
-                      {tx.tipo === 'RECEITA' ? '+' : '-'}{fmt(tx.valor)}
+                    <span className={`text-base font-bold ${
+                      tx.tipo === 'TRANSFERENCIA'
+                        ? 'text-blue-500'
+                        : tx.tipo === 'RECEITA' ? 'text-emerald-500' : 'text-red-500'
+                    }`}>
+                      {tx.tipo === 'TRANSFERENCIA'
+                        ? (tx.direcaoTransferencia === 'ENTRADA' ? '+' : '-')
+                        : (tx.tipo === 'RECEITA' ? '+' : '-')}{fmt(tx.valor)}
                     </span>
 
                     {/* Ações */}
                     <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                       {(tx.status === 'PENDENTE' || tx.status === 'ATRASADA') && (
                         <button onClick={() => pagarMutation.mutate(tx.id)}
-                          title={tx.tipo === 'RECEITA' ? 'Marcar como recebida' : 'Marcar como paga'}
+                          title={tx.tipo === 'RECEITA' ? 'Marcar como recebida' : tx.tipo === 'TRANSFERENCIA' ? 'Marcar como transferida' : 'Marcar como paga'}
                           className="p-1.5 rounded-lg hover:bg-emerald-900/40 text-conteudo-suave hover:text-emerald-500 transition-colors">
                           <CheckCircle2 size={14} />
                         </button>
@@ -339,16 +359,18 @@ export default function Transacoes() {
             </div>
             <div className="cartao-modal-corpo">
               <p className="text-sm text-conteudo-suave">
-                {deleteModal.tx.grupoParcelaId
-                  ? 'Este lançamento faz parte de um parcelamento.'
-                  : deleteModal.tx.fixa
-                    ? 'Este é um lançamento fixo.'
-                    : 'Tem certeza que deseja excluir?'}
+                {deleteModal.tx.tipo === 'TRANSFERENCIA'
+                  ? 'Isso exclui as duas pontas da transferência (saída e entrada).'
+                  : deleteModal.tx.grupoParcelaId
+                    ? 'Este lançamento faz parte de um parcelamento.'
+                    : deleteModal.tx.fixa
+                      ? 'Este é um lançamento fixo.'
+                      : 'Tem certeza que deseja excluir?'}
               </p>
               <div className="space-y-2">
                 <button onClick={() => deleteMutation.mutate({ id: deleteModal.tx.id, scope: 'UNICA' })}
                   className="w-full btn-danger">
-                  Excluir só este
+                  {deleteModal.tx.tipo === 'TRANSFERENCIA' ? 'Excluir transferência' : 'Excluir só este'}
                 </button>
                 {deleteModal.tx.grupoParcelaId && (
                   <button onClick={() => deleteMutation.mutate({ id: deleteModal.tx.id, scope: 'FUTURAS' })}
@@ -387,12 +409,14 @@ export default function Transacoes() {
             </div>
             <div className="cartao-modal-corpo">
               <p className="text-sm text-conteudo-suave">
-                O lançamento fica marcado como cancelado (e o saldo é revertido, se já estava pago), mas continua no histórico — diferente de excluir.
+                {cancelModal.tx.tipo === 'TRANSFERENCIA'
+                  ? 'As duas pontas da transferência (saída e entrada) ficam marcadas como canceladas e o saldo é revertido, se já estava paga.'
+                  : 'O lançamento fica marcado como cancelado (e o saldo é revertido, se já estava pago), mas continua no histórico — diferente de excluir.'}
               </p>
               <div className="space-y-2">
                 <button onClick={() => cancelarMutation.mutate({ id: cancelModal.tx.id, scope: 'UNICA' })}
                   className="w-full py-2.5 rounded-lg border border-orange-800 text-orange-500 hover:bg-orange-900/20 transition-colors text-sm font-medium">
-                  Cancelar só este
+                  {cancelModal.tx.tipo === 'TRANSFERENCIA' ? 'Cancelar transferência' : 'Cancelar só este'}
                 </button>
                 {cancelModal.tx.grupoParcelaId && (
                   <button onClick={() => cancelarMutation.mutate({ id: cancelModal.tx.id, scope: 'FUTURAS' })}

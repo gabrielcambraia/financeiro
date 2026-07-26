@@ -1,5 +1,6 @@
 package com.financeiro.dto;
 
+import com.financeiro.entity.enums.NivelAcesso;
 import com.financeiro.entity.enums.PapelUsuario;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -14,4 +15,5 @@ public class RespostaAutenticacao {
     private Long espacoId;
     private PapelUsuario papel;
     private boolean precisaTrocarSenha;
+    private NivelAcesso nivelAcesso;
 }

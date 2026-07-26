@@ -34,6 +34,10 @@ public class Conta {
     @Column(nullable = false)
     private String icone;
 
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "banco_id")
+    private Banco banco;
+
     @Column(name = "espaco_id", nullable = false)
     private Long espacoId;
 }

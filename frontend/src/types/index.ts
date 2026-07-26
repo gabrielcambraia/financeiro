@@ -1,7 +1,20 @@
 export type TipoConta = 'CORRENTE' | 'POUPANCA' | 'CARTEIRA' | 'INVESTIMENTO'
-export type TipoTransacao = 'RECEITA' | 'DESPESA'
+export type TipoTransacao = 'RECEITA' | 'DESPESA' | 'TRANSFERENCIA'
 export type TipoPagamento = 'DEBITO' | 'CREDITO'
 export type StatusTransacao = 'PENDENTE' | 'PAGA' | 'ATRASADA' | 'CANCELADA'
+export type DirecaoTransferencia = 'SAIDA' | 'ENTRADA'
+export type NivelAcesso = 'USUARIO' | 'ADMIN'
+export type StatusDivida = 'EM_DIA' | 'ATRASADA' | 'QUITADA' | 'CANCELADA'
+export type TipoAtivo = 'RESERVA' | 'RENDA_FIXA' | 'RENDA_VARIAVEL'
+export type TipoMovimentacaoAtivo = 'APORTE' | 'RESGATE' | 'RENDIMENTO'
+
+export interface Banco {
+  id: number
+  nome: string
+  corPrimaria: string
+  sigla: string
+  temLogo: boolean
+}
 
 export interface Conta {
   id: number
@@ -10,6 +23,8 @@ export interface Conta {
   saldo: number
   cor: string
   icone: string
+  bancoId?: number
+  banco?: Banco
 }
 
 export interface Categoria {
@@ -39,6 +54,9 @@ export interface Transacao {
   totalParcelas?: number
   numeroParcela?: number
   grupoParcelaId?: string
+  contaVinculada?: Conta
+  transferenciaId?: string
+  direcaoTransferencia?: DirecaoTransferencia
 }
 
 export interface ResumoFluxo {
@@ -80,4 +98,120 @@ export interface SaldoConta {
 export interface SaldoDiario {
   data: string
   saldo: number
+}
+
+export interface Cartao {
+  id: number
+  nome: string
+  limite: number
+  diaFechamento: number
+  diaVencimento: number
+  contaPagamentoId: number
+  contaPagamento: Conta
+  cor: string
+  icone: string
+  bancoId?: number
+  banco?: Banco
+  faturaAtualTotal: number
+  limiteDisponivel: number
+}
+
+export interface ItemFatura {
+  id: number
+  cartaoId: number
+  categoriaId?: number
+  categoria?: Categoria
+  valor: number
+  descricao?: string
+  data: string
+  totalParcelas?: number
+  numeroParcela?: number
+  grupoParcelaId?: string
+  faturaId?: number
+  dataCancelamento?: string
+  cancelado: boolean
+  faturado: boolean
+}
+
+export interface Fatura {
+  id: number
+  cartaoId: number
+  cartao: Cartao
+  dataFechamento: string
+  dataVencimento: string
+  transacaoDespesaId: number
+  valor: number
+  status: StatusTransacao
+  itens?: ItemFatura[]
+}
+
+export interface Orcamento {
+  id: number
+  categoriaId: number
+  categoria: Categoria
+  mes: string
+  limite: number
+  gasto: number
+  percentualUsado: number
+}
+
+export interface Ativo {
+  id: number
+  nome: string
+  tipo: TipoAtivo
+  contaId: number
+  conta: Conta
+  cor: string
+  icone: string
+  valorAtual: number
+  percentualCarteira: number
+  dataCancelamento?: string
+}
+
+export interface MovimentacaoAtivo {
+  id: number
+  tipo: TipoMovimentacaoAtivo
+  valor: number
+  data: string
+  contaId?: number
+}
+
+export interface Patrimonio {
+  totalPatrimonio: number
+  porTipo: { tipo: TipoAtivo; valor: number }[]
+  evolucaoMensal: { mes: string; valor: number }[]
+}
+
+export interface Divida {
+  id: number
+  descricao: string
+  credor?: string
+  valorTotal: number
+  totalParcelas: number
+  contaId: number
+  conta: Conta
+  categoriaId?: number
+  categoria?: Categoria
+  dataInicio: string
+  dataCancelamento?: string
+  valorPago: number
+  valorRestante: number
+  parcelasPagas: number
+  status: StatusDivida
+  proximaParcelaData?: string
+  proximaParcelaValor?: number
+}
+
+export interface Meta {
+  id: number
+  nome: string
+  valorAlvo: number
+  valorAtual: number
+  prazo?: string
+  cor: string
+  icone: string
+  dataCancelamento?: string
+  percentualConcluido: number
+  mesesEstimados?: number
+  concluida: boolean
 }

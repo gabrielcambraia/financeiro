@@ -4,6 +4,7 @@ import com.financeiro.context.ContextoEspaco;
 import com.financeiro.dto.CategoriaDTO;
 import com.financeiro.dto.PainelDTO;
 import com.financeiro.entity.Transacao;
+import com.financeiro.entity.enums.DirecaoTransferencia;
 import com.financeiro.entity.enums.TipoTransacao;
 import com.financeiro.repository.ContaRepository;
 import com.financeiro.repository.TransacaoRepository;
@@ -155,12 +156,20 @@ public class PainelService {
             LocalDate data = ym.atDay(dia);
             for (Transacao t : transacoes) {
                 if (data.equals(t.getData())) {
-                    acumulado = acumulado.add(t.getTipo() == TipoTransacao.RECEITA
-                            ? t.getValor() : t.getValor().negate());
+                    acumulado = acumulado.add(computeDelta(t));
                 }
             }
             resultado.add(PainelDTO.SaldoDiario.builder().data(data).saldo(acumulado).build());
         }
         return resultado;
+    }
+
+    // Espelha TransacaoService.computeDelta: transferência não é RECEITA nem
+    // DESPESA — o sinal depende da direção (SAIDA/ENTRADA), não do tipo.
+    private BigDecimal computeDelta(Transacao t) {
+        if (t.getTipo() == TipoTransacao.TRANSFERENCIA) {
+            return t.getDirecaoTransferencia() == DirecaoTransferencia.ENTRADA ? t.getValor() : t.getValor().negate();
+        }
+        return t.getTipo() == TipoTransacao.RECEITA ? t.getValor() : t.getValor().negate();
     }
 }

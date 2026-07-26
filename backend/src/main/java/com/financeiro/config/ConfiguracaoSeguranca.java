@@ -7,6 +7,7 @@ import com.financeiro.seguranca.FiltroProtecaoOrigem;
 import com.financeiro.seguranca.FiltroTrocaSenhaObrigatoria;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -73,6 +74,9 @@ public class ConfiguracaoSeguranca {
                                 "/api/auth/renovar", "/api/auth/sair").permitAll()
                         .requestMatchers("/api/actuator/health/liveness", "/api/actuator/health/readiness")
                         .permitAll()
+                        // Tag <img> não manda header Authorization — o logo do banco
+                        // precisa ser alcançável sem JWT (não é dado sensível).
+                        .requestMatchers(HttpMethod.GET, "/api/bancos/*/logo").permitAll()
                         .requestMatchers(req -> !req.getRequestURI().startsWith("/api/")).permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(excecao -> excecao
