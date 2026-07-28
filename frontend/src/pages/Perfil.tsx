@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Copy, UserPlus, KeyRound, Palette, User } from 'lucide-react'
+import { Copy, UserPlus, KeyRound, Palette, User, Image, Trash2, Upload } from 'lucide-react'
 import { trocarSenha } from '../api/autenticacao'
 import { adicionarMembro, listarMembros, type RespostaMembroAdicionado } from '../api/membros'
+import { enviarLogoPlataforma, removerLogoPlataforma, logoPlataformaUrl } from '../api/configuracaoPlataforma'
+import { useConfiguracaoPlataforma } from '../hooks/useConfiguracaoPlataforma'
 import { useLojaAutenticacao } from '../store/lojaAutenticacao'
 import { iniciaisDoNome } from '../utils/formatadores'
 import AlternadorTema from '../components/AlternadorTema'
@@ -32,6 +34,67 @@ function SecaoInformacoes() {
           </span>
         </div>
       </div>
+    </div>
+  )
+}
+
+function SecaoLogoPlataforma() {
+  const qc = useQueryClient()
+  const { data: configuracaoPlataforma } = useConfiguracaoPlataforma()
+  const inputArquivoRef = useRef<HTMLInputElement>(null)
+  const [erro, setErro] = useState('')
+
+  const invalidar = () => qc.invalidateQueries({ queryKey: ['configuracao-plataforma'] })
+
+  const uploadMutation = useMutation({
+    mutationFn: enviarLogoPlataforma,
+    onSuccess: () => { invalidar(); setErro('') },
+    onError: () => setErro('Falha ao enviar imagem. Use PNG, JPEG ou WEBP de até 1MB.'),
+  })
+
+  const removerMutation = useMutation({
+    mutationFn: removerLogoPlataforma,
+    onSuccess: invalidar,
+  })
+
+  const arquivoSelecionado = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const arquivo = e.target.files?.[0]
+    e.target.value = ''
+    if (arquivo) uploadMutation.mutate(arquivo)
+  }
+
+  return (
+    <div className="card">
+      <div className="flex items-center gap-2 mb-4">
+        <Image size={16} className="text-acento" />
+        <h2 className="text-sm font-semibold text-conteudo">Logo da plataforma</h2>
+      </div>
+      <p className="text-xs text-conteudo-suave mb-4">
+        Usada como ícone da aba do navegador e no lugar do texto "Financeiro" na barra lateral.
+      </p>
+      <div className="flex items-center gap-4">
+        <div className="w-14 h-14 rounded-xl bg-superficie-2 flex items-center justify-center shrink-0 overflow-hidden">
+          {configuracaoPlataforma?.temLogo ? (
+            <img src={logoPlataformaUrl()} alt="Logo atual" className="w-full h-full object-contain" />
+          ) : (
+            <Image size={20} className="text-conteudo-suave" />
+          )}
+        </div>
+        <div className="flex gap-2">
+          <input ref={inputArquivoRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={arquivoSelecionado} />
+          <button type="button" onClick={() => inputArquivoRef.current?.click()}
+            className="btn-ghost flex items-center gap-2 text-sm">
+            <Upload size={14} /> {uploadMutation.isPending ? 'Enviando...' : 'Enviar logo'}
+          </button>
+          {configuracaoPlataforma?.temLogo && (
+            <button type="button" onClick={() => removerMutation.mutate()}
+              className="btn-ghost flex items-center gap-2 text-sm text-red-500 hover:text-red-400">
+              <Trash2 size={14} /> Remover
+            </button>
+          )}
+        </div>
+      </div>
+      {erro && <p className="text-sm text-red-500 mt-3">{erro}</p>}
     </div>
   )
 }
@@ -226,6 +289,7 @@ export default function Perfil() {
       </div>
 
       <SecaoInformacoes />
+      {sessao?.nivelAcesso === 'ADMIN' && <SecaoLogoPlataforma />}
       <SecaoAparencia />
       <SecaoTrocarSenha />
       {sessao?.papel === 'DONO' && <SecaoMembros />}

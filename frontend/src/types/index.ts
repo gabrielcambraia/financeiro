@@ -4,6 +4,19 @@ export type TipoPagamento = 'DEBITO' | 'CREDITO'
 export type StatusTransacao = 'PENDENTE' | 'PAGA' | 'ATRASADA' | 'CANCELADA'
 export type DirecaoTransferencia = 'SAIDA' | 'ENTRADA'
 export type NivelAcesso = 'USUARIO' | 'ADMIN'
+export type TipoEspaco = 'PESSOAL' | 'FAMILIA' | 'EMPRESA'
+export type PlanoEspaco = 'GRATUITO' | 'PAGO'
+// Catálogo de módulos opcionais por espaço — hoje sem nenhuma validação de
+// acesso, só a base para a tela de admin marcar quais espaços têm cada um.
+export type ModuloEspaco = 'WHATSAPP_IA'
+
+export interface RespostaPaginada<T> {
+  itens: T[]
+  pagina: number
+  tamanho: number
+  totalItens: number
+  totalPaginas: number
+}
 export type StatusDivida = 'EM_DIA' | 'ATRASADA' | 'QUITADA' | 'CANCELADA'
 export type TipoAtivo = 'RESERVA' | 'RENDA_FIXA' | 'RENDA_VARIAVEL'
 export type TipoMovimentacaoAtivo = 'APORTE' | 'RESGATE' | 'RENDIMENTO'

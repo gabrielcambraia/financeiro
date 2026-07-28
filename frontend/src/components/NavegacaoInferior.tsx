@@ -1,15 +1,13 @@
 import { NavLink } from 'react-router-dom'
-import { itensNavegacao } from '../config/navegacao'
-import { useLojaAutenticacao } from '../store/lojaAutenticacao'
+import { itensNavegacaoInferior } from '../config/navegacao'
 
 export default function NavegacaoInferior() {
-  const admin = useLojaAutenticacao(s => s.sessao?.nivelAcesso === 'ADMIN')
   return (
     <nav
       className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-superficie border-t border-borda flex items-stretch"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
-      {itensNavegacao(admin).map(({ to, icon: Icon, label }) => (
+      {itensNavegacaoInferior().map(({ to, icon: Icon, label }) => (
         <NavLink
           key={to}
           to={to}
