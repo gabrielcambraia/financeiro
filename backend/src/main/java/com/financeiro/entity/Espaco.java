@@ -1,12 +1,15 @@
 package com.financeiro.entity;
 
 import com.financeiro.entity.converter.ConversorLocalDateTime;
+import com.financeiro.entity.enums.ModuloEspaco;
 import com.financeiro.entity.enums.PlanoEspaco;
 import com.financeiro.entity.enums.TipoEspaco;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * O "tenant": todo dado (contas, categorias, transações) pertence a um
@@ -40,6 +43,15 @@ public class Espaco {
     @Convert(converter = ConversorLocalDateTime.class)
     @Column(name = "criado_em", nullable = false)
     private LocalDateTime criadoEm;
+
+    // Opt-in, controlado só pela tela de admin — nenhum endpoint valida
+    // isso ainda (ver ModuloEspaco).
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(name = "espaco_modulos", joinColumns = @JoinColumn(name = "espaco_id"))
+    @Enumerated(EnumType.STRING)
+    @Column(name = "modulo")
+    @Builder.Default
+    private Set<ModuloEspaco> modulosHabilitados = new HashSet<>();
 
     @PrePersist
     public void prePersist() {

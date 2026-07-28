@@ -1,4 +1,4 @@
-import { LayoutDashboard, ArrowLeftRight, Wallet, Tags, CreditCard, Landmark, PiggyBank, Target, Calendar, HandCoins, TrendingUp, LineChart } from 'lucide-react'
+import { LayoutDashboard, ArrowLeftRight, Wallet, Tags, CreditCard, Landmark, PiggyBank, Target, Calendar, HandCoins, TrendingUp, LineChart, Building2 } from 'lucide-react'
 
 const itensBase = [
   { to: '/', icon: LayoutDashboard, label: 'Painel' },
@@ -14,7 +14,14 @@ const itensBase = [
   { to: '/categorias', icon: Tags, label: 'Categorias' },
 ]
 
-const itemAdmin = { to: '/admin/bancos', icon: Landmark, label: 'Bancos' }
+const itensAdmin = [
+  { to: '/admin/bancos', icon: Landmark, label: 'Bancos' },
+  { to: '/admin/espacos', icon: Building2, label: 'Espaços' },
+]
 
 export const itensNavegacao = (admin: boolean) =>
-  admin ? [...itensBase, itemAdmin] : itensBase
+  admin ? [...itensBase, ...itensAdmin] : itensBase
+
+// Bottom nav mobile: itens admin ficam de fora — a barra é flex-1 e já
+// está no limite (11 itens); admin continua acessível pela sidebar/URL.
+export const itensNavegacaoInferior = () => itensBase

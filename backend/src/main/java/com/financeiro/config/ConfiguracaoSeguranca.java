@@ -77,6 +77,10 @@ public class ConfiguracaoSeguranca {
                         // Tag <img> não manda header Authorization — o logo do banco
                         // precisa ser alcançável sem JWT (não é dado sensível).
                         .requestMatchers(HttpMethod.GET, "/api/bancos/*/logo").permitAll()
+                        // Logo da plataforma: usada como favicon (até na tela de login) e
+                        // por <img>/<link>, que também não mandam Authorization.
+                        .requestMatchers(HttpMethod.GET, "/api/configuracao-plataforma",
+                                "/api/configuracao-plataforma/logo").permitAll()
                         .requestMatchers(req -> !req.getRequestURI().startsWith("/api/")).permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(excecao -> excecao

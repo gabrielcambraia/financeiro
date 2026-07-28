@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import Estrutura from './components/Estrutura'
 import RotaProtegida from './components/RotaProtegida'
+import FaviconPlataforma from './components/FaviconPlataforma'
 import RotaAdmin from './components/RotaAdmin'
 import Painel from './pages/Painel'
 import Transacoes from './pages/Transacoes'
@@ -16,6 +17,7 @@ import Dividas from './pages/Dividas'
 import Investimentos from './pages/Investimentos'
 import Simulacao from './pages/Simulacao'
 import AdminBancos from './pages/AdminBancos'
+import AdminEspacos from './pages/AdminEspacos'
 import Login from './pages/Login'
 import Registro from './pages/Registro'
 import TrocarSenha from './pages/TrocarSenha'
@@ -30,6 +32,7 @@ const queryClient = new QueryClient({
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      <FaviconPlataforma />
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
@@ -52,6 +55,7 @@ export default function App() {
               <Route path="perfil" element={<Perfil />} />
               <Route element={<RotaAdmin />}>
                 <Route path="admin/bancos" element={<AdminBancos />} />
+                <Route path="admin/espacos" element={<AdminEspacos />} />
               </Route>
             </Route>
           </Route>

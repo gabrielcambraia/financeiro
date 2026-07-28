@@ -7,12 +7,15 @@ import { iniciaisDoNome } from '../utils/formatadores'
 import AlternadorTema from './AlternadorTema'
 import NavegacaoInferior from './NavegacaoInferior'
 import { itensNavegacao } from '../config/navegacao'
+import { useConfiguracaoPlataforma } from '../hooks/useConfiguracaoPlataforma'
+import { logoPlataformaUrl } from '../api/configuracaoPlataforma'
 
 export default function Estrutura() {
   const [recolhido, setRecolhido] = useState(false)
   const navigate = useNavigate()
   const sessao = useLojaAutenticacao(s => s.sessao)
   const limparSessao = useLojaAutenticacao(s => s.limparSessao)
+  const { data: configuracaoPlataforma } = useConfiguracaoPlataforma()
 
   const handleSair = async () => {
     try {
@@ -28,7 +31,13 @@ export default function Estrutura() {
       {/* Sidebar funde-se com o campo (azul-clarinho no claro, preta no escuro) — sem cartão próprio */}
       <aside className={`hidden md:flex flex-col transition-all duration-300 ${recolhido ? 'w-16' : 'w-56'}`}>
         <div className="flex items-center justify-between p-4">
-          {!recolhido && <span className="font-bold text-campo-texto text-lg">Financeiro</span>}
+          {!recolhido && (
+            configuracaoPlataforma?.temLogo ? (
+              <img src={logoPlataformaUrl()} alt="Financeiro" className="h-7 max-w-[140px] object-contain" />
+            ) : (
+              <span className="font-bold text-campo-texto text-lg">Financeiro</span>
+            )
+          )}
           <button onClick={() => setRecolhido(!recolhido)} className="p-1.5 ml-auto text-campo-texto-suave hover:text-campo-texto rounded-lg hover:bg-campo-texto/5 transition-colors">
             {recolhido ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
           </button>
