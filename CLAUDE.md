@@ -58,7 +58,7 @@ financeiro/
 │   │   └── service/
 │   └── src/main/resources/
 │       ├── application.properties
-│       ├── db/migration/               # Flyway (V1...V12)
+│       ├── db/migration/               # Flyway (V1...V16)
 │       └── static/                     # Output do build do frontend (gitignored)
 ├── frontend/                   # React + Vite
 │   └── src/
@@ -89,6 +89,8 @@ Campo booleano (`saldo_ajustado`) em `Transacao`. Regra central do sistema:
 
 **Por que não usar o scheduler como única fonte:** o app pode ficar dias sem receber tráfego. O startup garante que meses perdidos sejam processados ao subir novamente.
 
+`Conta.saldo` é um campo derivado, não editável via API: nasce igual a `saldoInicial` na criação (`ContaService.create()`) e a partir daí só é alterado por `ContaService.adjustBalance()`, chamado pelos fluxos acima e por `MetaService`/`AtivoService` (aporte/resgate). `ContaService.update()` ignora `saldo` e `saldoInicial` do payload — ambos são imutáveis após a criação; `ContaDTO.saldo` é `@JsonProperty(access = READ_ONLY)`.
+
 ## Transações fixas
 
 Ao criar uma transação com `fixa = true`:
@@ -97,6 +99,14 @@ Ao criar uma transação com `fixa = true`:
 3. No startup, `AgendadorTransacaoFixa.process()` estende a janela para sempre ter 12 meses à frente
 
 Deleção com escopo `FUTURE` apaga a partir da data selecionada.
+
+## Padrão: links direcionados com filtro pré-aplicado
+
+Quando um link navega para outra página já filtrada (ex.: "Ver todas" num card do Painel abrindo Transações filtradas), passe os filtros via `state` do React Router (`<Link to="/rota" state={{...}}>`, lido do lado de destino com `useLocation().state`) — **nunca** via query string (`?campo=valor`). Isso mantém a URL limpa e os filtros não ficam visíveis/editáveis pela barra de endereço nem viram algo bookmarkável.
+
+- Filtros que já são estado global compartilhado (ex.: `mes`/`contaId` em `useLojaFiltro`, usado tanto no Painel quanto em Transações) **não precisam ser passados** — já chegam prontos na página de destino, porque é o mesmo store Zustand em toda a navegação SPA.
+- Só use `state` para filtros que são estado local da página de destino (ex.: `filtroTipo` em `Transacoes.tsx`) e que, portanto, resetam a cada visita.
+- Exemplo de referência: `frontend/src/components/CartaoVencimentos.tsx` (origem, `<Link state={{ tipo, dataVencimentoFim }}>`) e `frontend/src/pages/Transacoes.tsx` (destino, lê `useLocation().state`).
 
 ## Migrações Flyway
 
@@ -116,6 +126,10 @@ Sempre incrementar — nunca editar uma migration já aplicada.
 | V10 | Metas financeiras |
 | V11 | Dívidas |
 | V12 | Investimentos (ativos) |
+| V13 | Módulos por espaço |
+| V14 | Configuração de plataforma |
+| V15 | Rendimento automático de ativos |
+| V16 | Saldo inicial de conta (`saldo_inicial`) |
 
 ## Dev mode (frontend separado)
 

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Trash2, Pencil, CreditCard, Banknote, Repeat, Layers, CheckCircle2, Ban, Undo2, ArrowRightLeft } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
@@ -50,10 +51,24 @@ const agruparPorData = (txs: Transacao[]) => {
   return [...map.entries()].sort((a, b) => b[0].localeCompare(a[0]))
 }
 
+interface EstadoNavegacaoTransacoes {
+  tipo?: TipoTransacao
+  dataVencimentoInicio?: string
+  dataVencimentoFim?: string
+}
+
 export default function Transacoes() {
   const qc = useQueryClient()
   const { mes, contaId } = useLojaFiltro()
-  const [filtroTipo, setFiltroTipo] = useState<TipoTransacao | ''>('')
+  // Vindo do bloco de vencimentos do painel via location.state (não query
+  // string): filtra por período de vencimento em vez de mês de competência
+  // e já exclui canceladas/pagas no backend. Usar state em vez de URL mantém
+  // o link fora da barra de endereço, então o usuário não edita à mão.
+  const location = useLocation()
+  const estadoNavegacao = (location.state ?? {}) as EstadoNavegacaoTransacoes
+  const [filtroTipo, setFiltroTipo] = useState<TipoTransacao | ''>(estadoNavegacao.tipo ?? '')
+  const dataVencimentoInicio = estadoNavegacao.dataVencimentoInicio
+  const dataVencimentoFim = estadoNavegacao.dataVencimentoFim
   const [filtroCategoria, setFiltroCategoria] = useState<number | ''>('')
   const [filtroStatus, setFiltroStatus] = useState<StatusTransacao | ''>('')
   const [showForm, setShowForm] = useState(false)
@@ -62,12 +77,14 @@ export default function Transacoes() {
   const [cancelModal, setCancelModal] = useState<{ tx: Transacao } | null>(null)
 
   const { data: transacoes = [], isLoading } = useQuery({
-    queryKey: ['transacoes', mes, contaId, filtroTipo, filtroCategoria],
+    queryKey: ['transacoes', mes, contaId, filtroTipo, filtroCategoria, dataVencimentoInicio, dataVencimentoFim],
     queryFn: () => buscarTransacoes({
       month: mes,
       contaId,
       tipo: filtroTipo || undefined,
       categoriaId: filtroCategoria || undefined,
+      dataVencimentoInicio,
+      dataVencimentoFim,
     }),
   })
 
@@ -146,57 +163,32 @@ export default function Transacoes() {
         </div>
       </div>
 
-      {/* Barra de resumo */}
-      <div className="space-y-2">
-        <div className="grid grid-cols-3 gap-2 md:gap-4">
-          <div className="card text-center p-3 md:p-5">
-            <p className="text-xs text-conteudo-suave mb-1">Receitas</p>
-            <p className="text-sm md:text-lg font-bold text-emerald-500">{fmt(totalReceitas)}</p>
-          </div>
-          <div className="card text-center p-3 md:p-5">
-            <p className="text-xs text-conteudo-suave mb-1">Despesas</p>
-            <p className="text-sm md:text-lg font-bold text-red-500">{fmt(totalDespesas)}</p>
-          </div>
-          <div className="card text-center p-3 md:p-5">
-            <p className="text-xs text-conteudo-suave mb-1">Saldo</p>
-            <p className={`text-sm md:text-lg font-bold ${totalReceitas - totalDespesas >= 0 ? 'text-acento' : 'text-orange-500'}`}>
-              {fmt(totalReceitas - totalDespesas)}
-            </p>
-          </div>
+      {/* Barra de resumo: receitas em cima, despesas embaixo */}
+      <div className="grid grid-cols-3 gap-2 md:gap-4">
+        <div className="card text-center p-3 md:p-5">
+          <p className="text-xs text-conteudo-suave mb-1">Receitas</p>
+          <p className="text-sm md:text-lg font-bold text-emerald-500">{fmt(totalReceitas)}</p>
+        </div>
+        <div className="card text-center p-3 md:p-5 border border-emerald-400/20">
+          <p className="text-xs text-conteudo-suave mb-1">Receitas recebidas</p>
+          <p className="text-sm md:text-base font-bold text-emerald-500">{fmt(receitasRealizadas)}</p>
+        </div>
+        <div className="card text-center p-3 md:p-5 border border-amber-400/20">
+          <p className="text-xs text-conteudo-suave mb-1">Receitas a receber</p>
+          <p className="text-sm md:text-base font-bold text-emerald-500">{fmt(receitasPendentes)}</p>
         </div>
 
-        <div className="grid grid-cols-3 gap-2 md:gap-4">
-          <div className="card text-center p-3 md:p-5 border border-emerald-400/20">
-            <p className="text-xs text-conteudo-suave mb-1">Receitas recebidas</p>
-            <p className="text-sm md:text-base font-bold text-emerald-500">{fmt(receitasRealizadas)}</p>
-          </div>
-          <div className="card text-center p-3 md:p-5 border border-emerald-400/20">
-            <p className="text-xs text-conteudo-suave mb-1">Despesas pagas</p>
-            <p className="text-sm md:text-base font-bold text-red-500">{fmt(despesasRealizadas)}</p>
-          </div>
-          <div className="card text-center p-3 md:p-5 border border-emerald-400/20">
-            <p className="text-xs text-conteudo-suave mb-1">Saldo atual</p>
-            <p className={`text-sm md:text-base font-bold ${receitasRealizadas - despesasRealizadas >= 0 ? 'text-acento' : 'text-orange-500'}`}>
-              {fmt(receitasRealizadas - despesasRealizadas)}
-            </p>
-          </div>
+        <div className="card text-center p-3 md:p-5">
+          <p className="text-xs text-conteudo-suave mb-1">Despesas</p>
+          <p className="text-sm md:text-lg font-bold text-red-500">{fmt(totalDespesas)}</p>
         </div>
-
-        <div className="grid grid-cols-3 gap-2 md:gap-4">
-          <div className="card text-center p-3 md:p-5 border border-amber-400/20">
-            <p className="text-xs text-conteudo-suave mb-1">Receitas a receber</p>
-            <p className="text-sm md:text-base font-bold text-emerald-500">{fmt(receitasPendentes)}</p>
-          </div>
-          <div className="card text-center p-3 md:p-5 border border-amber-400/20">
-            <p className="text-xs text-conteudo-suave mb-1">Despesas a pagar</p>
-            <p className="text-sm md:text-base font-bold text-red-500">{fmt(despesasPendentes)}</p>
-          </div>
-          <div className="card text-center p-3 md:p-5 border border-amber-400/20">
-            <p className="text-xs text-conteudo-suave mb-1">Saldo futuro</p>
-            <p className={`text-sm md:text-base font-bold ${receitasPendentes - despesasPendentes >= 0 ? 'text-acento' : 'text-orange-500'}`}>
-              {fmt(receitasPendentes - despesasPendentes)}
-            </p>
-          </div>
+        <div className="card text-center p-3 md:p-5 border border-emerald-400/20">
+          <p className="text-xs text-conteudo-suave mb-1">Despesas pagas</p>
+          <p className="text-sm md:text-base font-bold text-red-500">{fmt(despesasRealizadas)}</p>
+        </div>
+        <div className="card text-center p-3 md:p-5 border border-amber-400/20">
+          <p className="text-xs text-conteudo-suave mb-1">Despesas a pagar</p>
+          <p className="text-sm md:text-base font-bold text-red-500">{fmt(despesasPendentes)}</p>
         </div>
       </div>
 

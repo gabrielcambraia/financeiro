@@ -5,6 +5,7 @@ import com.financeiro.dto.RequisicaoRegistro;
 import com.financeiro.dto.RespostaAutenticacao;
 import com.financeiro.entity.enums.TipoConta;
 import com.financeiro.seguranca.LimitadorTaxa;
+import com.financeiro.service.ServicoIndiceEconomico;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -81,6 +82,14 @@ public abstract class TesteIntegracaoBase {
     @MockBean
     protected LimitadorTaxa limitadorTaxa;
 
+    // AgendadorRendimento dispara ServicoIndiceEconomico.atualizarTodos() no
+    // ApplicationReadyEvent do startup — ou seja, na primeira subida do contexto
+    // Spring desta suíte, o que bateria na API real do Banco Central se o bean não
+    // fosse mockado aqui. Um @MockBean de método void é no-op por padrão, então
+    // fica só sem efeito nenhum teste precisa fazer nada a mais.
+    @MockBean
+    protected ServicoIndiceEconomico servicoIndiceEconomico;
+
     @BeforeEach
     void permitirAutenticacaoSemLimiteDeTaxa() {
         when(limitadorTaxa.permitir(anyString())).thenReturn(true);
@@ -131,7 +140,7 @@ public abstract class TesteIntegracaoBase {
         ContaDTO dto = new ContaDTO();
         dto.setNome("Conta Teste");
         dto.setTipo(TipoConta.CORRENTE);
-        dto.setSaldo(saldoInicial);
+        dto.setSaldoInicial(saldoInicial);
         dto.setCor("#6366f1");
         dto.setIcone("wallet");
         ResponseEntity<ContaDTO> resposta = post("/api/contas", dto, token, ContaDTO.class);

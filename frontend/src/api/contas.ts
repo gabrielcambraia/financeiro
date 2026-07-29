@@ -3,10 +3,10 @@ import type { Conta } from '../types'
 
 export const buscarContas = () => cliente.get<Conta[]>('/contas').then(r => r.data)
 
-export const criarConta = (data: Omit<Conta, 'id'>) =>
+export const criarConta = (data: Omit<Conta, 'id' | 'saldo' | 'banco'>) =>
   cliente.post<Conta>('/contas', data).then(r => r.data)
 
-export const atualizarConta = (id: number, data: Omit<Conta, 'id'>) =>
+export const atualizarConta = (id: number, data: Omit<Conta, 'id' | 'saldo' | 'saldoInicial' | 'banco'>) =>
   cliente.put<Conta>(`/contas/${id}`, data).then(r => r.data)
 
 export const excluirConta = (id: number) =>

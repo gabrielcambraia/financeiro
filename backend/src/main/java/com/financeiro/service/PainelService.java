@@ -15,12 +15,16 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class PainelService {
+
+    private static final int DIAS_JANELA_VENCIMENTO = 7;
+    private static final int MAX_ITENS_VENCIMENTO = 5;
 
     private final TransacaoRepository transacaoRepository;
     private final ContaRepository contaRepository;
@@ -60,6 +64,7 @@ public class PainelService {
                 .tendenciaMensal(buildTendenciaMensal(espacoId, ym, contaId))
                 .saldosContas(buildSaldosContas(espacoId))
                 .saldoDiario(buildSaldoDiario(ativasTx, ym))
+                .vencimentos(buildVencimentos(espacoId))
                 .build();
     }
 
@@ -171,5 +176,54 @@ public class PainelService {
             return t.getDirecaoTransferencia() == DirecaoTransferencia.ENTRADA ? t.getValor() : t.getValor().negate();
         }
         return t.getTipo() == TipoTransacao.RECEITA ? t.getValor() : t.getValor().negate();
+    }
+
+    // Vencidas (sem limite inferior, mesmo fora do mês filtrado) + a vencer nos
+    // próximos DIAS_JANELA_VENCIMENTO dias. É um alerta, não uma visão filtrada:
+    // independe tanto do mês quanto da conta selecionados no painel — cada item
+    // exibe o nome da própria conta (ItemVencimento.contaNome) para dar contexto.
+    private PainelDTO.Vencimentos buildVencimentos(Long espacoId) {
+        LocalDate hoje = LocalDate.now();
+        List<Transacao> candidatas = transacaoRepository
+                .findByEspacoIdAndDataVencimentoLessThanEqualAndDataPagamentoIsNullAndDataCancelamentoIsNullOrderByDataVencimentoAsc(
+                        espacoId, hoje.plusDays(DIAS_JANELA_VENCIMENTO));
+
+        return PainelDTO.Vencimentos.builder()
+                .aPagar(buildGrupoVencimento(candidatas, TipoTransacao.DESPESA, hoje))
+                .aReceber(buildGrupoVencimento(candidatas, TipoTransacao.RECEITA, hoje))
+                .build();
+    }
+
+    private PainelDTO.GrupoVencimento buildGrupoVencimento(List<Transacao> candidatas, TipoTransacao tipo, LocalDate hoje) {
+        List<Transacao> doTipo = candidatas.stream().filter(t -> t.getTipo() == tipo).toList();
+
+        List<Transacao> vencidas = doTipo.stream()
+                .filter(t -> t.getDataVencimento().isBefore(hoje)).toList();
+        List<Transacao> aVencer = doTipo.stream()
+                .filter(t -> !t.getDataVencimento().isBefore(hoje)).toList();
+
+        return PainelDTO.GrupoVencimento.builder()
+                .totalVencido(sum(vencidas, tipo))
+                .quantidadeVencida(vencidas.size())
+                .vencidas(vencidas.stream().limit(MAX_ITENS_VENCIMENTO).map(t -> toItemVencimento(t, hoje)).toList())
+                .totalAVencer(sum(aVencer, tipo))
+                .quantidadeAVencer(aVencer.size())
+                .aVencer(aVencer.stream().limit(MAX_ITENS_VENCIMENTO).map(t -> toItemVencimento(t, hoje)).toList())
+                .build();
+    }
+
+    private PainelDTO.ItemVencimento toItemVencimento(Transacao t, LocalDate hoje) {
+        String descricao = t.getDescricao() != null && !t.getDescricao().isBlank()
+                ? t.getDescricao()
+                : (t.getCategoria() != null ? t.getCategoria().getNome() : "Sem descrição");
+
+        return PainelDTO.ItemVencimento.builder()
+                .id(t.getId())
+                .descricao(descricao)
+                .valor(t.getValor())
+                .dataVencimento(t.getDataVencimento())
+                .diasEmRelacaoAHoje(ChronoUnit.DAYS.between(hoje, t.getDataVencimento()))
+                .contaNome(t.getConta().getNome())
+                .build();
     }
 }

@@ -12,7 +12,7 @@
   --acento: 18 58 117;
 
   /* campo: área onde a barra lateral se funde, cobrindo o fundo do app */
-  --campo: 186 208 237;
+  --campo: 176 194 219;
   --campo-texto: 22 50 79;
   --campo-texto-suave: 92 127 163;
 
@@ -50,8 +50,8 @@
     margin: 0;
   }
   ::-webkit-scrollbar { @apply w-1.5 h-1.5; }
-  ::-webkit-scrollbar-track { @apply bg-superficie-2; }
-  ::-webkit-scrollbar-thumb { @apply bg-borda rounded-full; }
+  ::-webkit-scrollbar-track { @apply bg-transparent; }
+  ::-webkit-scrollbar-thumb { @apply bg-acento rounded-full; }
 }
 
 @layer components {

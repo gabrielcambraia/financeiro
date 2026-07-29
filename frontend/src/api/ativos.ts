@@ -1,5 +1,5 @@
 import cliente from './cliente'
-import type { Ativo, MovimentacaoAtivo, Patrimonio, TipoAtivo } from '../types'
+import type { Ativo, MovimentacaoAtivo, Patrimonio, TipoAtivo, TipoRemuneracao } from '../types'
 
 type PayloadAtivo = {
   nome: string
@@ -7,6 +7,12 @@ type PayloadAtivo = {
   contaId: number
   cor: string
   icone: string
+  remuneracaoTipo?: TipoRemuneracao
+  taxa?: number | null
+  inicioRendimento?: string | null
+  isentoIr?: boolean
+  valorInicial?: number | null
+  dataInicial?: string | null
 }
 
 type PayloadMovimento = {

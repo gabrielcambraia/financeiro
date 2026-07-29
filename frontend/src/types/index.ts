@@ -20,6 +20,7 @@ export interface RespostaPaginada<T> {
 export type StatusDivida = 'EM_DIA' | 'ATRASADA' | 'QUITADA' | 'CANCELADA'
 export type TipoAtivo = 'RESERVA' | 'RENDA_FIXA' | 'RENDA_VARIAVEL'
 export type TipoMovimentacaoAtivo = 'APORTE' | 'RESGATE' | 'RENDIMENTO'
+export type TipoRemuneracao = 'NENHUMA' | 'PRE_FIXADA' | 'POS_CDI' | 'POS_SELIC' | 'IPCA_MAIS'
 
 export interface Banco {
   id: number
@@ -33,7 +34,9 @@ export interface Conta {
   id: number
   nome: string
   tipo: TipoConta
+  /** Somente leitura: derivado de saldoInicial + movimentações, nunca enviado em criação/edição. */
   saldo: number
+  saldoInicial: number
   cor: string
   icone: string
   bancoId?: number
@@ -89,6 +92,30 @@ export interface DadosPainel {
   tendenciaMensal: TendenciaMensal[]
   saldosContas: SaldoConta[]
   saldoDiario: SaldoDiario[]
+  vencimentos: Vencimentos
+}
+
+export interface ItemVencimento {
+  id: number
+  descricao: string
+  valor: number
+  dataVencimento: string
+  diasEmRelacaoAHoje: number
+  contaNome: string
+}
+
+export interface GrupoVencimento {
+  totalVencido: number
+  quantidadeVencida: number
+  vencidas: ItemVencimento[]
+  totalAVencer: number
+  quantidadeAVencer: number
+  aVencer: ItemVencimento[]
+}
+
+export interface Vencimentos {
+  aPagar: GrupoVencimento
+  aReceber: GrupoVencimento
 }
 
 export interface ResumoCategoria {
@@ -179,6 +206,19 @@ export interface Ativo {
   valorAtual: number
   percentualCarteira: number
   dataCancelamento?: string
+  // rendimento automático
+  remuneracaoTipo?: TipoRemuneracao
+  taxa?: number
+  inicioRendimento?: string
+  isentoIr?: boolean
+  rendidoAte?: string
+  // campos derivados (rentabilidade / IR estimado) — só em GET /ativos
+  totalAportado?: number
+  totalResgatado?: number
+  totalRendimento?: number
+  rentabilidadePercentual?: number
+  irEstimado?: number
+  valorLiquidoEstimado?: number
 }
 
 export interface MovimentacaoAtivo {

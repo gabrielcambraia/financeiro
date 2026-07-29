@@ -6,6 +6,8 @@ interface FiltrosTransacao {
   contaId?: number
   tipo?: TipoTransacao
   categoriaId?: number
+  dataVencimentoInicio?: string
+  dataVencimentoFim?: string
 }
 
 interface PayloadCriarTransacao {

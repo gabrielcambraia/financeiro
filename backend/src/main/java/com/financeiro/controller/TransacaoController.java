@@ -24,8 +24,10 @@ public class TransacaoController {
             @RequestParam String month,
             @RequestParam(required = false) Long contaId,
             @RequestParam(required = false) TipoTransacao tipo,
-            @RequestParam(required = false) Long categoriaId) {
-        return service.findByFilters(month, contaId, tipo, categoriaId);
+            @RequestParam(required = false) Long categoriaId,
+            @RequestParam(required = false) LocalDate dataVencimentoInicio,
+            @RequestParam(required = false) LocalDate dataVencimentoFim) {
+        return service.findByFilters(month, contaId, tipo, categoriaId, dataVencimentoInicio, dataVencimentoFim);
     }
 
     @PostMapping

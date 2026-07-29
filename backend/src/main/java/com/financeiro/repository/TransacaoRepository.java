@@ -41,4 +41,18 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
             Long espacoId, Long contaId, java.math.BigDecimal valor,
             com.financeiro.entity.enums.TipoTransacao tipo,
             String descricao, LocalDate start, LocalDate end);
+
+    // Painel: transações a pagar/receber (vencidas, sem limite inferior de data,
+    // + a vencer até o limite superior informado). Ignora o filtro de mês.
+    List<Transacao> findByEspacoIdAndDataVencimentoLessThanEqualAndDataPagamentoIsNullAndDataCancelamentoIsNullOrderByDataVencimentoAsc(
+            Long espacoId, LocalDate limite);
+
+    // "Ver todas" do bloco de vencimentos: filtra por período de vencimento
+    // (em vez de competência), sempre excluindo canceladas e já pagas — mesmo
+    // critério de "pendente" usado em PainelService.buildVencimentos.
+    List<Transacao> findByEspacoIdAndDataVencimentoBetweenAndDataPagamentoIsNullAndDataCancelamentoIsNullOrderByDataVencimentoAsc(
+            Long espacoId, LocalDate inicio, LocalDate fim);
+
+    List<Transacao> findByEspacoIdAndContaIdAndDataVencimentoBetweenAndDataPagamentoIsNullAndDataCancelamentoIsNullOrderByDataVencimentoAsc(
+            Long espacoId, Long contaId, LocalDate inicio, LocalDate fim);
 }

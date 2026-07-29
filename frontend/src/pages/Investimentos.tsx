@@ -12,7 +12,7 @@ import { useLojaTema } from '../store/lojaTema'
 import SobreposicaoModal from '../components/SobreposicaoModal'
 import SeletorCor from '../components/SeletorCor'
 import AcaoNova from '../components/AcaoNova'
-import type { Ativo, TipoAtivo } from '../types'
+import type { Ativo, TipoAtivo, TipoRemuneracao } from '../types'
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
@@ -29,7 +29,25 @@ const TIPOS_ATIVO: { value: TipoAtivo; label: string }[] = [
   { value: 'RENDA_VARIAVEL', label: 'Renda variável' },
 ]
 
-const formPadrao = { nome: '', tipo: 'RENDA_FIXA' as TipoAtivo, contaId: '', cor: CORES[0], icone: 'trending-up' }
+const TIPOS_REMUNERACAO: { value: TipoRemuneracao; label: string }[] = [
+  { value: 'NENHUMA', label: 'Nenhuma (manual)' },
+  { value: 'PRE_FIXADA', label: 'Pré-fixada' },
+  { value: 'POS_CDI', label: 'Pós-fixada (% do CDI)' },
+  { value: 'POS_SELIC', label: 'Pós-fixada (% da Selic)' },
+  { value: 'IPCA_MAIS', label: 'IPCA+' },
+]
+
+const rotuloTaxa = (tipo: TipoRemuneracao) => {
+  if (tipo === 'POS_CDI') return '% do CDI'
+  if (tipo === 'POS_SELIC') return '% da Selic'
+  return '% ao ano' // PRE_FIXADA, IPCA_MAIS (spread)
+}
+
+const formPadrao = {
+  nome: '', tipo: 'RENDA_FIXA' as TipoAtivo, contaId: '', cor: CORES[0], icone: 'trending-up',
+  remuneracaoTipo: 'NENHUMA' as TipoRemuneracao, taxa: '', inicioRendimento: '', isentoIr: false,
+  valorInicial: '', dataInicial: format(new Date(), 'yyyy-MM-dd'),
+}
 const movimentoPadrao = { valor: '', contaId: '', data: format(new Date(), 'yyyy-MM-dd') }
 
 export default function Investimentos() {
@@ -55,7 +73,11 @@ export default function Investimentos() {
   ])
 
   const saveMutation = useMutation({
-    mutationFn: (data: { nome: string; tipo: TipoAtivo; contaId: number; cor: string; icone: string }) =>
+    mutationFn: (data: {
+      nome: string; tipo: TipoAtivo; contaId: number; cor: string; icone: string
+      remuneracaoTipo: TipoRemuneracao; taxa: number | null; inicioRendimento: string | null; isentoIr: boolean
+      valorInicial?: number | null; dataInicial?: string | null
+    }) =>
       editing ? atualizarAtivo(editing.id, data) : criarAtivo(data),
     onSuccess: async () => { await invalidar(); closeForm() },
   })
@@ -79,14 +101,28 @@ export default function Investimentos() {
   const openCreate = () => { setEditing(null); setForm(formPadrao); setShowForm(true) }
   const openEdit = (a: Ativo) => {
     setEditing(a)
-    setForm({ nome: a.nome, tipo: a.tipo, contaId: String(a.contaId), cor: a.cor, icone: a.icone })
+    setForm({
+      nome: a.nome, tipo: a.tipo, contaId: String(a.contaId), cor: a.cor, icone: a.icone,
+      remuneracaoTipo: a.remuneracaoTipo ?? 'NENHUMA',
+      taxa: a.taxa != null ? String(a.taxa) : '',
+      inicioRendimento: a.inicioRendimento ?? '',
+      isentoIr: a.isentoIr ?? false,
+      valorInicial: '', dataInicial: format(new Date(), 'yyyy-MM-dd'),
+    })
     setShowForm(true)
   }
   const closeForm = () => { setShowForm(false); setEditing(null) }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    saveMutation.mutate({ nome: form.nome, tipo: form.tipo, contaId: Number(form.contaId), cor: form.cor, icone: form.icone })
+    saveMutation.mutate({
+      nome: form.nome, tipo: form.tipo, contaId: Number(form.contaId), cor: form.cor, icone: form.icone,
+      remuneracaoTipo: form.remuneracaoTipo,
+      taxa: form.remuneracaoTipo !== 'NENHUMA' && form.taxa !== '' ? Number(form.taxa) : null,
+      inicioRendimento: form.remuneracaoTipo !== 'NENHUMA' && form.inicioRendimento ? form.inicioRendimento : null,
+      isentoIr: form.isentoIr,
+      ...(!editing && form.valorInicial !== '' ? { valorInicial: Number(form.valorInicial), dataInicial: form.dataInicial } : {}),
+    })
   }
 
   const openMovimento = (ativo: Ativo, tipo: 'aportar' | 'resgatar' | 'rendimento') => {
@@ -191,6 +227,19 @@ export default function Investimentos() {
             <p className="text-xl font-bold text-conteudo">{fmt(ativo.valorAtual)}</p>
             <p className="text-xs text-conteudo-suave">{ativo.percentualCarteira.toFixed(1)}% da carteira</p>
 
+            {!!ativo.totalRendimento && ativo.totalRendimento !== 0 && (
+              <div className="mt-2 space-y-0.5">
+                <p className={`text-xs font-medium ${ativo.totalRendimento >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                  {ativo.totalRendimento >= 0 ? '+' : ''}{fmt(ativo.totalRendimento)} ({(ativo.rentabilidadePercentual ?? 0).toFixed(2)}%)
+                </p>
+                {!ativo.isentoIr && !!ativo.irEstimado && ativo.irEstimado > 0 && (
+                  <p className="text-[11px] text-conteudo-suave">
+                    IR estimado · {fmt(ativo.irEstimado)} · líquido estimado {fmt(ativo.valorLiquidoEstimado ?? ativo.valorAtual)}
+                  </p>
+                )}
+              </div>
+            )}
+
             {!ativo.dataCancelamento && (
               <div className="flex gap-2 mt-3">
                 <button onClick={() => openMovimento(ativo, 'aportar')}
@@ -249,6 +298,55 @@ export default function Investimentos() {
                 <SeletorCor cores={CORES} corSelecionada={form.cor}
                   aoSelecionar={c => setForm(f => ({ ...f, cor: c }))} />
               </div>
+
+              {!editing && (
+                <div>
+                  <label className="label">Valor inicial (opcional)</label>
+                  <div className="flex gap-2">
+                    <input className="input" type="number" step="0.01" min="0" placeholder="0,00"
+                      value={form.valorInicial} onChange={e => setForm(f => ({ ...f, valorInicial: e.target.value }))} />
+                    <input className="input" type="date" max={format(new Date(), 'yyyy-MM-dd')}
+                      value={form.dataInicial} onChange={e => setForm(f => ({ ...f, dataInicial: e.target.value }))} />
+                  </div>
+                  <p className="text-xs text-conteudo-suave mt-1">
+                    Já começa investido com esse valor — é debitado da conta vinculada como um aporte.
+                  </p>
+                </div>
+              )}
+
+              <div className="pt-1 border-t border-borda">
+                <p className="text-xs font-semibold text-conteudo-suave mt-3 mb-2">Rendimento automático</p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="label">Indexador</label>
+                    <select className="select" value={form.remuneracaoTipo}
+                      onChange={e => setForm(f => ({ ...f, remuneracaoTipo: e.target.value as TipoRemuneracao }))}>
+                      {TIPOS_REMUNERACAO.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                    </select>
+                  </div>
+                  {form.remuneracaoTipo !== 'NENHUMA' && (
+                    <>
+                      <div>
+                        <label className="label">Taxa ({rotuloTaxa(form.remuneracaoTipo)})</label>
+                        <input className="input" type="number" step="0.01" min="0" placeholder="0,00" required
+                          value={form.taxa} onChange={e => setForm(f => ({ ...f, taxa: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="label">Início do rendimento</label>
+                        <input className="input" type="date" max={format(new Date(), 'yyyy-MM-dd')}
+                          value={form.inicioRendimento} onChange={e => setForm(f => ({ ...f, inicioRendimento: e.target.value }))} />
+                        <p className="text-xs text-conteudo-suave mt-1">Se vazio, usa a data do primeiro aporte.</p>
+                      </div>
+                      <label className="flex items-center gap-2 text-sm text-conteudo">
+                        <input type="checkbox" checked={form.isentoIr}
+                          onChange={e => setForm(f => ({ ...f, isentoIr: e.target.checked }))} />
+                        Isento de IR (LCI, LCA, poupança...)
+                      </label>
+                    </>
+                  )}
+                </div>
+              </div>
+
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={closeForm}
                   className="flex-1 py-2.5 rounded-lg border border-borda text-conteudo-suave hover:text-conteudo transition-colors text-sm font-medium">

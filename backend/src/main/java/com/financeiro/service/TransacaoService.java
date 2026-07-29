@@ -40,13 +40,35 @@ public class TransacaoService {
     private final ContextoUsuario contextoUsuario;
 
     public List<TransacaoDTO> findByFilters(String month, Long contaId, TipoTransacao tipo, Long categoriaId) {
+        return findByFilters(month, contaId, tipo, categoriaId, null, null);
+    }
+
+    // dataVencimentoFim presente troca o critério de "competência dentro do mês"
+    // (data) por "vencimento dentro do período" (dataVencimento), sem limite
+    // inferior quando dataVencimentoInicio vem nulo — usado pelo link "Ver
+    // todas" do bloco de vencimentos do painel, que sempre exclui canceladas
+    // e já pagas (mesmo critério de "pendente" do próprio bloco).
+    public List<TransacaoDTO> findByFilters(String month, Long contaId, TipoTransacao tipo, Long categoriaId,
+                                             LocalDate dataVencimentoInicio, LocalDate dataVencimentoFim) {
         Long espacoId = contextoEspaco.espacoAtual();
-        YearMonth ym = YearMonth.parse(month);
-        LocalDate start = ym.atDay(1);
-        LocalDate end = ym.atEndOfMonth();
-        List<Transacao> raw = contaId != null
-                ? repository.findByEspacoIdAndContaIdAndDataBetweenOrderByDataDesc(espacoId, contaId, start, end)
-                : repository.findByEspacoIdAndDataBetweenOrderByDataDesc(espacoId, start, end);
+
+        List<Transacao> raw;
+        if (dataVencimentoFim != null) {
+            LocalDate inicio = dataVencimentoInicio != null ? dataVencimentoInicio : LocalDate.of(1970, 1, 1);
+            raw = contaId != null
+                    ? repository.findByEspacoIdAndContaIdAndDataVencimentoBetweenAndDataPagamentoIsNullAndDataCancelamentoIsNullOrderByDataVencimentoAsc(
+                            espacoId, contaId, inicio, dataVencimentoFim)
+                    : repository.findByEspacoIdAndDataVencimentoBetweenAndDataPagamentoIsNullAndDataCancelamentoIsNullOrderByDataVencimentoAsc(
+                            espacoId, inicio, dataVencimentoFim);
+        } else {
+            YearMonth ym = YearMonth.parse(month);
+            LocalDate start = ym.atDay(1);
+            LocalDate end = ym.atEndOfMonth();
+            raw = contaId != null
+                    ? repository.findByEspacoIdAndContaIdAndDataBetweenOrderByDataDesc(espacoId, contaId, start, end)
+                    : repository.findByEspacoIdAndDataBetweenOrderByDataDesc(espacoId, start, end);
+        }
+
         return raw.stream()
                 .filter(t -> tipo == null || t.getTipo() == tipo)
                 .filter(t -> categoriaId == null

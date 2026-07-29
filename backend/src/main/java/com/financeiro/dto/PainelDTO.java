@@ -1,5 +1,6 @@
 package com.financeiro.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Data;
 
@@ -20,6 +21,7 @@ public class PainelDTO {
     private List<TendenciaMensal> tendenciaMensal;
     private List<SaldoConta> saldosContas;
     private List<SaldoDiario> saldoDiario;
+    private Vencimentos vencimentos;
 
     @Data
     @Builder
@@ -57,5 +59,41 @@ public class PainelDTO {
     public static class SaldoDiario {
         private LocalDate data;
         private BigDecimal saldo;
+    }
+
+    // aPagar/aReceber/aVencer force @JsonProperty explícito: getAPagar() etc.
+    // caem no mangler legado do Jackson para nomes com duas maiúsculas
+    // seguidas no início (getAPagar -> "apagar", não "aPagar"), então sem a
+    // anotação o campo simplesmente some no JSON.
+    @Data
+    @Builder
+    public static class Vencimentos {
+        @JsonProperty("aPagar")
+        private GrupoVencimento aPagar;
+        @JsonProperty("aReceber")
+        private GrupoVencimento aReceber;
+    }
+
+    @Data
+    @Builder
+    public static class GrupoVencimento {
+        private BigDecimal totalVencido;
+        private int quantidadeVencida;
+        private List<ItemVencimento> vencidas;
+        private BigDecimal totalAVencer;
+        private int quantidadeAVencer;
+        @JsonProperty("aVencer")
+        private List<ItemVencimento> aVencer;
+    }
+
+    @Data
+    @Builder
+    public static class ItemVencimento {
+        private Long id;
+        private String descricao;
+        private BigDecimal valor;
+        private LocalDate dataVencimento;
+        private long diasEmRelacaoAHoje;
+        private String contaNome;
     }
 }

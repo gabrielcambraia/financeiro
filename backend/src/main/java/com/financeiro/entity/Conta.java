@@ -28,6 +28,9 @@ public class Conta {
     @Column(nullable = false)
     private BigDecimal saldo;
 
+    @Column(name = "saldo_inicial", nullable = false)
+    private BigDecimal saldoInicial;
+
     @Column(nullable = false)
     private String cor;
 
