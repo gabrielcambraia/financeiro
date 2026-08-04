@@ -29,7 +29,8 @@ public class ContaService {
         Conta conta = Conta.builder()
                 .nome(dto.getNome())
                 .tipo(dto.getTipo())
-                .saldo(dto.getSaldo())
+                .saldoInicial(dto.getSaldoInicial())
+                .saldo(dto.getSaldoInicial())
                 .cor(dto.getCor())
                 .icone(dto.getIcone())
                 .banco(resolverBanco(dto.getBancoId()))
@@ -41,9 +42,9 @@ public class ContaService {
     public ContaDTO update(Long id, ContaDTO dto) {
         Conta conta = repository.findByIdAndEspacoId(id, contextoEspaco.espacoAtual())
                 .orElseThrow(() -> new ExcecaoRecursoNaoEncontrado("Conta não encontrada: " + id));
+        // saldo e saldoInicial não são editáveis: só mudam via adjustBalance (movimentações)
         conta.setNome(dto.getNome());
         conta.setTipo(dto.getTipo());
-        conta.setSaldo(dto.getSaldo());
         conta.setCor(dto.getCor());
         conta.setIcone(dto.getIcone());
         conta.setBanco(resolverBanco(dto.getBancoId()));
@@ -66,6 +67,7 @@ public class ContaService {
         dto.setNome(c.getNome());
         dto.setTipo(c.getTipo());
         dto.setSaldo(c.getSaldo());
+        dto.setSaldoInicial(c.getSaldoInicial());
         dto.setCor(c.getCor());
         dto.setIcone(c.getIcone());
         if (c.getBanco() != null) {

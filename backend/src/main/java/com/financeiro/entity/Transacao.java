@@ -68,6 +68,10 @@ public class Transacao {
     @Column(name = "saldo_ajustado", nullable = false)
     private boolean saldoAjustado = true;
 
+    // Informada manualmente ao pagar uma despesa em atraso (PATCH /pagar).
+    // Nulo = sem multa. Só se aplica a DESPESA — ver TransacaoService.computeDelta.
+    private BigDecimal multa;
+
     @Column(name = "total_parcelas")
     private Integer totalParcelas;
 

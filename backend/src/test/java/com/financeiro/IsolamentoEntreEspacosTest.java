@@ -50,7 +50,7 @@ class IsolamentoEntreEspacosTest extends TesteIntegracaoBase {
         ContaDTO alteracaoMaliciosa = new ContaDTO();
         alteracaoMaliciosa.setNome("Conta sequestrada");
         alteracaoMaliciosa.setTipo(TipoConta.CORRENTE);
-        alteracaoMaliciosa.setSaldo(BigDecimal.ZERO);
+        alteracaoMaliciosa.setSaldoInicial(BigDecimal.ZERO);
         alteracaoMaliciosa.setCor("#000000");
         alteracaoMaliciosa.setIcone("wallet");
 
@@ -80,7 +80,7 @@ class IsolamentoEntreEspacosTest extends TesteIntegracaoBase {
         ContaDTO dto = new ContaDTO();
         dto.setNome(nome);
         dto.setTipo(TipoConta.CORRENTE);
-        dto.setSaldo(BigDecimal.valueOf(100));
+        dto.setSaldoInicial(BigDecimal.valueOf(100));
         dto.setCor("#6366f1");
         dto.setIcone("wallet");
 

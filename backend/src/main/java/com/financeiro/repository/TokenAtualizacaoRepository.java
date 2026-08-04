@@ -19,4 +19,9 @@ public interface TokenAtualizacaoRepository extends JpaRepository<TokenAtualizac
     @Query("update TokenAtualizacao t set t.revogado = true, t.revogadoEm = :agora " +
            "where t.usuarioId = :usuarioId and t.revogado = false")
     void revogarTodosDoUsuario(@Param("usuarioId") Long usuarioId, @Param("agora") LocalDateTime agora);
+
+    @Modifying
+    @Transactional
+    @Query("delete from TokenAtualizacao t where t.expiraEm < :limite")
+    int excluirExpiradosAntesDe(@Param("limite") LocalDateTime limite);
 }

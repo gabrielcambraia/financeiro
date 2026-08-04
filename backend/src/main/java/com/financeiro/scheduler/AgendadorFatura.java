@@ -84,7 +84,8 @@ public class AgendadorFatura {
 
     private void fecharFatura(Cartao cartao, LocalDate dataFechamento) {
         List<ItemFatura> itensAbertos = itemFaturaRepository
-                .findByCartaoIdAndFaturaIdIsNullAndDataCancelamentoIsNull(cartao.getId());
+                .findByCartaoIdAndFaturaIdIsNullAndDataCancelamentoIsNullAndDataLessThanEqual(
+                        cartao.getId(), dataFechamento);
         if (itensAbertos.isEmpty()) {
             log.info("Cartão {} sem itens em aberto no fechamento de {} — nada a fazer", cartao.getId(), dataFechamento);
             return;

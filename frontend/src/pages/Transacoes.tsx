@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Trash2, Pencil, CreditCard, Banknote, Repeat, Layers, CheckCircle2, Ban, Undo2, ArrowRightLeft } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
@@ -7,13 +8,17 @@ import {
   buscarTransacoes, excluirTransacao, pagarTransacao, estornarTransacao, cancelarTransacao,
   type EscopoExclusao,
 } from '../api/transacoes'
+import { buscarItensFatura, excluirItemFatura, cancelarItemFatura } from '../api/itensFatura'
+import { buscarFaturas } from '../api/faturas'
 import { buscarCategorias } from '../api/categorias'
+import { buscarContas } from '../api/contas'
+import { buscarCartoes } from '../api/cartoes'
 import { useLojaFiltro } from '../store/lojaFiltro'
 import SeletorMes from '../components/SeletorMes'
-import FormularioTransacao from '../components/forms/FormularioTransacao'
+import FormularioTransacao, { type EdicaoLancamento } from '../components/forms/FormularioTransacao'
 import SobreposicaoModal from '../components/SobreposicaoModal'
 import AcaoNova from '../components/AcaoNova'
-import type { Transacao, TipoTransacao, StatusTransacao } from '../types'
+import type { Transacao, ItemFatura, Fatura, TipoTransacao, StatusTransacao } from '../types'
 
 const rotuloStatus: Record<StatusTransacao, string> = {
   PAGA: 'Paga',
@@ -40,101 +45,187 @@ function BadgeStatus({ status }: { status: StatusTransacao }) {
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
 
-const agruparPorData = (txs: Transacao[]) => {
-  const map = new Map<string, Transacao[]>()
-  txs.forEach(t => {
-    const key = t.data
-    if (!map.has(key)) map.set(key, [])
-    map.get(key)!.push(t)
+// Lançamentos mescla três modelos: Transacao (débito, amarrada a uma conta,
+// com vencimento/pagamento), ItemFatura (compra em aberto no cartão — ainda
+// não faturada) e Fatura (fatura fechada de um cartão específico, com sua
+// própria despesa consolidada). Ver FormularioTransacao.tsx para o mesmo
+// union do lado do formulário (que só lida com TRANSACAO/ITEM_FATURA).
+type Lancamento =
+  | { origem: 'TRANSACAO'; id: string; data: string; tx: Transacao }
+  | { origem: 'ITEM_FATURA'; id: string; data: string; item: ItemFatura }
+  | { origem: 'FATURA'; id: string; data: string; fatura: Fatura }
+
+const agruparPorData = (lancamentos: Lancamento[]) => {
+  const map = new Map<string, Lancamento[]>()
+  lancamentos.forEach(l => {
+    if (!map.has(l.data)) map.set(l.data, [])
+    map.get(l.data)!.push(l)
   })
   return [...map.entries()].sort((a, b) => b[0].localeCompare(a[0]))
 }
 
+interface EstadoNavegacaoTransacoes {
+  tipo?: TipoTransacao
+  dataVencimentoInicio?: string
+  dataVencimentoFim?: string
+}
+
 export default function Transacoes() {
   const qc = useQueryClient()
-  const { mes, contaId } = useLojaFiltro()
-  const [filtroTipo, setFiltroTipo] = useState<TipoTransacao | ''>('')
+  const { mes, contaId, definirContaId } = useLojaFiltro()
+  // Vindo do bloco de vencimentos do painel via location.state (não query
+  // string): filtra por período de vencimento em vez de mês de competência
+  // e já exclui canceladas/pagas no backend. Usar state em vez de URL mantém
+  // o link fora da barra de endereço, então o usuário não edita à mão.
+  const location = useLocation()
+  const estadoNavegacao = (location.state ?? {}) as EstadoNavegacaoTransacoes
+  const [filtroTipo, setFiltroTipo] = useState<TipoTransacao | ''>(estadoNavegacao.tipo ?? '')
+  const dataVencimentoInicio = estadoNavegacao.dataVencimentoInicio
+  const dataVencimentoFim = estadoNavegacao.dataVencimentoFim
   const [filtroCategoria, setFiltroCategoria] = useState<number | ''>('')
   const [filtroStatus, setFiltroStatus] = useState<StatusTransacao | ''>('')
+  const [filtroCartao, setFiltroCartao] = useState<number | ''>('')
   const [showForm, setShowForm] = useState(false)
-  const [editing, setEditing] = useState<Transacao | undefined>()
+  const [editing, setEditing] = useState<EdicaoLancamento | undefined>()
   const [deleteModal, setDeleteModal] = useState<{ tx: Transacao } | null>(null)
   const [cancelModal, setCancelModal] = useState<{ tx: Transacao } | null>(null)
+  const [pagarModal, setPagarModal] = useState<{ id: number; tipo: TipoTransacao; status: StatusTransacao } | null>(null)
 
+  // Com um cartão selecionado no filtro, a tela mostra só o que é daquele
+  // cartão (compras em aberto + faturas fechadas) — nada de lançamentos de
+  // débito da conta, mesmo que a conta de pagamento do cartão seja a mesma.
   const { data: transacoes = [], isLoading } = useQuery({
-    queryKey: ['transacoes', mes, contaId, filtroTipo, filtroCategoria],
+    queryKey: ['transacoes', mes, contaId, filtroTipo, filtroCategoria, dataVencimentoInicio, dataVencimentoFim],
     queryFn: () => buscarTransacoes({
       month: mes,
       contaId,
       tipo: filtroTipo || undefined,
       categoriaId: filtroCategoria || undefined,
+      dataVencimentoInicio,
+      dataVencimentoFim,
     }),
+    enabled: !filtroCartao,
   })
 
+  // Itens de fatura em aberto não têm vencimento nem "tipo" formal — sempre
+  // são despesa. Não busca quando o filtro de tipo exclui despesas, nem
+  // quando a navegação veio filtrada por vencimento (não se aplica a eles).
+  const buscaItensHabilitada = (filtroTipo === '' || filtroTipo === 'DESPESA') && !dataVencimentoFim
+  const { data: itensFaturaRaw = [] } = useQuery({
+    queryKey: ['itensFatura', 'lancamentos', mes, contaId, filtroCartao],
+    queryFn: () => buscarItensFatura({ month: mes, contaId, cartaoId: filtroCartao || undefined }),
+    enabled: buscaItensHabilitada,
+  })
+  // Sem suporte a filtro de categoria no endpoint de itens em aberto — filtra no cliente.
+  const itensFatura = filtroCategoria
+    ? itensFaturaRaw.filter(i => i.categoriaId === filtroCategoria)
+    : itensFaturaRaw
+
+  // Faturas fechadas do cartão selecionado, no mesmo mês de competência dos
+  // demais lançamentos da tela — sem isso, apareceriam faturas de qualquer
+  // mês junto com compras em aberto do mês atual.
+  const { data: faturasCartaoRaw = [] } = useQuery({
+    queryKey: ['faturas', 'lancamentos', filtroCartao, mes],
+    queryFn: () => buscarFaturas(filtroCartao as number, mes),
+    enabled: !!filtroCartao && buscaItensHabilitada,
+  })
+  // Faturas não têm categoria própria (é dos itens que a compõem) — sem
+  // categoria selecionada, mostra todas; com categoria, some da lista (não
+  // dá pra saber se ela "tem" aquela categoria sem abrir o detalhe).
+  const faturasCartao = filtroCategoria ? [] : faturasCartaoRaw
+
   const { data: categorias = [] } = useQuery({ queryKey: ['categorias'], queryFn: () => buscarCategorias() })
+  const { data: contas = [] } = useQuery({ queryKey: ['contas'], queryFn: buscarContas })
+  const { data: cartoes = [] } = useQuery({ queryKey: ['cartoes'], queryFn: buscarCartoes })
+
+  const invalidarTudo = async () => {
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ['transacoes'] }),
+      qc.invalidateQueries({ queryKey: ['itensFatura'] }),
+      qc.invalidateQueries({ queryKey: ['faturas'] }),
+      qc.invalidateQueries({ queryKey: ['painel'] }),
+      qc.invalidateQueries({ queryKey: ['contas'] }),
+      qc.invalidateQueries({ queryKey: ['cartoes'] }),
+    ])
+  }
 
   const deleteMutation = useMutation({
     mutationFn: ({ id, scope }: { id: number; scope: EscopoExclusao }) => excluirTransacao(id, scope),
-    onSuccess: async () => {
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: ['transacoes'] }),
-        qc.invalidateQueries({ queryKey: ['painel'] }),
-        qc.invalidateQueries({ queryKey: ['contas'] }),
-      ])
-      setDeleteModal(null)
-    },
+    onSuccess: async () => { await invalidarTudo(); setDeleteModal(null) },
   })
 
   const pagarMutation = useMutation({
-    mutationFn: (id: number) => pagarTransacao(id),
-    onSuccess: async () => {
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: ['transacoes'] }),
-        qc.invalidateQueries({ queryKey: ['painel'] }),
-        qc.invalidateQueries({ queryKey: ['contas'] }),
-      ])
-    },
+    mutationFn: ({ id, dataPagamento, multa }: { id: number; dataPagamento?: string; multa?: number }) =>
+      pagarTransacao(id, { dataPagamento, multa }),
+    onSuccess: async () => { await invalidarTudo(); setPagarModal(null) },
   })
 
   const estornarMutation = useMutation({
     mutationFn: (id: number) => estornarTransacao(id),
-    onSuccess: async () => {
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: ['transacoes'] }),
-        qc.invalidateQueries({ queryKey: ['painel'] }),
-        qc.invalidateQueries({ queryKey: ['contas'] }),
-      ])
-    },
+    onSuccess: invalidarTudo,
   })
 
   const cancelarMutation = useMutation({
     mutationFn: ({ id, scope }: { id: number; scope: EscopoExclusao }) => cancelarTransacao(id, scope),
-    onSuccess: async () => {
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: ['transacoes'] }),
-        qc.invalidateQueries({ queryKey: ['painel'] }),
-        qc.invalidateQueries({ queryKey: ['contas'] }),
-      ])
-      setCancelModal(null)
-    },
+    onSuccess: async () => { await invalidarTudo(); setCancelModal(null) },
   })
 
-  const visiveis = filtroStatus ? transacoes.filter(t => t.status === filtroStatus) : transacoes
+  const excluirItemMutation = useMutation({
+    mutationFn: (id: number) => excluirItemFatura(id),
+    onSuccess: invalidarTudo,
+  })
+
+  const cancelarItemMutation = useMutation({
+    mutationFn: (id: number) => cancelarItemFatura(id),
+    onSuccess: invalidarTudo,
+  })
+
+  // Com cartão selecionado: só compras em aberto + faturas fechadas daquele
+  // cartão. Sem cartão selecionado: lançamentos de débito da conta + compras
+  // em aberto de todos os cartões (comportamento padrão da tela).
+  const lancamentos: Lancamento[] = filtroCartao
+    ? [
+        ...itensFatura.map(item => ({ origem: 'ITEM_FATURA' as const, id: `item-${item.id}`, data: item.data, item })),
+        ...faturasCartao.map(fatura => ({ origem: 'FATURA' as const, id: `fatura-${fatura.id}`, data: fatura.dataFechamento, fatura })),
+      ]
+    : [
+        ...transacoes.map(tx => ({ origem: 'TRANSACAO' as const, id: `tx-${tx.id}`, data: tx.data, tx })),
+        ...itensFatura.map(item => ({ origem: 'ITEM_FATURA' as const, id: `item-${item.id}`, data: item.data, item })),
+      ]
+
+  // Itens de fatura não têm status formal — somem quando um status específico é filtrado.
+  const visiveis = filtroStatus
+    ? lancamentos.filter(l =>
+        (l.origem === 'TRANSACAO' && l.tx.status === filtroStatus) ||
+        (l.origem === 'FATURA' && l.fatura.status === filtroStatus))
+    : lancamentos
   const agrupadas = agruparPorData(visiveis)
 
-  // Cancelada não conta em nenhum total — a transação nunca aconteceu de fato.
-  const ativas = transacoes.filter(t => t.status !== 'CANCELADA')
+  // Totais refletem o mês/conta/cartão selecionados, sem os filtros de status
+  // (mesmo comportamento de antes) — cancelada/cancelado nunca conta, pois a
+  // movimentação nunca aconteceu de fato.
+  const ativas = filtroCartao ? [] : transacoes.filter(t => t.status !== 'CANCELADA')
+  const itensAtivos = itensFatura.filter(i => !i.cancelado)
 
   const totalReceitas = ativas.filter(t => t.tipo === 'RECEITA').reduce((s, t) => s + t.valor, 0)
+  const totalDespesasItens = itensAtivos.reduce((s, i) => s + i.valor, 0)
+  const totalDespesasFaturas = faturasCartao.reduce((s, f) => s + f.valor, 0)
   const totalDespesas = ativas.filter(t => t.tipo === 'DESPESA').reduce((s, t) => s + t.valor, 0)
+    + totalDespesasItens + totalDespesasFaturas
 
   const realizadas = ativas.filter(t => t.status === 'PAGA')
   const pendentes = ativas.filter(t => t.status === 'PENDENTE' || t.status === 'ATRASADA')
+  const faturasPagas = faturasCartao.filter(f => f.status === 'PAGA')
+  const faturasPendentes = faturasCartao.filter(f => f.status === 'PENDENTE' || f.status === 'ATRASADA')
 
   const receitasRealizadas = realizadas.filter(t => t.tipo === 'RECEITA').reduce((s, t) => s + t.valor, 0)
   const despesasRealizadas = realizadas.filter(t => t.tipo === 'DESPESA').reduce((s, t) => s + t.valor, 0)
+    + faturasPagas.reduce((s, f) => s + f.valor, 0)
   const receitasPendentes = pendentes.filter(t => t.tipo === 'RECEITA').reduce((s, t) => s + t.valor, 0)
+  // Itens de fatura em aberto nunca "realizam" (não tocam saldo) até a fatura
+  // fechar — entram sempre como pendentes.
   const despesasPendentes = pendentes.filter(t => t.tipo === 'DESPESA').reduce((s, t) => s + t.valor, 0)
+    + totalDespesasItens + faturasPendentes.reduce((s, f) => s + f.valor, 0)
 
   return (
     <div className="p-6 space-y-5">
@@ -146,62 +237,37 @@ export default function Transacoes() {
         </div>
       </div>
 
-      {/* Barra de resumo */}
-      <div className="space-y-2">
-        <div className="grid grid-cols-3 gap-2 md:gap-4">
-          <div className="card text-center p-3 md:p-5">
-            <p className="text-xs text-conteudo-suave mb-1">Receitas</p>
-            <p className="text-sm md:text-lg font-bold text-emerald-500">{fmt(totalReceitas)}</p>
-          </div>
-          <div className="card text-center p-3 md:p-5">
-            <p className="text-xs text-conteudo-suave mb-1">Despesas</p>
-            <p className="text-sm md:text-lg font-bold text-red-500">{fmt(totalDespesas)}</p>
-          </div>
-          <div className="card text-center p-3 md:p-5">
-            <p className="text-xs text-conteudo-suave mb-1">Saldo</p>
-            <p className={`text-sm md:text-lg font-bold ${totalReceitas - totalDespesas >= 0 ? 'text-acento' : 'text-orange-500'}`}>
-              {fmt(totalReceitas - totalDespesas)}
-            </p>
-          </div>
+      {/* Barra de resumo: receitas em cima, despesas embaixo */}
+      <div className="grid grid-cols-3 gap-2 md:gap-4">
+        <div className="card text-center p-3 md:p-5">
+          <p className="text-xs text-conteudo-suave mb-1">Receitas</p>
+          <p className="text-sm md:text-lg font-bold text-emerald-500">{fmt(totalReceitas)}</p>
+        </div>
+        <div className="card text-center p-3 md:p-5 border border-emerald-400/20">
+          <p className="text-xs text-conteudo-suave mb-1">Receitas recebidas</p>
+          <p className="text-sm md:text-base font-bold text-emerald-500">{fmt(receitasRealizadas)}</p>
+        </div>
+        <div className="card text-center p-3 md:p-5 border border-amber-400/20">
+          <p className="text-xs text-conteudo-suave mb-1">Receitas a receber</p>
+          <p className="text-sm md:text-base font-bold text-emerald-500">{fmt(receitasPendentes)}</p>
         </div>
 
-        <div className="grid grid-cols-3 gap-2 md:gap-4">
-          <div className="card text-center p-3 md:p-5 border border-emerald-400/20">
-            <p className="text-xs text-conteudo-suave mb-1">Receitas recebidas</p>
-            <p className="text-sm md:text-base font-bold text-emerald-500">{fmt(receitasRealizadas)}</p>
-          </div>
-          <div className="card text-center p-3 md:p-5 border border-emerald-400/20">
-            <p className="text-xs text-conteudo-suave mb-1">Despesas pagas</p>
-            <p className="text-sm md:text-base font-bold text-red-500">{fmt(despesasRealizadas)}</p>
-          </div>
-          <div className="card text-center p-3 md:p-5 border border-emerald-400/20">
-            <p className="text-xs text-conteudo-suave mb-1">Saldo atual</p>
-            <p className={`text-sm md:text-base font-bold ${receitasRealizadas - despesasRealizadas >= 0 ? 'text-acento' : 'text-orange-500'}`}>
-              {fmt(receitasRealizadas - despesasRealizadas)}
-            </p>
-          </div>
+        <div className="card text-center p-3 md:p-5">
+          <p className="text-xs text-conteudo-suave mb-1">Despesas</p>
+          <p className="text-sm md:text-lg font-bold text-red-500">{fmt(totalDespesas)}</p>
         </div>
-
-        <div className="grid grid-cols-3 gap-2 md:gap-4">
-          <div className="card text-center p-3 md:p-5 border border-amber-400/20">
-            <p className="text-xs text-conteudo-suave mb-1">Receitas a receber</p>
-            <p className="text-sm md:text-base font-bold text-emerald-500">{fmt(receitasPendentes)}</p>
-          </div>
-          <div className="card text-center p-3 md:p-5 border border-amber-400/20">
-            <p className="text-xs text-conteudo-suave mb-1">Despesas a pagar</p>
-            <p className="text-sm md:text-base font-bold text-red-500">{fmt(despesasPendentes)}</p>
-          </div>
-          <div className="card text-center p-3 md:p-5 border border-amber-400/20">
-            <p className="text-xs text-conteudo-suave mb-1">Saldo futuro</p>
-            <p className={`text-sm md:text-base font-bold ${receitasPendentes - despesasPendentes >= 0 ? 'text-acento' : 'text-orange-500'}`}>
-              {fmt(receitasPendentes - despesasPendentes)}
-            </p>
-          </div>
+        <div className="card text-center p-3 md:p-5 border border-emerald-400/20">
+          <p className="text-xs text-conteudo-suave mb-1">Despesas pagas</p>
+          <p className="text-sm md:text-base font-bold text-red-500">{fmt(despesasRealizadas)}</p>
+        </div>
+        <div className="card text-center p-3 md:p-5 border border-amber-400/20">
+          <p className="text-xs text-conteudo-suave mb-1">Despesas a pagar</p>
+          <p className="text-sm md:text-base font-bold text-red-500">{fmt(despesasPendentes)}</p>
         </div>
       </div>
 
       {/* Filtros */}
-      <div className="flex flex-col gap-3 md:flex-row">
+      <div className="flex flex-col gap-3 md:flex-row md:flex-wrap">
         <select className="select w-full md:w-40" value={filtroTipo} onChange={e => setFiltroTipo(e.target.value as any)}>
           <option value="">Todos</option>
           <option value="RECEITA">Receitas</option>
@@ -219,6 +285,18 @@ export default function Transacoes() {
           <option value="PAGA">Paga</option>
           <option value="CANCELADA">Cancelada</option>
         </select>
+        <select className="select w-full md:w-44" value={contaId ?? ''} onChange={e => definirContaId(e.target.value ? Number(e.target.value) : undefined)}>
+          <option value="">Todas as contas</option>
+          {[...contas].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+        </select>
+        <select
+          className="select w-full md:w-44" value={filtroCartao}
+          disabled={filtroTipo === 'TRANSFERENCIA' || filtroTipo === 'RECEITA'}
+          onChange={e => setFiltroCartao(e.target.value ? Number(e.target.value) : '')}
+        >
+          <option value="">Todos os cartões</option>
+          {[...cartoes].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+        </select>
       </div>
 
       {/* Lista de lançamentos */}
@@ -235,57 +313,101 @@ export default function Transacoes() {
         </div>
       ) : (
         <div className="space-y-4">
-          {agrupadas.map(([data, txs]) => (
+          {agrupadas.map(([data, itens]) => (
             <div key={data}>
               <p className="text-xs font-semibold text-conteudo-suave uppercase tracking-wider mb-2">
                 {format(parseISO(data), "EEEE, dd 'de' MMMM", { locale: ptBR })}
               </p>
               <div className="card p-0 overflow-hidden divide-y divide-borda">
-                {txs.map(tx => (
-                  <div key={tx.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-superficie-2 transition-colors group">
+                {itens.map(lanc => lanc.origem === 'FATURA' ? (
+                  <div key={lanc.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-superficie-2 transition-colors group">
                     {/* Bolinha de cor */}
-                    <div className="w-3 h-3 rounded-full shrink-0"
-                      style={{ background: tx.tipo === 'TRANSFERENCIA' ? '#3b82f6' : tx.categoria?.cor ?? '#6b7280' }} />
+                    <div className="w-3 h-3 rounded-full shrink-0" style={{ background: lanc.fatura.cartao.cor }} />
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium text-conteudo truncate">
-                          {tx.tipo === 'TRANSFERENCIA'
-                            ? (tx.descricao || 'Transferência')
-                            : (tx.descricao || tx.categoria?.nome || '—')}
+                          Fatura {lanc.fatura.cartao.nome}
                         </span>
-                        {tx.fixa && <Repeat size={12} className="text-acento shrink-0" aria-label="Fixa" />}
-                        {tx.totalParcelas && (
-                          <span className="text-xs text-conteudo-suave flex items-center gap-0.5">
-                            <Layers size={11} />
-                            {tx.numeroParcela}/{tx.totalParcelas}
-                          </span>
-                        )}
-                        <BadgeStatus status={tx.status} />
+                        <BadgeStatus status={lanc.fatura.status} />
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">
-                        {tx.tipo === 'TRANSFERENCIA' ? (
+                        <span className="text-xs text-conteudo-suave">
+                          {lanc.fatura.cartao.contaPagamento.nome} · vence {format(parseISO(lanc.fatura.dataVencimento), "dd/MM/yyyy", { locale: ptBR })}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Valor */}
+                    <span className="text-base font-bold text-red-500">-{fmt(lanc.fatura.valor)}</span>
+
+                    {/* Ações */}
+                    <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                      {(lanc.fatura.status === 'PENDENTE' || lanc.fatura.status === 'ATRASADA') && (
+                        <button onClick={() => setPagarModal({ id: lanc.fatura.transacaoDespesaId, tipo: 'DESPESA', status: lanc.fatura.status })}
+                          title="Marcar fatura como paga"
+                          className="p-1.5 rounded-lg hover:bg-emerald-900/40 text-conteudo-suave hover:text-emerald-500 transition-colors">
+                          <CheckCircle2 size={14} />
+                        </button>
+                      )}
+                      {lanc.fatura.status === 'PAGA' && (
+                        <button onClick={() => estornarMutation.mutate(lanc.fatura.transacaoDespesaId)}
+                          title="Estornar (voltar para pendente)"
+                          className="p-1.5 rounded-lg hover:bg-amber-900/40 text-conteudo-suave hover:text-amber-500 transition-colors">
+                          <Undo2 size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ) : lanc.origem === 'TRANSACAO' ? (
+                  <div key={lanc.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-superficie-2 transition-colors group">
+                    {/* Bolinha de cor */}
+                    <div className="w-3 h-3 rounded-full shrink-0"
+                      style={{ background: lanc.tx.tipo === 'TRANSFERENCIA' ? '#3b82f6' : lanc.tx.categoria?.cor ?? '#6b7280' }} />
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-conteudo truncate">
+                          {lanc.tx.tipo === 'TRANSFERENCIA'
+                            ? (lanc.tx.descricao || 'Transferência')
+                            : (lanc.tx.descricao || lanc.tx.categoria?.nome || '—')}
+                        </span>
+                        {lanc.tx.fixa && <Repeat size={12} className="text-acento shrink-0" aria-label="Fixa" />}
+                        {lanc.tx.totalParcelas && (
+                          <span className="text-xs text-conteudo-suave flex items-center gap-0.5">
+                            <Layers size={11} />
+                            {lanc.tx.numeroParcela}/{lanc.tx.totalParcelas}
+                          </span>
+                        )}
+                        <BadgeStatus status={lanc.tx.status} />
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {lanc.tx.tipo === 'TRANSFERENCIA' ? (
                           <span className="text-xs text-conteudo-suave flex items-center gap-1">
                             <ArrowRightLeft size={11} />
-                            {tx.direcaoTransferencia === 'SAIDA'
-                              ? `${tx.conta.nome} → ${tx.contaVinculada?.nome ?? '—'}`
-                              : `${tx.contaVinculada?.nome ?? '—'} → ${tx.conta.nome}`}
+                            {lanc.tx.direcaoTransferencia === 'SAIDA'
+                              ? `${lanc.tx.conta.nome} → ${lanc.tx.contaVinculada?.nome ?? '—'}`
+                              : `${lanc.tx.contaVinculada?.nome ?? '—'} → ${lanc.tx.conta.nome}`}
                           </span>
                         ) : (
                           <>
-                            <span className="text-xs text-conteudo-suave">{tx.conta.nome}</span>
-                            {tx.categoria && (
+                            <span className="text-xs text-conteudo-suave">{lanc.tx.conta.nome}</span>
+                            {lanc.tx.categoria && (
                               <span className="text-xs px-1.5 py-0.5 rounded-full" style={{
-                                background: `${tx.categoria.cor}20`, color: tx.categoria.cor
+                                background: `${lanc.tx.categoria.cor}20`, color: lanc.tx.categoria.cor
                               }}>
-                                {tx.categoria.nome}
+                                {lanc.tx.categoria.nome}
                               </span>
                             )}
-                            {tx.tipoPagamento === 'CREDITO' ? (
+                            {lanc.tx.tipoPagamento === 'CREDITO' ? (
                               <CreditCard size={11} className="text-conteudo-suave" />
                             ) : (
                               <Banknote size={11} className="text-conteudo-suave" />
+                            )}
+                            {lanc.tx.multa != null && (
+                              <span className="text-xs text-orange-500">+ multa {fmt(lanc.tx.multa)}</span>
                             )}
                           </>
                         )}
@@ -294,46 +416,106 @@ export default function Transacoes() {
 
                     {/* Valor */}
                     <span className={`text-base font-bold ${
-                      tx.tipo === 'TRANSFERENCIA'
+                      lanc.tx.tipo === 'TRANSFERENCIA'
                         ? 'text-blue-500'
-                        : tx.tipo === 'RECEITA' ? 'text-emerald-500' : 'text-red-500'
+                        : lanc.tx.tipo === 'RECEITA' ? 'text-emerald-500' : 'text-red-500'
                     }`}>
-                      {tx.tipo === 'TRANSFERENCIA'
-                        ? (tx.direcaoTransferencia === 'ENTRADA' ? '+' : '-')
-                        : (tx.tipo === 'RECEITA' ? '+' : '-')}{fmt(tx.valor)}
+                      {lanc.tx.tipo === 'TRANSFERENCIA'
+                        ? (lanc.tx.direcaoTransferencia === 'ENTRADA' ? '+' : '-')
+                        : (lanc.tx.tipo === 'RECEITA' ? '+' : '-')}{fmt(lanc.tx.valor + (lanc.tx.multa ?? 0))}
                     </span>
 
                     {/* Ações */}
                     <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                      {(tx.status === 'PENDENTE' || tx.status === 'ATRASADA') && (
-                        <button onClick={() => pagarMutation.mutate(tx.id)}
-                          title={tx.tipo === 'RECEITA' ? 'Marcar como recebida' : tx.tipo === 'TRANSFERENCIA' ? 'Marcar como transferida' : 'Marcar como paga'}
+                      {(lanc.tx.status === 'PENDENTE' || lanc.tx.status === 'ATRASADA') && (
+                        <button onClick={() => setPagarModal({ id: lanc.tx.id, tipo: lanc.tx.tipo, status: lanc.tx.status })}
+                          title={lanc.tx.tipo === 'RECEITA' ? 'Marcar como recebida' : lanc.tx.tipo === 'TRANSFERENCIA' ? 'Marcar como transferida' : 'Marcar como paga'}
                           className="p-1.5 rounded-lg hover:bg-emerald-900/40 text-conteudo-suave hover:text-emerald-500 transition-colors">
                           <CheckCircle2 size={14} />
                         </button>
                       )}
-                      {tx.status === 'PAGA' && (
-                        <button onClick={() => estornarMutation.mutate(tx.id)}
+                      {lanc.tx.status === 'PAGA' && (
+                        <button onClick={() => estornarMutation.mutate(lanc.tx.id)}
                           title="Estornar (voltar para pendente)"
                           className="p-1.5 rounded-lg hover:bg-amber-900/40 text-conteudo-suave hover:text-amber-500 transition-colors">
                           <Undo2 size={14} />
                         </button>
                       )}
-                      {tx.status !== 'CANCELADA' && (
-                        <button onClick={() => setCancelModal({ tx })}
+                      {lanc.tx.status !== 'CANCELADA' && (
+                        <button onClick={() => setCancelModal({ tx: lanc.tx })}
                           title="Cancelar"
                           className="p-1.5 rounded-lg hover:bg-orange-900/40 text-conteudo-suave hover:text-orange-500 transition-colors">
                           <Ban size={14} />
                         </button>
                       )}
-                      <button onClick={() => { setEditing(tx); setShowForm(true) }}
+                      <button onClick={() => { setEditing({ origem: 'TRANSACAO', tx: lanc.tx }); setShowForm(true) }}
                         className="p-1.5 rounded-lg hover:bg-superficie-2 text-conteudo-suave hover:text-conteudo transition-colors">
                         <Pencil size={14} />
                       </button>
-                      <button onClick={() => setDeleteModal({ tx })}
+                      <button onClick={() => setDeleteModal({ tx: lanc.tx })}
                         className="p-1.5 rounded-lg hover:bg-red-900/40 text-conteudo-suave hover:text-red-500 transition-colors">
                         <Trash2 size={14} />
                       </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div key={lanc.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-superficie-2 transition-colors group">
+                    {/* Bolinha de cor */}
+                    <div className="w-3 h-3 rounded-full shrink-0" style={{ background: lanc.item.categoria?.cor ?? '#6b7280' }} />
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-sm font-medium text-conteudo truncate ${lanc.item.cancelado ? 'line-through text-conteudo-suave' : ''}`}>
+                          {lanc.item.descricao || lanc.item.categoria?.nome || '—'}
+                        </span>
+                        {lanc.item.totalParcelas && (
+                          <span className="text-xs text-conteudo-suave flex items-center gap-0.5">
+                            <Layers size={11} />
+                            {lanc.item.numeroParcela}/{lanc.item.totalParcelas}
+                          </span>
+                        )}
+                        <span className="text-xs px-1.5 py-0.5 rounded-full font-medium bg-violet-500/15 text-violet-400">
+                          {lanc.item.cancelado ? 'Cancelado' : 'No cartão'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-xs text-conteudo-suave">{lanc.item.cartaoNome}</span>
+                        {lanc.item.categoria && (
+                          <span className="text-xs px-1.5 py-0.5 rounded-full" style={{
+                            background: `${lanc.item.categoria.cor}20`, color: lanc.item.categoria.cor
+                          }}>
+                            {lanc.item.categoria.nome}
+                          </span>
+                        )}
+                        <CreditCard size={11} className="text-conteudo-suave" />
+                      </div>
+                    </div>
+
+                    {/* Valor */}
+                    <span className={`text-base font-bold ${lanc.item.cancelado ? 'text-conteudo-suave line-through' : 'text-red-500'}`}>
+                      -{fmt(lanc.item.valor)}
+                    </span>
+
+                    {/* Ações */}
+                    <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                      {!lanc.item.cancelado && (
+                        <>
+                          <button onClick={() => cancelarItemMutation.mutate(lanc.item.id)}
+                            title="Cancelar"
+                            className="p-1.5 rounded-lg hover:bg-orange-900/40 text-conteudo-suave hover:text-orange-500 transition-colors">
+                            <Ban size={14} />
+                          </button>
+                          <button onClick={() => { setEditing({ origem: 'ITEM_FATURA', item: lanc.item }); setShowForm(true) }}
+                            className="p-1.5 rounded-lg hover:bg-superficie-2 text-conteudo-suave hover:text-conteudo transition-colors">
+                            <Pencil size={14} />
+                          </button>
+                          <button onClick={() => { if (confirm('Excluir esta compra?')) excluirItemMutation.mutate(lanc.item.id) }}
+                            className="p-1.5 rounded-lg hover:bg-red-900/40 text-conteudo-suave hover:text-red-500 transition-colors">
+                            <Trash2 size={14} />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -347,6 +529,17 @@ export default function Transacoes() {
         <FormularioTransacao
           onClose={() => { setShowForm(false); setEditing(undefined) }}
           editing={editing}
+        />
+      )}
+
+      {/* Modal de pagamento (com multa opcional) */}
+      {pagarModal && (
+        <PagarModal
+          tipo={pagarModal.tipo}
+          status={pagarModal.status}
+          aoFechar={() => setPagarModal(null)}
+          aoConfirmar={(dataPagamento, multa) => pagarMutation.mutate({ id: pagarModal.id, dataPagamento, multa })}
+          carregando={pagarMutation.isPending}
         />
       )}
 
@@ -446,5 +639,66 @@ export default function Transacoes() {
         </SobreposicaoModal>
       )}
     </div>
+  )
+}
+
+function PagarModal({ tipo, status, aoFechar, aoConfirmar, carregando }: {
+  tipo: TipoTransacao
+  status: StatusTransacao
+  aoFechar: () => void
+  aoConfirmar: (dataPagamento: string, multa?: number) => void
+  carregando: boolean
+}) {
+  const hoje = format(new Date(), 'yyyy-MM-dd')
+  const [dataPagamento, setDataPagamento] = useState(hoje)
+  const [multa, setMulta] = useState('')
+  const atrasada = status === 'ATRASADA'
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    aoConfirmar(dataPagamento, multa ? Number(multa) : undefined)
+  }
+
+  return (
+    <SobreposicaoModal aoFechar={aoFechar}>
+      <div className="cartao-modal max-w-sm">
+        <div className="cartao-modal-cabecalho">
+          <h3 className="text-base font-semibold text-conteudo">
+            {tipo === 'RECEITA' ? 'Marcar como recebida' : 'Marcar como paga'}
+          </h3>
+        </div>
+        <form onSubmit={handleSubmit} className="cartao-modal-corpo">
+          <div>
+            <label className="label">Data de pagamento</label>
+            <input
+              className="input" type="date" max={hoje}
+              value={dataPagamento} onChange={e => setDataPagamento(e.target.value)} required
+            />
+          </div>
+          {tipo === 'DESPESA' && (
+            <div>
+              <label className="label">Multa por atraso (R$, opcional)</label>
+              <input
+                className="input" type="number" step="0.01" min="0" placeholder="0,00"
+                value={multa} onChange={e => setMulta(e.target.value)}
+              />
+              {atrasada && (
+                <p className="text-xs text-orange-500 mt-1">
+                  Esse lançamento está atrasado — a multa é somada ao valor debitado da conta.
+                </p>
+              )}
+            </div>
+          )}
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={aoFechar} className="flex-1 py-2.5 rounded-lg border border-borda text-conteudo-suave hover:text-conteudo hover:border-conteudo-suave transition-colors text-sm font-medium">
+              Cancelar
+            </button>
+            <button type="submit" disabled={carregando} className="flex-1 btn-primary">
+              {carregando ? 'Salvando...' : 'Confirmar'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </SobreposicaoModal>
   )
 }

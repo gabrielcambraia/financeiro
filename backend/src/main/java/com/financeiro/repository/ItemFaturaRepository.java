@@ -2,6 +2,8 @@ package com.financeiro.repository;
 
 import com.financeiro.entity.ItemFatura;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -15,11 +17,37 @@ public interface ItemFaturaRepository extends JpaRepository<ItemFatura, Long> {
 
     List<ItemFatura> findByEspacoIdAndFaturaIdOrderByDataDesc(Long espacoId, Long faturaId);
 
-    List<ItemFatura> findByEspacoIdAndCartaoIdAndDataBetweenOrderByDataDesc(Long espacoId, Long cartaoId, LocalDate inicio, LocalDate fim);
-
     List<ItemFatura> findByEspacoIdAndGrupoParcelaId(Long espacoId, String grupoParcelaId);
 
+    // Usado pela tela do cartão: itens em aberto de um cartão dentro da janela
+    // de um ciclo de fechamento específico (ver ItemFaturaService.findAbertosPorCiclo).
+    List<ItemFatura> findByEspacoIdAndCartaoIdAndFaturaIdIsNullAndDataBetweenOrderByDataDesc(
+            Long espacoId, Long cartaoId, LocalDate inicio, LocalDate fim);
+
     // Usado pelo AgendadorFatura (job global, sem contexto de espaço): soma
-    // tudo que ainda não foi associado a uma fatura fechada e não foi cancelado.
-    List<ItemFatura> findByCartaoIdAndFaturaIdIsNullAndDataCancelamentoIsNull(Long cartaoId);
+    // os itens ainda não faturados, não cancelados e com data até o fechamento
+    // do ciclo atual — um item com data futura (ex.: parcela de compra
+    // parcelada que cai no mês seguinte) fica em aberto para o PRÓXIMO
+    // fechamento, em vez de ser varrido para a fatura de hoje.
+    List<ItemFatura> findByCartaoIdAndFaturaIdIsNullAndDataCancelamentoIsNullAndDataLessThanEqual(
+            Long cartaoId, LocalDate dataFechamento);
+
+    // Usado pela tela de Lançamentos: compras em aberto (ainda não faturadas)
+    // dentro do mês de competência, filtráveis por conta de pagamento do
+    // cartão e/ou pelo próprio cartão. Inclui canceladas (ficam visíveis no
+    // histórico, mesmo padrão de Transacao) — quem some da lista são só as
+    // já faturadas, pois quem as representa a partir daí é a despesa
+    // consolidada da fatura.
+    @Query("""
+        SELECT i FROM ItemFatura i
+        WHERE i.espacoId = :espacoId
+          AND i.fatura IS NULL
+          AND i.data BETWEEN :inicio AND :fim
+          AND (:contaId IS NULL OR i.cartao.contaPagamento.id = :contaId)
+          AND (:cartaoId IS NULL OR i.cartao.id = :cartaoId)
+        ORDER BY i.data DESC
+        """)
+    List<ItemFatura> buscarAbertosPorFiltro(@Param("espacoId") Long espacoId, @Param("inicio") LocalDate inicio,
+                                             @Param("fim") LocalDate fim, @Param("contaId") Long contaId,
+                                             @Param("cartaoId") Long cartaoId);
 }

@@ -35,4 +35,11 @@ public class ItemFaturaDTO {
     private LocalDate dataCancelamento;
     private boolean cancelado;
     private boolean faturado;
+    // Usados pela listagem unificada de Lançamentos, que mescla itens de
+    // fatura em aberto com transações — precisa mostrar de qual cartão/conta
+    // é a compra sem uma segunda chamada.
+    private String cartaoNome;
+    private String cartaoCor;
+    private Long contaPagamentoId;
+    private String contaPagamentoNome;
 }

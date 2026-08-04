@@ -13,6 +13,7 @@ import { buscarContas } from '../api/contas'
 import { useLojaTema } from '../store/lojaTema'
 import { useLojaAutenticacao } from '../store/lojaAutenticacao'
 import { primeiroNome, saudacaoPorHora } from '../utils/formatadores'
+import CartaoVencimentos from '../components/CartaoVencimentos'
 
 const coresGrafico = (tema: 'claro' | 'escuro') =>
   tema === 'escuro'
@@ -115,6 +116,12 @@ export default function Painel() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Vencimentos: a pagar / a receber */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <CartaoVencimentos titulo="A pagar" variante="pagar" grupo={data.vencimentos?.aPagar} />
+        <CartaoVencimentos titulo="A receber" variante="receber" grupo={data.vencimentos?.aReceber} />
       </div>
 
       {/* Realizado vs A vencer */}

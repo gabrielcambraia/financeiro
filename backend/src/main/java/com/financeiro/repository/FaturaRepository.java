@@ -13,6 +13,11 @@ public interface FaturaRepository extends JpaRepository<Fatura, Long> {
 
     List<Fatura> findByEspacoIdAndCartaoIdOrderByDataFechamentoDesc(Long espacoId, Long cartaoId);
 
+    // Usado pela visualização de faturas por mês (tela do cartão e Lançamentos
+    // com filtro de cartão) — filtra pelo mês de fechamento.
+    List<Fatura> findByEspacoIdAndCartaoIdAndDataFechamentoBetweenOrderByDataFechamentoDesc(
+            Long espacoId, Long cartaoId, LocalDate inicio, LocalDate fim);
+
     // Usado pelo AgendadorFatura (job global, sem contexto de espaço) para
     // garantir idempotência: não fechar a mesma fatura duas vezes no mesmo dia.
     boolean existsByCartaoIdAndDataFechamento(Long cartaoId, LocalDate dataFechamento);

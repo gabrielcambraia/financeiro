@@ -15,8 +15,8 @@ public class FaturaController {
     private final FaturaService service;
 
     @GetMapping
-    public List<FaturaDTO> findByCartao(@RequestParam Long cartaoId) {
-        return service.findByCartao(cartaoId);
+    public List<FaturaDTO> findByCartao(@RequestParam Long cartaoId, @RequestParam(required = false) String month) {
+        return service.findByCartao(cartaoId, month);
     }
 
     @GetMapping("/{id}")

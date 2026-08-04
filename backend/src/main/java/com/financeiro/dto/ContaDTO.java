@@ -17,8 +17,12 @@ public class ContaDTO {
     @NotNull
     private TipoConta tipo;
 
-    @NotNull
+    // campo de resposta: saldo é derivado do saldo inicial + movimentações; ContaService
+    // ignora esse valor tanto em create() (usa saldoInicial) quanto em update() (não altera saldo)
     private BigDecimal saldo;
+
+    @NotNull
+    private BigDecimal saldoInicial;
 
     @NotBlank
     private String cor;

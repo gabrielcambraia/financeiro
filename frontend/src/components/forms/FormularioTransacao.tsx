@@ -4,70 +4,146 @@ import { X } from 'lucide-react'
 import { format } from 'date-fns'
 import { buscarContas } from '../../api/contas'
 import { buscarCategorias } from '../../api/categorias'
+import { buscarCartoes } from '../../api/cartoes'
 import { criarTransacao, atualizarTransacao } from '../../api/transacoes'
+import { criarItemFatura, atualizarItemFatura } from '../../api/itensFatura'
 import SobreposicaoModal from '../SobreposicaoModal'
-import type { Transacao, TipoTransacao, TipoPagamento } from '../../types'
+import type { Transacao, ItemFatura, TipoTransacao, TipoPagamento } from '../../types'
+
+// A tela de Lançamentos mescla dois tipos de registro (ver Transacoes.tsx):
+// Transacao (débito, amarrada a uma conta) e ItemFatura (crédito, amarrado a
+// um cartão, sem vencimento/pagamento — vira despesa na conta de pagamento
+// só quando a fatura fecha). Este form decide qual API chamar conforme o
+// tipo/forma de pagamento escolhidos.
+export type EdicaoLancamento =
+  | { origem: 'TRANSACAO'; tx: Transacao }
+  | { origem: 'ITEM_FATURA'; item: ItemFatura }
+
+const fmtParcela = (valor: string | number, totalParcelas: string | number) => {
+  const n = Number(totalParcelas)
+  const v = Number(valor) / n
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0)
+}
 
 interface Props {
   onClose: () => void
-  editing?: Transacao
+  editing?: EdicaoLancamento
 }
 
 export default function FormularioTransacao({ onClose, editing }: Props) {
   const qc = useQueryClient()
-  const [tipo, setTipo] = useState<TipoTransacao>(editing?.tipo ?? 'DESPESA')
+  const editingTx = editing?.origem === 'TRANSACAO' ? editing.tx : undefined
+  const editingItem = editing?.origem === 'ITEM_FATURA' ? editing.item : undefined
+
+  const [tipo, setTipo] = useState<TipoTransacao>(editingTx?.tipo ?? 'DESPESA')
   const hoje = format(new Date(), 'yyyy-MM-dd')
-  const dataInicial = editing?.data ?? hoje
+  const dataInicial = editingTx?.data ?? editingItem?.data ?? hoje
   // Numa transferência, a linha editada pode ser a perna de saída ou a de
   // entrada (o usuário pode clicar em qualquer uma na lista) — normaliza para
   // sempre mostrar origem/destino na ordem certa, independente de qual foi clicada.
-  const contaOrigemInicial = editing?.tipo === 'TRANSFERENCIA'
-    ? (editing.direcaoTransferencia === 'SAIDA' ? editing.contaId : editing.contaVinculada?.id) ?? ''
-    : editing?.contaId ?? ''
-  const contaDestinoInicial = editing?.tipo === 'TRANSFERENCIA'
-    ? (editing.direcaoTransferencia === 'SAIDA' ? editing.contaVinculada?.id : editing.contaId) ?? ''
+  const contaOrigemInicial = editingTx?.tipo === 'TRANSFERENCIA'
+    ? (editingTx.direcaoTransferencia === 'SAIDA' ? editingTx.contaId : editingTx.contaVinculada?.id) ?? ''
+    : editingTx?.contaId ?? ''
+  const contaDestinoInicial = editingTx?.tipo === 'TRANSFERENCIA'
+    ? (editingTx.direcaoTransferencia === 'SAIDA' ? editingTx.contaVinculada?.id : editingTx.contaId) ?? ''
     : ''
   const [form, setForm] = useState({
     contaId: contaOrigemInicial,
     contaDestinoId: contaDestinoInicial,
-    categoriaId: editing?.categoriaId ?? '',
-    tipoPagamento: (editing?.tipoPagamento ?? 'DEBITO') as TipoPagamento,
-    valor: editing?.valor ?? '',
-    descricao: editing?.descricao ?? '',
+    cartaoId: editingItem?.cartaoId ?? '',
+    categoriaId: editingTx?.categoriaId ?? editingItem?.categoriaId ?? '',
+    tipoPagamento: (editingTx?.tipoPagamento ?? (editingItem ? 'CREDITO' : 'DEBITO')) as TipoPagamento,
+    valor: editingTx?.valor ?? editingItem?.valor ?? '',
+    descricao: editingTx?.descricao ?? editingItem?.descricao ?? '',
     data: dataInicial,
-    dataVencimento: editing?.dataVencimento ?? dataInicial,
+    dataVencimento: editingTx?.dataVencimento ?? dataInicial,
     // Vazio = pendente. Ao criar, nasce preenchida se a data já chegou (mantém
     // o fluxo leve de hoje); o usuário pode desmarcar para deixar a pagar.
-    dataPagamento: editing ? (editing.dataPagamento ?? '') : (dataInicial <= hoje ? dataInicial : ''),
-    fixa: editing?.fixa ?? false,
-    totalParcelas: editing?.totalParcelas ?? '',
+    dataPagamento: editingTx ? (editingTx.dataPagamento ?? '') : (dataInicial <= hoje ? dataInicial : ''),
+    fixa: editingTx?.fixa ?? false,
+    totalParcelas: editingTx?.totalParcelas ?? editingItem?.totalParcelas ?? '',
   })
   const paga = form.dataPagamento !== ''
+  // Uma Transacao legada com tipoPagamento=CREDITO (criada antes desta
+  // mudança) continua editável como Transacao normal — só uma compra que já
+  // nasceu como ItemFatura (ou uma nova sendo criada em crédito) usa o modo
+  // "cartão" do formulário.
+  const credito = editingTx ? false : (editingItem ? true : (tipo === 'DESPESA' && form.tipoPagamento === 'CREDITO'))
 
   const { data: contas = [] } = useQuery({ queryKey: ['contas'], queryFn: buscarContas })
+  const { data: cartoes = [] } = useQuery({ queryKey: ['cartoes'], queryFn: buscarCartoes, enabled: credito })
 
   useEffect(() => {
     if (!editing && contas.length === 1 && !form.contaId) {
       set('contaId', contas[0].id)
     }
   }, [contas])
+
+  useEffect(() => {
+    if (!editing && credito && cartoes.length === 1 && !form.cartaoId) {
+      set('cartaoId', cartoes[0].id)
+    }
+  }, [credito, cartoes])
+
+  // Receita não pode ser em crédito (não faz sentido) — força débito ao trocar
+  // para Receita ou Transferência.
+  useEffect(() => {
+    if (tipo !== 'DESPESA' && form.tipoPagamento === 'CREDITO') {
+      set('tipoPagamento', 'DEBITO')
+    }
+  }, [tipo])
+
   const { data: categorias = [] } = useQuery({
     queryKey: ['categorias', tipo],
     queryFn: () => buscarCategorias(tipo),
     enabled: tipo !== 'TRANSFERENCIA',
   })
 
+  const invalidarTudo = async () => {
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ['transacoes'] }),
+      qc.invalidateQueries({ queryKey: ['itensFatura'] }),
+      qc.invalidateQueries({ queryKey: ['painel'] }),
+      qc.invalidateQueries({ queryKey: ['contas'] }),
+      qc.invalidateQueries({ queryKey: ['cartoes'] }),
+    ])
+  }
+
   const mutation = useMutation({
-    mutationFn: async (payload: Parameters<typeof criarTransacao>[0]) => {
-      if (editing) { await atualizarTransacao(editing.id, payload); return [] }
-      return criarTransacao(payload)
+    mutationFn: async () => {
+      if (credito) {
+        const payload = {
+          cartaoId: Number(form.cartaoId),
+          categoriaId: form.categoriaId ? Number(form.categoriaId) : undefined,
+          valor: Number(form.valor),
+          descricao: form.descricao || undefined,
+          data: form.data,
+          totalParcelas: editingItem ? undefined : (form.totalParcelas ? Number(form.totalParcelas) : undefined),
+        }
+        if (editingItem) { await atualizarItemFatura(editingItem.id, payload); return }
+        await criarItemFatura(payload)
+        return
+      }
+      const payload = {
+        contaId: Number(form.contaId),
+        contaDestinoId: tipo === 'TRANSFERENCIA' ? Number(form.contaDestinoId) : undefined,
+        categoriaId: form.categoriaId ? Number(form.categoriaId) : undefined,
+        tipo,
+        tipoPagamento: form.tipoPagamento,
+        valor: Number(form.valor),
+        descricao: form.descricao || undefined,
+        data: form.data,
+        dataVencimento: form.dataVencimento || form.data,
+        dataPagamento: paga ? (form.dataPagamento || form.data) : undefined,
+        quitarNaCriacao: paga,
+        fixa: tipo === 'TRANSFERENCIA' ? false : form.fixa,
+        totalParcelas: tipo === 'TRANSFERENCIA' ? undefined : (form.totalParcelas ? Number(form.totalParcelas) : undefined),
+      }
+      if (editingTx) { await atualizarTransacao(editingTx.id, payload); return }
+      await criarTransacao(payload)
     },
     onSuccess: async () => {
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: ['transacoes'] }),
-        qc.invalidateQueries({ queryKey: ['painel'] }),
-        qc.invalidateQueries({ queryKey: ['contas'] }),
-      ])
+      await invalidarTudo()
       onClose()
     },
   })
@@ -81,21 +157,7 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
       return
     }
     setErro('')
-    mutation.mutate({
-      contaId: Number(form.contaId),
-      contaDestinoId: tipo === 'TRANSFERENCIA' ? Number(form.contaDestinoId) : undefined,
-      categoriaId: form.categoriaId ? Number(form.categoriaId) : undefined,
-      tipo,
-      tipoPagamento: form.tipoPagamento,
-      valor: Number(form.valor),
-      descricao: form.descricao || undefined,
-      data: form.data,
-      dataVencimento: form.dataVencimento || form.data,
-      dataPagamento: paga ? (form.dataPagamento || form.data) : undefined,
-      quitarNaCriacao: paga,
-      fixa: tipo === 'TRANSFERENCIA' ? false : form.fixa,
-      totalParcelas: tipo === 'TRANSFERENCIA' ? undefined : (form.totalParcelas ? Number(form.totalParcelas) : undefined),
-    })
+    mutation.mutate()
   }
 
   const set = (k: string, v: unknown) => setForm(f => ({ ...f, [k]: v }))
@@ -114,7 +176,7 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
           {/* Tipo */}
           <div className="flex rounded-xl overflow-hidden border border-borda">
             {(['DESPESA', 'RECEITA', 'TRANSFERENCIA'] as TipoTransacao[]).map(t => {
-              const desabilitado = !!editing && (editing.tipo === 'TRANSFERENCIA' ? t !== 'TRANSFERENCIA' : t === 'TRANSFERENCIA')
+              const desabilitado = !!editing && (editingTx?.tipo === 'TRANSFERENCIA' ? t !== 'TRANSFERENCIA' : t === 'TRANSFERENCIA')
               return (
                 <button
                   key={t}
@@ -133,17 +195,27 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
             })}
           </div>
 
-          {/* Conta e Categoria (ou Conta origem/destino para transferência) */}
+          {/* Conta/Cartão e Categoria (ou Conta origem/destino para transferência) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="label">{tipo === 'TRANSFERENCIA' ? 'Conta origem' : 'Conta'}</label>
-              <select
-                className="select" value={form.contaId} onChange={e => set('contaId', e.target.value)}
-                disabled={!!editing && tipo === 'TRANSFERENCIA'} required
-              >
-                <option value="">Selecione...</option>
-                {[...contas].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-              </select>
+              <label className="label">{tipo === 'TRANSFERENCIA' ? 'Conta origem' : credito ? 'Cartão' : 'Conta'}</label>
+              {credito ? (
+                <select
+                  className="select" value={form.cartaoId} onChange={e => set('cartaoId', e.target.value)}
+                  disabled={!!editingItem} required
+                >
+                  <option value="">Selecione...</option>
+                  {[...cartoes].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                </select>
+              ) : (
+                <select
+                  className="select" value={form.contaId} onChange={e => set('contaId', e.target.value)}
+                  disabled={!!editing && tipo === 'TRANSFERENCIA'} required
+                >
+                  <option value="">Selecione...</option>
+                  {[...contas].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                </select>
+              )}
             </div>
             {tipo === 'TRANSFERENCIA' ? (
               <div>
@@ -186,38 +258,50 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
             </div>
           </div>
 
-          {/* Vencimento e pagamento */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="label">Vencimento</label>
-              <input
-                className="input" type="date"
-                value={form.dataVencimento} onChange={e => set('dataVencimento', e.target.value)} required
-              />
-            </div>
-            {paga && (
-              <div>
-                <label className="label">Data de pagamento</label>
-                <input
-                  className="input" type="date" max={hoje}
-                  value={form.dataPagamento} onChange={e => set('dataPagamento', e.target.value)}
-                />
+          {/* Vencimento e pagamento — não se aplica a compras no crédito:
+              ficam atreladas ao cartão, sem vencimento nem pagamento próprios,
+              até a fatura fechar (vira uma despesa em débito na conta do cartão). */}
+          {!credito && (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="label">Vencimento</label>
+                  <input
+                    className="input" type="date"
+                    value={form.dataVencimento} onChange={e => set('dataVencimento', e.target.value)} required
+                  />
+                </div>
+                {paga && (
+                  <div>
+                    <label className="label">Data de pagamento</label>
+                    <input
+                      className="input" type="date" max={hoje}
+                      value={form.dataPagamento} onChange={e => set('dataPagamento', e.target.value)}
+                    />
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-superficie-2">
-            <input
-              id="paga" type="checkbox"
-              checked={paga}
-              onChange={e => set('dataPagamento', e.target.checked ? (form.dataPagamento || (form.data <= hoje ? form.data : hoje)) : '')}
-              className="w-4 h-4 accent-acento"
-            />
-            <label htmlFor="paga" className="text-sm text-conteudo">
-              {tipo === 'RECEITA' ? 'Já foi recebida' : tipo === 'TRANSFERENCIA' ? 'Já foi transferida' : 'Já foi paga'}
-              <span className="block text-xs text-conteudo-suave">Desmarque para deixar como pendente (não afeta o saldo até ser paga)</span>
-            </label>
-          </div>
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-superficie-2">
+                <input
+                  id="paga" type="checkbox"
+                  checked={paga}
+                  onChange={e => set('dataPagamento', e.target.checked ? (form.dataPagamento || (form.data <= hoje ? form.data : hoje)) : '')}
+                  className="w-4 h-4 accent-acento"
+                />
+                <label htmlFor="paga" className="text-sm text-conteudo">
+                  {tipo === 'RECEITA' ? 'Já foi recebida' : tipo === 'TRANSFERENCIA' ? 'Já foi transferida' : 'Já foi paga'}
+                  <span className="block text-xs text-conteudo-suave">Desmarque para deixar como pendente (não afeta o saldo até ser paga)</span>
+                </label>
+              </div>
+            </>
+          )}
+
+          {credito && (
+            <p className="text-xs text-conteudo-suave px-1">
+              Essa compra entra na fatura do cartão. No fechamento, vira uma despesa em débito na conta de pagamento do cartão.
+            </p>
+          )}
 
           {/* Descrição */}
           <div>
@@ -228,19 +312,22 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
             />
           </div>
 
-          {/* Débito / Crédito — transferência não usa forma de pagamento */}
+          {/* Débito / Crédito — transferência não usa forma de pagamento;
+              receita não pode ser em crédito (não faz sentido). */}
           {tipo !== 'TRANSFERENCIA' && (
           <div>
             <label className="label">Forma de pagamento</label>
             <div className="flex gap-2">
-              {(['DEBITO', 'CREDITO'] as TipoPagamento[]).map(p => (
+              {(tipo === 'RECEITA' ? (['DEBITO'] as TipoPagamento[]) : (['DEBITO', 'CREDITO'] as TipoPagamento[])).map(p => (
                 <button
                   key={p} type="button"
+                  disabled={!!editing}
                   onClick={() => set('tipoPagamento', p)}
                   className={`flex-1 py-2 text-sm rounded-lg border transition-colors
                     ${form.tipoPagamento === p
                       ? 'border-acento bg-acento/20 text-acento'
-                      : 'border-borda text-conteudo-suave hover:border-conteudo-suave'}`}
+                      : 'border-borda text-conteudo-suave hover:border-conteudo-suave'}
+                    ${editing ? 'opacity-60 cursor-not-allowed' : ''}`}
                 >
                   {p === 'DEBITO' ? 'Débito' : 'Crédito'}
                 </button>
@@ -249,20 +336,23 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
           </div>
           )}
 
-          {/* Fixa / Parcelada — não se aplica a transferências */}
+          {/* Fixa / Parcelada — não se aplica a transferências nem à edição de
+              uma compra já no cartão (parcelamento só se decide na criação) */}
           {!editing && tipo !== 'TRANSFERENCIA' && (
             <div className="space-y-3">
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-superficie-2">
-                <input
-                  id="fixa" type="checkbox"
-                  checked={form.fixa}
-                  onChange={e => { set('fixa', e.target.checked); if (e.target.checked) set('totalParcelas', '') }}
-                  className="w-4 h-4 accent-acento"
-                />
-                <label htmlFor="fixa" className="text-sm text-conteudo">
-                  Repetir todo mês (fixa)
-                </label>
-              </div>
+              {!credito && (
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-superficie-2">
+                  <input
+                    id="fixa" type="checkbox"
+                    checked={form.fixa}
+                    onChange={e => { set('fixa', e.target.checked); if (e.target.checked) set('totalParcelas', '') }}
+                    className="w-4 h-4 accent-acento"
+                  />
+                  <label htmlFor="fixa" className="text-sm text-conteudo">
+                    Repetir todo mês (fixa)
+                  </label>
+                </div>
+              )}
 
               {!form.fixa && (
                 <div>
@@ -272,6 +362,11 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
                     value={form.totalParcelas}
                     onChange={e => set('totalParcelas', e.target.value)}
                   />
+                  {!!form.totalParcelas && Number(form.totalParcelas) > 1 && (
+                    <p className="text-xs text-conteudo-suave mt-1">
+                      O valor acima é o total da compra — cada parcela fica em {fmtParcela(form.valor, form.totalParcelas)}.
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -290,4 +385,3 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
     </SobreposicaoModal>
   )
 }
-

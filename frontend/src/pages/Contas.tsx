@@ -18,7 +18,7 @@ const TIPOS_CONTA: { value: TipoConta; label: string }[] = [
   { value: 'INVESTIMENTO', label: 'Investimentos' },
 ]
 
-const formPadrao = { nome: '', tipo: 'CORRENTE' as TipoConta, saldo: '', cor: '#6366f1', icone: 'wallet', bancoId: undefined as number | undefined }
+const formPadrao = { nome: '', tipo: 'CORRENTE' as TipoConta, saldoInicial: '', cor: '#6366f1', icone: 'wallet', bancoId: undefined as number | undefined }
 
 export default function Contas() {
   const qc = useQueryClient()
@@ -30,8 +30,12 @@ export default function Contas() {
   const { data: contas = [] } = useQuery({ queryKey: ['contas'], queryFn: buscarContas })
 
   const saveMutation = useMutation({
-    mutationFn: (data: Omit<Conta, 'id'>) =>
-      editing ? atualizarConta(editing.id, data) : criarConta(data),
+    mutationFn: () => {
+      const base = { nome: form.nome, tipo: form.tipo, cor: form.cor, icone: form.icone, bancoId: form.bancoId }
+      return editing
+        ? atualizarConta(editing.id, base)
+        : criarConta({ ...base, saldoInicial: Number(form.saldoInicial) })
+    },
     onSuccess: async () => { await qc.invalidateQueries({ queryKey: ['contas'] }); closeForm() },
   })
 
@@ -43,17 +47,14 @@ export default function Contas() {
   const openCreate = () => { setEditing(null); setForm(formPadrao); setShowForm(true) }
   const openEdit = (c: Conta) => {
     setEditing(c)
-    setForm({ nome: c.nome, tipo: c.tipo, saldo: String(c.saldo), cor: c.cor, icone: c.icone, bancoId: c.bancoId })
+    setForm({ nome: c.nome, tipo: c.tipo, saldoInicial: String(c.saldoInicial), cor: c.cor, icone: c.icone, bancoId: c.bancoId })
     setShowForm(true)
   }
   const closeForm = () => { setShowForm(false); setEditing(null) }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    saveMutation.mutate({
-      nome: form.nome, tipo: form.tipo, saldo: Number(form.saldo),
-      cor: form.cor, icone: form.icone, bancoId: form.bancoId,
-    })
+    saveMutation.mutate()
   }
 
   const contasFiltradas = contas.filter(c => c.nome.toLowerCase().includes(busca.toLowerCase()))
@@ -152,9 +153,16 @@ export default function Contas() {
                 </select>
               </div>
               <div>
-                <label className="label">{editing ? 'Saldo (R$)' : 'Saldo inicial (R$)'}</label>
+                <label className="label">Saldo inicial (R$)</label>
                 <input className="input" type="number" step="0.01" placeholder="0,00"
-                  value={form.saldo} onChange={e => setForm(f => ({ ...f, saldo: e.target.value }))} required />
+                  value={form.saldoInicial} onChange={e => setForm(f => ({ ...f, saldoInicial: e.target.value }))}
+                  disabled={!!editing} readOnly={!!editing} required />
+                {editing && (
+                  <p className="text-xs text-conteudo-suave mt-1">
+                    Saldo inicial e saldo atual não podem ser editados depois de criada a conta.
+                    Saldo atual: {fmt(editing.saldo)}
+                  </p>
+                )}
               </div>
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={closeForm}

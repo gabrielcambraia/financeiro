@@ -9,6 +9,8 @@ import com.financeiro.repository.ItemFaturaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 
 @Service
@@ -23,9 +25,24 @@ public class FaturaService {
     private final ItemFaturaService itemFaturaService;
 
     public List<FaturaDTO> findByCartao(Long cartaoId) {
+        return findByCartao(cartaoId, null);
+    }
+
+    // month presente filtra pelo mês de fechamento — permite navegar o
+    // histórico de faturas de um cartão mês a mês em vez de trazer tudo de uma vez.
+    public List<FaturaDTO> findByCartao(Long cartaoId, String month) {
         Long espacoId = contextoEspaco.espacoAtual();
-        return repository.findByEspacoIdAndCartaoIdOrderByDataFechamentoDesc(espacoId, cartaoId).stream()
-                .map(f -> toDTO(f, false)).toList();
+        List<com.financeiro.entity.Fatura> faturas;
+        if (month != null) {
+            YearMonth ym = YearMonth.parse(month);
+            LocalDate inicio = ym.atDay(1);
+            LocalDate fim = ym.atEndOfMonth();
+            faturas = repository.findByEspacoIdAndCartaoIdAndDataFechamentoBetweenOrderByDataFechamentoDesc(
+                    espacoId, cartaoId, inicio, fim);
+        } else {
+            faturas = repository.findByEspacoIdAndCartaoIdOrderByDataFechamentoDesc(espacoId, cartaoId);
+        }
+        return faturas.stream().map(f -> toDTO(f, false)).toList();
     }
 
     public FaturaDTO findById(Long id) {

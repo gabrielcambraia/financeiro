@@ -3,6 +3,7 @@ package com.financeiro.entity;
 import com.financeiro.entity.converter.ConversorLocalDate;
 import com.financeiro.entity.converter.ConversorLocalDateTime;
 import com.financeiro.entity.enums.TipoAtivo;
+import com.financeiro.entity.enums.TipoRemuneracao;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -61,6 +62,32 @@ public class Ativo {
 
     @Column(name = "usuario_id", nullable = false)
     private Long usuarioId;
+
+    // ---------- rendimento automático (ver AgendadorRendimento) ----------
+
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "remuneracao_tipo", nullable = false)
+    private TipoRemuneracao remuneracaoTipo = TipoRemuneracao.NENHUMA;
+
+    /** Significado depende de {@link #remuneracaoTipo} — ver javadoc do enum. */
+    @Column(name = "taxa", precision = 9, scale = 4)
+    private BigDecimal taxa;
+
+    /** Último mês (fim de mês) já creditado pelo agendador — chave da idempotência. */
+    @Convert(converter = ConversorLocalDate.class)
+    @Column(name = "rendido_ate")
+    private LocalDate rendidoAte;
+
+    /** A partir de quando o ativo passa a render (default: data do primeiro aporte). */
+    @Convert(converter = ConversorLocalDate.class)
+    @Column(name = "inicio_rendimento")
+    private LocalDate inicioRendimento;
+
+    /** LCI/LCA/poupança etc. — zera o IR estimado exibido na UI. */
+    @Builder.Default
+    @Column(name = "isento_ir", nullable = false)
+    private boolean isentoIr = false;
 
     @PrePersist
     public void prePersist() {

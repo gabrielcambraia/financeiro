@@ -12,6 +12,7 @@ import com.financeiro.entity.Transacao;
 import com.financeiro.entity.enums.TipoAtivo;
 import com.financeiro.entity.enums.TipoMovimentacaoAtivo;
 import com.financeiro.entity.enums.TipoPagamento;
+import com.financeiro.entity.enums.TipoRemuneracao;
 import com.financeiro.entity.enums.TipoTransacao;
 import com.financeiro.erro.ExcecaoRecursoNaoEncontrado;
 import com.financeiro.repository.AtivoRepository;
@@ -50,7 +51,16 @@ public class AtivoService {
         Long espacoId = contextoEspaco.espacoAtual();
         List<Ativo> ativos = repository.findByEspacoIdOrderByCriadoEmDesc(espacoId);
         BigDecimal total = ativos.stream().map(Ativo::getValorAtual).reduce(BigDecimal.ZERO, BigDecimal::add);
-        return ativos.stream().map(a -> toDTO(a, total)).toList();
+
+        // Uma única query pra todas as movimentações do espaço, agrupada em memória por
+        // ativo — evita N+1 (uma query de movimentações por ativo) ao calcular os
+        // campos derivados (rentabilidade, IR estimado) de cada card.
+        Map<Long, List<MovimentacaoAtivo>> movimentosPorAtivo = movimentacaoRepository.findByEspacoId(espacoId).stream()
+                .collect(Collectors.groupingBy(m -> m.getAtivo().getId()));
+
+        return ativos.stream()
+                .map(a -> toDTO(a, total, movimentosPorAtivo.getOrDefault(a.getId(), List.of())))
+                .toList();
     }
 
     public List<MovimentacaoAtivoDTO> movimentacoes(Long ativoId) {
@@ -61,6 +71,7 @@ public class AtivoService {
                 .toList();
     }
 
+    @Transactional
     public AtivoDTO create(AtivoDTO dto) {
         Long espacoId = contextoEspaco.espacoAtual();
         Conta conta = contaRepository.findByIdAndEspacoId(dto.getContaId(), espacoId)
@@ -73,10 +84,26 @@ public class AtivoService {
                 .icone(dto.getIcone())
                 .espacoId(espacoId)
                 .usuarioId(contextoUsuario.usuarioAtual())
+                .remuneracaoTipo(dto.getRemuneracaoTipo() != null ? dto.getRemuneracaoTipo() : TipoRemuneracao.NENHUMA)
+                .taxa(dto.getTaxa())
+                .inicioRendimento(dto.getInicioRendimento())
+                .isentoIr(dto.isIsentoIr())
                 .build();
-        return toDTO(repository.save(ativo), null);
+        ativo = repository.save(ativo);
+
+        if (dto.getValorInicial() != null && dto.getValorInicial().compareTo(BigDecimal.ZERO) > 0) {
+            MovimentacaoAtivoDTO aporteInicial = new MovimentacaoAtivoDTO();
+            aporteInicial.setValor(dto.getValorInicial());
+            aporteInicial.setData(dto.getDataInicial());
+            aporteInicial.setContaId(dto.getContaId());
+            return aportar(ativo.getId(), aporteInicial);
+        }
+        return toDTO(ativo, null);
     }
 
+    // Nota: dto.getValorInicial()/getDataInicial() são deliberadamente ignorados
+    // aqui — só se aplicam na criação (ver create()), não existe coluna para eles
+    // e não devem poder alterar um ativo já existente.
     public AtivoDTO update(Long id, AtivoDTO dto) {
         Long espacoId = contextoEspaco.espacoAtual();
         Ativo ativo = buscar(id);
@@ -87,6 +114,10 @@ public class AtivoService {
         ativo.setConta(conta);
         ativo.setCor(dto.getCor());
         ativo.setIcone(dto.getIcone());
+        ativo.setRemuneracaoTipo(dto.getRemuneracaoTipo() != null ? dto.getRemuneracaoTipo() : TipoRemuneracao.NENHUMA);
+        ativo.setTaxa(dto.getTaxa());
+        ativo.setInicioRendimento(dto.getInicioRendimento());
+        ativo.setIsentoIr(dto.isIsentoIr());
         return toDTO(repository.save(ativo), null);
     }
 
@@ -133,6 +164,11 @@ public class AtivoService {
 
         registrarMovimentacao(ativo, TipoMovimentacaoAtivo.APORTE, dto.getValor(), data, t);
         ativo.setValorAtual(ativo.getValorAtual().add(dto.getValor()));
+        if (ativo.getInicioRendimento() == null) {
+            // Default do início de rendimento é a data do primeiro aporte (ver spec de
+            // rendimento automático) — só se aplica a ativos com indexador configurado.
+            ativo.setInicioRendimento(data);
+        }
         return toDTO(repository.save(ativo), null);
     }
 
@@ -222,6 +258,42 @@ public class AtivoService {
                 .build();
     }
 
+    /**
+     * Saldo (valorAtual) de um ativo específico numa data passada, "andando pra
+     * trás" a partir do valorAtual atual usando as movimentações posteriores a
+     * essa data — mesma técnica usada em {@link #patrimonio(int)}, extraída aqui
+     * para reuso pelo {@code AgendadorRendimento} (base de cálculo do rendimento
+     * automático de cada mês fechado). Cálculo puro sobre um {@code Ativo} já
+     * carregado pelo chamador — que é quem responde pelo escopo de espaço.
+     */
+    public BigDecimal saldoEm(Ativo ativo, LocalDate data) {
+        BigDecimal aRemover = movimentacaoRepository.findByAtivoIdOrderByDataAsc(ativo.getId()).stream()
+                .filter(m -> m.getData().isAfter(data))
+                .map(m -> sinal(m.getTipo()).equals(BigDecimal.ONE) ? m.getValor() : m.getValor().negate())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        return ativo.getValorAtual().subtract(aRemover);
+    }
+
+    /**
+     * Credita rendimento automático (CDI/Selic/IPCA+/pré-fixado) calculado pelo
+     * {@code AgendadorRendimento} e marca o mês como rendido, atomicamente. Só
+     * registra movimentação/soma {@code valorAtual} quando há valor a creditar,
+     * mas {@code rendidoAte} sempre avança — garante que uma falha entre "creditar"
+     * e "marcar como processado" não exista, o que faria a próxima execução
+     * creditar o mesmo mês de novo. Reaproveita o mesmo caminho de
+     * {@code registrarRendimento} manual: só move {@code valorAtual} do ativo,
+     * sem criar {@code Transacao} nenhuma (valorização não mexe em saldo de conta).
+     */
+    @Transactional
+    public void creditarRendimentoAutomatico(Ativo ativo, BigDecimal valor, LocalDate data) {
+        if (valor.compareTo(BigDecimal.ZERO) > 0) {
+            registrarMovimentacao(ativo, TipoMovimentacaoAtivo.RENDIMENTO, valor, data, null);
+            ativo.setValorAtual(ativo.getValorAtual().add(valor));
+        }
+        ativo.setRendidoAte(data);
+        repository.save(ativo);
+    }
+
     private BigDecimal sinal(TipoMovimentacaoAtivo tipo) {
         return tipo == TipoMovimentacaoAtivo.RESGATE ? BigDecimal.valueOf(-1) : BigDecimal.ONE;
     }
@@ -264,6 +336,15 @@ public class AtivoService {
     }
 
     private AtivoDTO toDTO(Ativo a, BigDecimal totalCarteira) {
+        // Chamado a partir de create/update/aportar/resgatar/etc — um único ativo por
+        // vez, então uma query extra de movimentações aqui não tem o problema de N+1
+        // que findAll() precisa evitar (lista inteira do espaço).
+        List<MovimentacaoAtivo> movimentos = movimentacaoRepository
+                .findByEspacoIdAndAtivoIdOrderByDataDesc(a.getEspacoId(), a.getId());
+        return toDTO(a, totalCarteira, movimentos);
+    }
+
+    private AtivoDTO toDTO(Ativo a, BigDecimal totalCarteira, List<MovimentacaoAtivo> movimentos) {
         AtivoDTO dto = new AtivoDTO();
         dto.setId(a.getId());
         dto.setNome(a.getNome());
@@ -274,10 +355,49 @@ public class AtivoService {
         dto.setIcone(a.getIcone());
         dto.setValorAtual(a.getValorAtual());
         dto.setDataCancelamento(a.getDataCancelamento());
+        dto.setRemuneracaoTipo(a.getRemuneracaoTipo());
+        dto.setTaxa(a.getTaxa());
+        dto.setInicioRendimento(a.getInicioRendimento());
+        dto.setIsentoIr(a.isIsentoIr());
+        dto.setRendidoAte(a.getRendidoAte());
         if (totalCarteira != null && totalCarteira.compareTo(BigDecimal.ZERO) > 0) {
             dto.setPercentualCarteira(a.getValorAtual().divide(totalCarteira, 4, RoundingMode.HALF_UP).doubleValue() * 100);
         }
+        aplicarCamposDerivados(dto, movimentos);
         return dto;
+    }
+
+    /** Rentabilidade e IR estimado — derivados em memória a partir das movimentações já carregadas (sem query nova). */
+    private void aplicarCamposDerivados(AtivoDTO dto, List<MovimentacaoAtivo> movimentos) {
+        BigDecimal totalAportado = somaPorTipo(movimentos, TipoMovimentacaoAtivo.APORTE);
+        BigDecimal totalResgatado = somaPorTipo(movimentos, TipoMovimentacaoAtivo.RESGATE);
+        BigDecimal totalRendimento = somaPorTipo(movimentos, TipoMovimentacaoAtivo.RENDIMENTO);
+
+        dto.setTotalAportado(totalAportado);
+        dto.setTotalResgatado(totalResgatado);
+        dto.setTotalRendimento(totalRendimento);
+
+        if (totalAportado.compareTo(BigDecimal.ZERO) > 0) {
+            dto.setRentabilidadePercentual(totalRendimento.divide(totalAportado, 6, RoundingMode.HALF_UP).doubleValue() * 100);
+        } else {
+            dto.setRentabilidadePercentual(0.0);
+        }
+
+        List<CalculadoraIr.Aporte> aportes = movimentos.stream()
+                .filter(m -> m.getTipo() == TipoMovimentacaoAtivo.APORTE)
+                .map(m -> new CalculadoraIr.Aporte(m.getData(), m.getValor()))
+                .toList();
+        long prazoMedioDias = CalculadoraIr.prazoMedioPonderadoDias(aportes, LocalDate.now());
+        BigDecimal irEstimado = CalculadoraIr.irEstimado(totalRendimento, prazoMedioDias, dto.isIsentoIr());
+        dto.setIrEstimado(irEstimado);
+        dto.setValorLiquidoEstimado(dto.getValorAtual().subtract(irEstimado));
+    }
+
+    private BigDecimal somaPorTipo(List<MovimentacaoAtivo> movimentos, TipoMovimentacaoAtivo tipo) {
+        return movimentos.stream()
+                .filter(m -> m.getTipo() == tipo)
+                .map(MovimentacaoAtivo::getValor)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     private MovimentacaoAtivoDTO toMovimentacaoDTO(MovimentacaoAtivo m) {

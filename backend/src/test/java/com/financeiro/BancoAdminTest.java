@@ -137,7 +137,7 @@ class BancoAdminTest extends TesteIntegracaoBase {
         com.financeiro.dto.ContaDTO contaDto = new com.financeiro.dto.ContaDTO();
         contaDto.setNome("Conta com banco");
         contaDto.setTipo(com.financeiro.entity.enums.TipoConta.CORRENTE);
-        contaDto.setSaldo(java.math.BigDecimal.TEN);
+        contaDto.setSaldoInicial(java.math.BigDecimal.TEN);
         contaDto.setCor("#000000");
         contaDto.setIcone("wallet");
         contaDto.setBancoId(banco.getId());

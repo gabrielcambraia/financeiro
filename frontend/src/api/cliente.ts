@@ -22,13 +22,23 @@ const clienteRenovacao = axios.create({ baseURL: '/api', withCredentials: true }
 
 let renovacaoEmAndamento: Promise<string | null> | null = null
 
+const aguardar = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+// Duas abas podem renovar quase ao mesmo tempo: a que perde a corrida recebe
+// 401 "Sessão sendo renovada" (ServicoTokenAtualizacao trata isso como janela
+// de graça, não como roubo). Nesse caso o cookie httpOnly já foi atualizado
+// pela aba vencedora, então uma única retentativa costuma bastar — só limpa
+// a sessão se a segunda tentativa também falhar.
+const tentarRenovar = (): Promise<string> =>
+  clienteRenovacao.post('/auth/renovar').then(resposta => {
+    useLojaAutenticacao.getState().definirSessao(resposta.data)
+    return resposta.data.token as string
+  })
+
 const renovarSessao = (): Promise<string | null> => {
   if (!renovacaoEmAndamento) {
-    renovacaoEmAndamento = clienteRenovacao.post('/auth/renovar')
-      .then(resposta => {
-        useLojaAutenticacao.getState().definirSessao(resposta.data)
-        return resposta.data.token as string
-      })
+    renovacaoEmAndamento = tentarRenovar()
+      .catch(() => aguardar(1000).then(tentarRenovar))
       .catch(() => {
         useLojaAutenticacao.getState().limparSessao()
         return null

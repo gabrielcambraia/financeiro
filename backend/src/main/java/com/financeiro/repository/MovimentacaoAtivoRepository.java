@@ -11,4 +11,10 @@ public interface MovimentacaoAtivoRepository extends JpaRepository<MovimentacaoA
     List<MovimentacaoAtivo> findByEspacoIdAndAtivoIdOrderByDataDesc(Long espacoId, Long ativoId);
 
     List<MovimentacaoAtivo> findByEspacoIdAndDataAfter(Long espacoId, LocalDate data);
+
+    /** Usado por AtivoService.findAll() para preencher campos derivados (rentabilidade,
+     * IR estimado) numa única query — evita N+1 buscando movimentação por ativo. */
+    List<MovimentacaoAtivo> findByEspacoId(Long espacoId);
+
+    List<MovimentacaoAtivo> findByAtivoIdOrderByDataAsc(Long ativoId);
 }
