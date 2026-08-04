@@ -16,11 +16,26 @@ public class ItemFaturaController {
 
     private final ItemFaturaService service;
 
+    // Usado pela tela de Lançamentos: itens em aberto filtrados por MÊS DE
+    // COMPETÊNCIA (calendário), opcionalmente por cartão e/ou pela conta de
+    // pagamento do cartão. Não confundir com /ciclo abaixo.
     @GetMapping
     public List<ItemFaturaDTO> findAll(
+            @RequestParam(required = false) Long cartaoId,
+            @RequestParam(required = false) Long contaId,
+            @RequestParam(required = false) String month) {
+        return service.buscarAbertosPorFiltro(month, contaId, cartaoId);
+    }
+
+    // Usado pela tela do cartão: itens em aberto do CICLO DE FATURAMENTO que
+    // fecha no mês informado (baseado no dia de fechamento do cartão, não no
+    // mês corrido da data da compra) — permite navegar mês a mês vendo
+    // exatamente o que vai entrar em cada fatura futura.
+    @GetMapping("/ciclo")
+    public List<ItemFaturaDTO> findAbertosPorCiclo(
             @RequestParam Long cartaoId,
             @RequestParam(required = false) String month) {
-        return service.findByFilters(cartaoId, month);
+        return service.findAbertosPorCiclo(cartaoId, month);
     }
 
     @PostMapping

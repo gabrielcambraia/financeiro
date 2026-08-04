@@ -73,6 +73,7 @@ export interface Transacao {
   contaVinculada?: Conta
   transferenciaId?: string
   direcaoTransferencia?: DirecaoTransferencia
+  multa?: number
 }
 
 export interface ResumoFluxo {
@@ -171,6 +172,10 @@ export interface ItemFatura {
   dataCancelamento?: string
   cancelado: boolean
   faturado: boolean
+  cartaoNome: string
+  cartaoCor: string
+  contaPagamentoId: number
+  contaPagamentoNome: string
 }
 
 export interface Fatura {

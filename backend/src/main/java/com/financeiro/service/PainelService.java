@@ -9,6 +9,7 @@ import com.financeiro.entity.enums.TipoTransacao;
 import com.financeiro.repository.ContaRepository;
 import com.financeiro.repository.TransacaoRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -184,28 +185,35 @@ public class PainelService {
     // exibe o nome da própria conta (ItemVencimento.contaNome) para dar contexto.
     private PainelDTO.Vencimentos buildVencimentos(Long espacoId) {
         LocalDate hoje = LocalDate.now();
-        List<Transacao> candidatas = transacaoRepository
-                .findByEspacoIdAndDataVencimentoLessThanEqualAndDataPagamentoIsNullAndDataCancelamentoIsNullOrderByDataVencimentoAsc(
-                        espacoId, hoje.plusDays(DIAS_JANELA_VENCIMENTO));
+        LocalDate limiteAVencer = hoje.plusDays(DIAS_JANELA_VENCIMENTO);
 
         return PainelDTO.Vencimentos.builder()
-                .aPagar(buildGrupoVencimento(candidatas, TipoTransacao.DESPESA, hoje))
-                .aReceber(buildGrupoVencimento(candidatas, TipoTransacao.RECEITA, hoje))
+                .aPagar(buildGrupoVencimento(espacoId, TipoTransacao.DESPESA, hoje, limiteAVencer))
+                .aReceber(buildGrupoVencimento(espacoId, TipoTransacao.RECEITA, hoje, limiteAVencer))
                 .build();
     }
 
-    private PainelDTO.GrupoVencimento buildGrupoVencimento(List<Transacao> candidatas, TipoTransacao tipo, LocalDate hoje) {
-        List<Transacao> doTipo = candidatas.stream().filter(t -> t.getTipo() == tipo).toList();
+    // "Vencidas" é buscada com contagem/soma agregadas (não trazem linha
+    // nenhuma) + só os MAX_ITENS_VENCIMENTO mais antigos via Pageable — sem
+    // isso, a lista de vencidas cresceria sem limite conforme o histórico do
+    // espaço, mesmo que só os primeiros itens sejam exibidos. "A vencer" já é
+    // naturalmente limitada pela janela de DIAS_JANELA_VENCIMENTO dias.
+    private PainelDTO.GrupoVencimento buildGrupoVencimento(Long espacoId, TipoTransacao tipo, LocalDate hoje, LocalDate limiteAVencer) {
+        long quantidadeVencida = transacaoRepository
+                .countByEspacoIdAndTipoAndDataVencimentoBeforeAndDataPagamentoIsNullAndDataCancelamentoIsNull(espacoId, tipo, hoje);
+        BigDecimal totalVencido = transacaoRepository.somaVencidas(espacoId, tipo, hoje);
+        List<Transacao> vencidas = transacaoRepository
+                .findByEspacoIdAndTipoAndDataVencimentoBeforeAndDataPagamentoIsNullAndDataCancelamentoIsNullOrderByDataVencimentoAsc(
+                        espacoId, tipo, hoje, PageRequest.of(0, MAX_ITENS_VENCIMENTO));
 
-        List<Transacao> vencidas = doTipo.stream()
-                .filter(t -> t.getDataVencimento().isBefore(hoje)).toList();
-        List<Transacao> aVencer = doTipo.stream()
-                .filter(t -> !t.getDataVencimento().isBefore(hoje)).toList();
+        List<Transacao> aVencer = transacaoRepository
+                .findByEspacoIdAndTipoAndDataVencimentoBetweenAndDataPagamentoIsNullAndDataCancelamentoIsNullOrderByDataVencimentoAsc(
+                        espacoId, tipo, hoje, limiteAVencer);
 
         return PainelDTO.GrupoVencimento.builder()
-                .totalVencido(sum(vencidas, tipo))
-                .quantidadeVencida(vencidas.size())
-                .vencidas(vencidas.stream().limit(MAX_ITENS_VENCIMENTO).map(t -> toItemVencimento(t, hoje)).toList())
+                .totalVencido(totalVencido)
+                .quantidadeVencida((int) quantidadeVencida)
+                .vencidas(vencidas.stream().map(t -> toItemVencimento(t, hoje)).toList())
                 .totalAVencer(sum(aVencer, tipo))
                 .quantidadeAVencer(aVencer.size())
                 .aVencer(aVencer.stream().limit(MAX_ITENS_VENCIMENTO).map(t -> toItemVencimento(t, hoje)).toList())

@@ -131,6 +131,28 @@ class AgendadorFaturaTest extends TesteIntegracaoBase {
     }
 
     @Test
+    void itemComDataFutura_naoEntraNaFaturaDeHoje_ficaAbertoParaProximoFechamento() {
+        Usuario u = registrarComConta(BigDecimal.valueOf(1000));
+        int hoje = LocalDate.now().getDayOfMonth();
+        Long cartaoId = criarCartao(u.token(), u.contaId(), hoje, proximoDiaValido(hoje));
+
+        Long itemDeHoje = criarItem(u.token(), cartaoId, BigDecimal.valueOf(100)).getId();
+        // Parcela de uma compra parcelada que cai no próximo ciclo — não pode
+        // ser varrida para a fatura que fecha hoje.
+        Long itemFuturo = criarItemComData(u.token(), cartaoId, BigDecimal.valueOf(60), LocalDate.now().plusDays(1)).getId();
+
+        agendador.onDailyCheck();
+
+        ItemFatura deHoje = itemFaturaRepository.findByIdAndEspacoId(itemDeHoje, u.espacoId()).orElseThrow();
+        ItemFatura futuro = itemFaturaRepository.findByIdAndEspacoId(itemFuturo, u.espacoId()).orElseThrow();
+        assertThat(deHoje.getFatura()).isNotNull();
+        assertThat(futuro.getFatura()).isNull();
+
+        FaturaDTO fatura = listarFaturas(u.token(), cartaoId).get(0);
+        assertThat(fatura.getValor()).isEqualByComparingTo("100");
+    }
+
+    @Test
     void idempotencia_naoDuplicaFaturaNoMesmoDia() {
         Usuario u = registrarComConta(BigDecimal.valueOf(1000));
         int hoje = LocalDate.now().getDayOfMonth();
@@ -243,11 +265,15 @@ class AgendadorFaturaTest extends TesteIntegracaoBase {
     }
 
     private ItemFaturaDTO criarItem(String token, Long cartaoId, BigDecimal valor) {
+        return criarItemComData(token, cartaoId, valor, LocalDate.now());
+    }
+
+    private ItemFaturaDTO criarItemComData(String token, Long cartaoId, BigDecimal valor, LocalDate data) {
         ItemFaturaDTO dto = new ItemFaturaDTO();
         dto.setCartaoId(cartaoId);
         dto.setValor(valor);
         dto.setDescricao("item teste");
-        dto.setData(LocalDate.now());
+        dto.setData(data);
         ResponseEntity<List<ItemFaturaDTO>> resposta = post("/api/itens-fatura", dto, token,
                 new ParameterizedTypeReference<List<ItemFaturaDTO>>() {
                 });

@@ -19,12 +19,10 @@ import java.util.List;
  * séries mensais públicas do SGS/Banco Central usadas para creditar
  * rendimento automático de ativos (ver {@code AgendadorRendimento}).
  *
- * <p><b>Atenção:</b> os códigos de série abaixo (CDI=4391, Selic=4390,
- * IPCA=433) foram os documentados publicamente no momento da implementação,
- * mas NÃO foram validados contra uma chamada real à API do Banco Central
- * neste ambiente (sem acesso à internet durante o desenvolvimento). Confirme
- * manualmente em https://api.bcb.gov.br/dados/serie/bcdata.sgs.{codigo}/dados?formato=json&dataInicial=01/01/2024
- * antes de considerar os valores creditados em produção confiáveis.</p>
+ * <p>Códigos de série validados contra a API real do SGS (CDI=4391, Selic=4390,
+ * IPCA=433): os três respondem no formato {@code {"data":"dd/MM/yyyy","valor":"X.XX"}}
+ * esperado pelo parser, com valores mensais percentuais em faixas condizentes
+ * (CDI/Selic ~1,1–1,2%/mês, IPCA ~0,16–0,58%/mês).</p>
  */
 @Service
 @RequiredArgsConstructor

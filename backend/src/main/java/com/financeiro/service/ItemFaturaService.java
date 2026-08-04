@@ -33,20 +33,37 @@ public class ItemFaturaService {
     private final ContextoEspaco contextoEspaco;
     private final ContextoUsuario contextoUsuario;
 
-    public List<ItemFaturaDTO> findAbertos(Long cartaoId) {
+    // Usado pela tela do cartão: itens em aberto (ainda não faturados) do
+    // CICLO DE FECHAMENTO que cai no mês informado — não o mês corrido da
+    // data da compra. Uma parcela datada no mês seguinte, por exemplo, só
+    // pertence ao ciclo que fecha depois do próximo fechamento; sem essa
+    // distinção ela apareceria misturada com compras de um ciclo diferente.
+    // Sem month, traz todos os itens em aberto do cartão, sem filtro de ciclo.
+    public List<ItemFaturaDTO> findAbertosPorCiclo(Long cartaoId, String month) {
         Long espacoId = contextoEspaco.espacoAtual();
-        return repository.findByEspacoIdAndCartaoIdAndFaturaIdIsNullOrderByDataDesc(espacoId, cartaoId)
+        if (month == null) {
+            return repository.findByEspacoIdAndCartaoIdAndFaturaIdIsNullOrderByDataDesc(espacoId, cartaoId)
+                    .stream().map(this::toDTO).toList();
+        }
+        Cartao cartao = cartaoRepository.findByIdAndEspacoId(cartaoId, espacoId)
+                .orElseThrow(() -> new ExcecaoRecursoNaoEncontrado("Cartão não encontrado"));
+        YearMonth alvo = YearMonth.parse(month);
+        LocalDate fechamentoAlvo = CalculadoraFechamentoCartao.fechamentoDoMes(cartao, alvo);
+        LocalDate fechamentoAnterior = CalculadoraFechamentoCartao.fechamentoDoMes(cartao, alvo.minusMonths(1));
+        return repository.findByEspacoIdAndCartaoIdAndFaturaIdIsNullAndDataBetweenOrderByDataDesc(
+                        espacoId, cartaoId, fechamentoAnterior.plusDays(1), fechamentoAlvo)
                 .stream().map(this::toDTO).toList();
     }
 
-    public List<ItemFaturaDTO> findByFilters(Long cartaoId, String month) {
+    // Usado pela tela de Lançamentos: itens de fatura ainda em aberto,
+    // filtráveis por conta de pagamento do cartão (cartaoId continua
+    // aceito para reaproveitar a mesma tela em contextos específicos de
+    // um cartão). Sem cartaoId nem contaId, traz de todos os cartões do espaço.
+    public List<ItemFaturaDTO> buscarAbertosPorFiltro(String month, Long contaId, Long cartaoId) {
         Long espacoId = contextoEspaco.espacoAtual();
-        if (month == null) {
-            return findAbertos(cartaoId);
-        }
-        YearMonth ym = YearMonth.parse(month);
-        return repository.findByEspacoIdAndCartaoIdAndDataBetweenOrderByDataDesc(
-                espacoId, cartaoId, ym.atDay(1), ym.atEndOfMonth()).stream().map(this::toDTO).toList();
+        YearMonth ym = month != null ? YearMonth.parse(month) : YearMonth.now();
+        return repository.buscarAbertosPorFiltro(espacoId, ym.atDay(1), ym.atEndOfMonth(), contaId, cartaoId)
+                .stream().map(this::toDTO).toList();
     }
 
     @Transactional
@@ -66,6 +83,9 @@ public class ItemFaturaService {
             LocalDate dataBase = dto.getData();
             for (int i = 1; i <= dto.getTotalParcelas(); i++) {
                 ItemFatura item = buildItem(dto, cartao, categoria, espacoId, usuarioId);
+                // O valor informado é o total da compra — cada parcela recebe uma
+                // fração dele, não o valor integral repetido.
+                item.setValor(CalculadoraParcelas.valorParcela(dto.getValor(), dto.getTotalParcelas(), i));
                 item.setData(dataBase.plusMonths(i - 1));
                 item.setTotalParcelas(dto.getTotalParcelas());
                 item.setNumeroParcela(i);
@@ -139,6 +159,10 @@ public class ItemFaturaService {
         ItemFaturaDTO dto = new ItemFaturaDTO();
         dto.setId(i.getId());
         dto.setCartaoId(i.getCartao().getId());
+        dto.setCartaoNome(i.getCartao().getNome());
+        dto.setCartaoCor(i.getCartao().getCor());
+        dto.setContaPagamentoId(i.getCartao().getContaPagamento().getId());
+        dto.setContaPagamentoNome(i.getCartao().getContaPagamento().getNome());
         dto.setValor(i.getValor());
         dto.setDescricao(i.getDescricao());
         dto.setData(i.getData());

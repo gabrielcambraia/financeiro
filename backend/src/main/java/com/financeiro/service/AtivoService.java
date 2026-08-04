@@ -263,13 +263,11 @@ public class AtivoService {
      * trás" a partir do valorAtual atual usando as movimentações posteriores a
      * essa data — mesma técnica usada em {@link #patrimonio(int)}, extraída aqui
      * para reuso pelo {@code AgendadorRendimento} (base de cálculo do rendimento
-     * automático de cada mês fechado). Sem filtro de espaço: quem chama (o
-     * agendador, sem contexto de request) já resolveu o ativo pelo id.
+     * automático de cada mês fechado). Cálculo puro sobre um {@code Ativo} já
+     * carregado pelo chamador — que é quem responde pelo escopo de espaço.
      */
-    public BigDecimal saldoEm(Long ativoId, LocalDate data) {
-        Ativo ativo = repository.findById(ativoId)
-                .orElseThrow(() -> new ExcecaoRecursoNaoEncontrado("Ativo não encontrado: " + ativoId));
-        BigDecimal aRemover = movimentacaoRepository.findByAtivoIdOrderByDataAsc(ativoId).stream()
+    public BigDecimal saldoEm(Ativo ativo, LocalDate data) {
+        BigDecimal aRemover = movimentacaoRepository.findByAtivoIdOrderByDataAsc(ativo.getId()).stream()
                 .filter(m -> m.getData().isAfter(data))
                 .map(m -> sinal(m.getTipo()).equals(BigDecimal.ONE) ? m.getValor() : m.getValor().negate())
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -278,14 +276,21 @@ public class AtivoService {
 
     /**
      * Credita rendimento automático (CDI/Selic/IPCA+/pré-fixado) calculado pelo
-     * {@code AgendadorRendimento}. Reaproveita o mesmo caminho de
+     * {@code AgendadorRendimento} e marca o mês como rendido, atomicamente. Só
+     * registra movimentação/soma {@code valorAtual} quando há valor a creditar,
+     * mas {@code rendidoAte} sempre avança — garante que uma falha entre "creditar"
+     * e "marcar como processado" não exista, o que faria a próxima execução
+     * creditar o mesmo mês de novo. Reaproveita o mesmo caminho de
      * {@code registrarRendimento} manual: só move {@code valorAtual} do ativo,
      * sem criar {@code Transacao} nenhuma (valorização não mexe em saldo de conta).
      */
     @Transactional
     public void creditarRendimentoAutomatico(Ativo ativo, BigDecimal valor, LocalDate data) {
-        registrarMovimentacao(ativo, TipoMovimentacaoAtivo.RENDIMENTO, valor, data, null);
-        ativo.setValorAtual(ativo.getValorAtual().add(valor));
+        if (valor.compareTo(BigDecimal.ZERO) > 0) {
+            registrarMovimentacao(ativo, TipoMovimentacaoAtivo.RENDIMENTO, valor, data, null);
+            ativo.setValorAtual(ativo.getValorAtual().add(valor));
+        }
+        ativo.setRendidoAte(data);
         repository.save(ativo);
     }
 

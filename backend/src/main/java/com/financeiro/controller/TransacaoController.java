@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -54,7 +55,10 @@ public class TransacaoController {
         LocalDate dataPagamento = body != null && body.get("dataPagamento") != null
                 ? LocalDate.parse(body.get("dataPagamento"))
                 : null;
-        return service.pagar(id, dataPagamento);
+        BigDecimal multa = body != null && body.get("multa") != null
+                ? new BigDecimal(body.get("multa"))
+                : null;
+        return service.pagar(id, dataPagamento, multa);
     }
 
     @PatchMapping("/{id}/estornar")

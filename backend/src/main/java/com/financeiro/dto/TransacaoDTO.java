@@ -64,4 +64,5 @@ public class TransacaoDTO {
     private ContaDTO contaVinculada;
     private String transferenciaId;
     private DirecaoTransferencia direcaoTransferencia;
+    private BigDecimal multa;
 }

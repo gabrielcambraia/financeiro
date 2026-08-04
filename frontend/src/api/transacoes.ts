@@ -40,8 +40,13 @@ export type EscopoExclusao = 'UNICA' | 'GRUPO' | 'FUTURAS'
 export const excluirTransacao = (id: number, scope: EscopoExclusao = 'UNICA') =>
   cliente.delete(`/transacoes/${id}`, { params: { scope } })
 
-export const pagarTransacao = (id: number, dataPagamento?: string) =>
-  cliente.patch<Transacao>(`/transacoes/${id}/pagar`, dataPagamento ? { dataPagamento } : {}).then(r => r.data)
+interface OpcoesPagar {
+  dataPagamento?: string
+  multa?: number
+}
+
+export const pagarTransacao = (id: number, opcoes: OpcoesPagar = {}) =>
+  cliente.patch<Transacao>(`/transacoes/${id}/pagar`, opcoes).then(r => r.data)
 
 export const estornarTransacao = (id: number) =>
   cliente.patch<Transacao>(`/transacoes/${id}/estornar`).then(r => r.data)

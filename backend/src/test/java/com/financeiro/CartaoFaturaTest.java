@@ -112,7 +112,7 @@ class CartaoFaturaTest extends TesteIntegracaoBase {
     }
 
     @Test
-    void parcelamento_gera3Itens_mesmoGrupo_valorIntegralCadaUm() {
+    void parcelamento_gera3Itens_mesmoGrupo_valorTotalDivididoEntreParcelas() {
         String token = registrar();
         Long contaId = criarConta(token, BigDecimal.valueOf(1000));
         Long cartaoId = criarCartao(token, contaId, 28, 5, BigDecimal.valueOf(5000));
@@ -126,13 +126,17 @@ class CartaoFaturaTest extends TesteIntegracaoBase {
         assertThat(criados).hasSize(3);
         String grupoId = criados.get(0).getGrupoParcelaId();
         assertThat(grupoId).isNotNull();
+        // 100 dividido em 3 parcelas: 33.33 + 33.33 + 33.34 (a última absorve o resto do arredondamento)
+        BigDecimal[] valoresEsperados = { BigDecimal.valueOf(33.33), BigDecimal.valueOf(33.33), BigDecimal.valueOf(33.34) };
         for (int i = 0; i < 3; i++) {
             ItemFaturaDTO item = criados.get(i);
             assertThat(item.getGrupoParcelaId()).isEqualTo(grupoId);
             assertThat(item.getNumeroParcela()).isEqualTo(i + 1);
-            assertThat(item.getValor()).isEqualByComparingTo("100"); // valor integral em cada parcela
+            assertThat(item.getValor()).isEqualByComparingTo(valoresEsperados[i]);
             assertThat(item.getData()).isEqualTo(dataBase.plusMonths(i));
         }
+        BigDecimal soma = criados.stream().map(ItemFaturaDTO::getValor).reduce(BigDecimal.ZERO, BigDecimal::add);
+        assertThat(soma).isEqualByComparingTo("100");
     }
 
     @Test
@@ -219,6 +223,34 @@ class CartaoFaturaTest extends TesteIntegracaoBase {
     }
 
     @Test
+    void itensPorCiclo_separaOMesAtualDoMesSeguinte_porDataDeFechamento() {
+        String token = registrar();
+        Long contaId = criarConta(token, BigDecimal.valueOf(1000));
+        LocalDate hoje = LocalDate.now();
+        org.junit.jupiter.api.Assumptions.assumeTrue(hoje.getDayOfMonth() < hoje.lengthOfMonth() - 3,
+                "precisa de folga no mês pra representar o cenário");
+        int diaFechamento = hoje.getDayOfMonth() + 1;
+        Long cartaoId = criarCartao(token, contaId, diaFechamento, Math.min(diaFechamento + 3, 28), BigDecimal.valueOf(5000));
+
+        // Entra na fatura que fecha amanhã (ciclo do mês corrente).
+        Long itemDoCiclo = criarItem(token, cartaoId, BigDecimal.valueOf(50), hoje).get(0).getId();
+        // Parcela futura (ex.: 2ª parcela de uma compra parcelada) com data
+        // depois do fechamento de amanhã — só entra no ciclo do mês seguinte.
+        Long itemFuturo = criarItem(token, cartaoId, BigDecimal.valueOf(30), hoje.plusDays(3)).get(0).getId();
+
+        YearMonth mesAtual = YearMonth.now();
+        List<ItemFaturaDTO> cicloAtual = listarItensPorCiclo(token, cartaoId, mesAtual.toString());
+        assertThat(cicloAtual).extracting(ItemFaturaDTO::getId).containsExactly(itemDoCiclo);
+
+        List<ItemFaturaDTO> cicloSeguinte = listarItensPorCiclo(token, cartaoId, mesAtual.plusMonths(1).toString());
+        assertThat(cicloSeguinte).extracting(ItemFaturaDTO::getId).containsExactly(itemFuturo);
+
+        // Sem mês, traz os dois — todos os itens em aberto do cartão, sem filtro de ciclo.
+        List<ItemFaturaDTO> semFiltro = listarItensPorCiclo(token, cartaoId, null);
+        assertThat(semFiltro).extracting(ItemFaturaDTO::getId).containsExactlyInAnyOrder(itemDoCiclo, itemFuturo);
+    }
+
+    @Test
     void cartaoDeOutroEspaco_naoVaza_404() {
         String tokenA = registrar();
         Long contaA = criarConta(tokenA, BigDecimal.valueOf(1000));
@@ -287,6 +319,15 @@ class CartaoFaturaTest extends TesteIntegracaoBase {
 
     private List<ItemFaturaDTO> criarItem(String token, Long cartaoId, BigDecimal valor, LocalDate data) {
         return criarItens(token, itemDto(cartaoId, valor, data));
+    }
+
+    private List<ItemFaturaDTO> listarItensPorCiclo(String token, Long cartaoId, String month) {
+        String caminho = "/api/itens-fatura/ciclo?cartaoId=" + cartaoId + (month != null ? "&month=" + month : "");
+        ResponseEntity<List<ItemFaturaDTO>> resposta = get(caminho, token,
+                new ParameterizedTypeReference<List<ItemFaturaDTO>>() {
+                });
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        return resposta.getBody();
     }
 
     private List<ItemFaturaDTO> criarItens(String token, ItemFaturaDTO dto) {

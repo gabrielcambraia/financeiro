@@ -8,9 +8,11 @@ import java.time.LocalDateTime;
 
 /**
  * Um refresh token opaco (só o hash SHA-256 é persistido). A janela de
- * inatividade é implementada como um campo mutável: {@code expiraEm} é
- * reescrito a cada renovação, então a sessão só morre se o usuário ficar
- * {@code TTL} sem chamar {@code /api/auth/renovar}.
+ * inatividade desliza por substituição, não por mutação: cada renovação
+ * ({@link com.financeiro.seguranca.ServicoTokenAtualizacao#rotacionar}) cria
+ * uma linha nova com {@code expiraEm = agora + TTL} e marca esta como
+ * revogada (via {@code substituidoPor}), então a sessão só morre se o
+ * usuário ficar {@code TTL} sem chamar {@code /api/auth/renovar}.
  */
 @Entity
 @Table(name = "tokens_atualizacao")

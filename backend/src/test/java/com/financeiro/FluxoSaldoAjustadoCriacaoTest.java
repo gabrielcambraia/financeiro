@@ -92,8 +92,13 @@ class FluxoSaldoAjustadoCriacaoTest extends TesteIntegracaoBase {
         List<TransacaoDTO> criadas = criarTransacao(token, dto);
 
         assertThat(criadas).hasSize(3);
+        // O valor informado (10) é o total da compra, dividido pelas 3 parcelas
+        // (3.33 + 3.33 + 3.34) — não 10 repetido em cada uma.
+        assertThat(criadas.get(0).getValor()).isEqualByComparingTo("3.33");
+        assertThat(criadas.get(1).getValor()).isEqualByComparingTo("3.33");
+        assertThat(criadas.get(2).getValor()).isEqualByComparingTo("3.34");
         // parcelas de -2 e -1 meses já venceram; a do mês atual também (dataBase é passada)
-        assertThat(saldoConta(token, contaId)).isEqualByComparingTo("70");
+        assertThat(saldoConta(token, contaId)).isEqualByComparingTo("90");
     }
 
     @Test

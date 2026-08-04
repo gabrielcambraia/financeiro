@@ -10,17 +10,19 @@ import com.financeiro.service.ServicoIndiceEconomico;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.YearMonth;
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -45,20 +47,29 @@ public class AgendadorRendimento {
     private final IndiceEconomicoRepository indiceRepository;
     private final ServicoIndiceEconomico servicoIndiceEconomico;
 
+    /** Tamanho do lote de ativos por página — evita carregar todos os ativos da plataforma numa lista só. */
+    @Value("${financeiro.rendimento.tamanho-lote:200}")
+    private int tamanhoLote;
+
     @EventListener(ApplicationReadyEvent.class)
-    @Transactional
     public void onStartup() {
         log.info("Verificando rendimento automático de investimentos na inicialização...");
         process();
     }
 
     @Scheduled(cron = "0 15 0 1 * *")
-    @Transactional
     public void onFirstOfMonth() {
         log.info("Processando rendimento automático de investimentos (dia 1° do mês)...");
         process();
     }
 
+    // Sem @Transactional aqui de propósito: atualizarTodos() faz chamadas HTTP
+    // ao Banco Central (até ~30s no pior caso, 3 séries x 10s de read timeout) e
+    // uma transação aberta durante esse tempo seguraria conexão/locks de DB à
+    // toa. Cada escrita downstream (indiceRepository.save via
+    // ServicoIndiceEconomico, ativoService.creditarRendimentoAutomatico,
+    // ativoRepository.save) já é transacional por si só (repository do Spring
+    // Data ou @Transactional próprio) — não precisa de um envelope aqui.
     private void process() {
         try {
             MDC.put("idRequisicao", "agendador-" + UUID.randomUUID());
@@ -68,9 +79,34 @@ public class AgendadorRendimento {
             servicoIndiceEconomico.atualizarTodos();
 
             YearMonth ultimoMesFechado = YearMonth.now().minusMonths(1);
-            List<Ativo> ativos = ativoRepository.findByDataCancelamentoIsNullAndRemuneracaoTipoNot(TipoRemuneracao.NENHUMA);
-            for (Ativo ativo : ativos) {
-                processarAtivo(ativo, ultimoMesFechado);
+            int processados = 0;
+            int falhas = 0;
+            int pagina = 0;
+            Page<Ativo> lote;
+            do {
+                // Ordenação estável por id: o predicado (dataCancelamento nula,
+                // remuneracaoTipo != NENHUMA) não muda durante o processamento — só
+                // rendidoAte/valorAtual —, então nenhum ativo entra/sai do resultado
+                // nem é pulado entre páginas.
+                lote = ativoRepository.findByDataCancelamentoIsNullAndRemuneracaoTipoNot(
+                        TipoRemuneracao.NENHUMA, PageRequest.of(pagina, tamanhoLote, Sort.by("id")));
+                for (Ativo ativo : lote) {
+                    try {
+                        processarAtivo(ativo, ultimoMesFechado);
+                        processados++;
+                    } catch (Exception e) {
+                        falhas++;
+                        log.error("Falha ao processar rendimento do ativo {} (espaco={}) — demais ativos seguem normalmente",
+                                ativo.getId(), ativo.getEspacoId(), e);
+                    }
+                }
+                pagina++;
+            } while (lote.hasNext());
+
+            if (falhas > 0) {
+                log.warn("Rendimento automático processado com falhas — processados={} falhas={}", processados, falhas);
+            } else {
+                log.info("Rendimento automático processado — processados={}", processados);
             }
         } finally {
             MDC.clear();
@@ -97,14 +133,12 @@ public class AgendadorRendimento {
 
             BigDecimal taxaMes = calcularTaxaMes(ativo, indiceMes);
             LocalDate fimMes = mesAtual.atEndOfMonth();
-            BigDecimal base = ativoService.saldoEm(ativo.getId(), fimMes);
+            BigDecimal base = ativoService.saldoEm(ativo, fimMes);
             BigDecimal valor = base.multiply(taxaMes).setScale(2, RoundingMode.HALF_UP);
 
-            if (valor.compareTo(BigDecimal.ZERO) > 0) {
-                ativoService.creditarRendimentoAutomatico(ativo, valor, fimMes);
-            }
-            ativo.setRendidoAte(fimMes);
-            ativoRepository.save(ativo);
+            // Credita (se houver valor) e avança rendidoAte atomicamente — ver
+            // Javadoc de creditarRendimentoAutomatico.
+            ativoService.creditarRendimentoAutomatico(ativo, valor, fimMes);
 
             mesAtual = mesAtual.plusMonths(1);
         }

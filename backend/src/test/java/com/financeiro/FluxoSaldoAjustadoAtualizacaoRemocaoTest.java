@@ -147,8 +147,9 @@ class FluxoSaldoAjustadoAtualizacaoRemocaoTest extends TesteIntegracaoBase {
         dto.setTotalParcelas(3);
         List<TransacaoDTO> parcelas = criarTransacao(token, dto);
         assertThat(parcelas).hasSize(3);
-        // parcela do mês -1 e a do mês atual já venceram (dataBase = -1 mês)
-        assertThat(saldoConta(token, contaId)).isEqualByComparingTo("80");
+        // valor total (10) dividido em 3 parcelas (3.33 + 3.33 + 3.34); parcela
+        // do mês -1 e a do mês atual já venceram (dataBase = -1 mês) = 3.33 + 3.33
+        assertThat(saldoConta(token, contaId)).isEqualByComparingTo("93.34");
 
         deletarTransacao(token, parcelas.get(0).getId(), "GRUPO");
 
@@ -164,14 +165,16 @@ class FluxoSaldoAjustadoAtualizacaoRemocaoTest extends TesteIntegracaoBase {
         TransacaoDTO dto = transacao(contaId, TipoTransacao.DESPESA, BigDecimal.valueOf(10), LocalDate.now().minusMonths(1));
         dto.setTotalParcelas(3);
         List<TransacaoDTO> parcelas = criarTransacao(token, dto);
-        assertThat(saldoConta(token, contaId)).isEqualByComparingTo("80");
+        // valor total (10) dividido em 3 parcelas (3.33 + 3.33 + 3.34); só as
+        // dos meses -1 e atual já venceram = 3.33 + 3.33
+        assertThat(saldoConta(token, contaId)).isEqualByComparingTo("93.34");
 
         // apaga a partir da 2ª parcela (mês atual) em diante
         TransacaoDTO segunda = parcelas.stream().filter(p -> p.getNumeroParcela() == 2).findFirst().orElseThrow();
         deletarTransacao(token, segunda.getId(), "FUTURAS");
 
-        // reverte só a parcela vencida (mês atual); a do mês -1 permanece
-        assertThat(saldoConta(token, contaId)).isEqualByComparingTo("90");
+        // reverte só a parcela vencida (mês atual, 3.33); a do mês -1 permanece
+        assertThat(saldoConta(token, contaId)).isEqualByComparingTo("96.67");
         assertThat(transacoesDoGrupo(token, parcelas.get(0).getGrupoParcelaId())).hasSize(1);
     }
 

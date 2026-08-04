@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, Pencil, Trash2, Ban, ChevronDown, ChevronUp, Layers } from 'lucide-react'
-import { format, parseISO } from 'date-fns'
+import { ChevronLeft, ChevronRight, Pencil, Trash2, Ban, ChevronDown, ChevronUp, Layers } from 'lucide-react'
+import { format, parseISO, addMonths, subMonths } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { buscarCartoes } from '../api/cartoes'
-import { buscarItensFatura, excluirItemFatura, cancelarItemFatura } from '../api/itensFatura'
+import { buscarItensFaturaPorCiclo, excluirItemFatura, cancelarItemFatura } from '../api/itensFatura'
 import { buscarFaturas, buscarFatura } from '../api/faturas'
 import { pagarTransacao, estornarTransacao } from '../api/transacoes'
 import FormularioCompraCartao from '../components/forms/FormularioCompraCartao'
@@ -84,19 +84,30 @@ export default function CartaoDetalhe() {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<ItemFatura | undefined>()
   const [faturaExpandida, setFaturaExpandida] = useState<number | null>(null)
+  // Vazio = todas as faturas. Compras parceladas podem cair em ciclos
+  // diferentes do mês de hoje, então filtrar por mês ajuda a achar uma
+  // fatura específica sem rolar a lista inteira.
+  const [mesFatura, setMesFatura] = useState('')
+  // Mês do CICLO de fechamento sendo visualizado nos itens em aberto — não é
+  // o mês corrido da data da compra, é o mês em que aquele ciclo fecha (ver
+  // ItemFaturaService.findAbertosPorCiclo). Abre no mês atual; navegando pra
+  // frente dá pra ver que compras (normalmente parcelas futuras) já estão
+  // garantidas para entrar em cada fatura seguinte.
+  const [mesCiclo, setMesCiclo] = useState(format(new Date(), 'yyyy-MM'))
 
   const { data: cartoes = [] } = useQuery({ queryKey: ['cartoes'], queryFn: buscarCartoes })
   const cartao = cartoes.find(c => c.id === cartaoId)
 
   const { data: itensAbertos = [] } = useQuery({
-    queryKey: ['itensFatura', cartaoId, 'abertos'],
-    queryFn: () => buscarItensFatura({ cartaoId }),
+    queryKey: ['itensFatura', 'ciclo', cartaoId, mesCiclo],
+    queryFn: () => buscarItensFaturaPorCiclo(cartaoId, mesCiclo),
     enabled: !!cartaoId,
   })
+  const totalCiclo = itensAbertos.reduce((s, i) => s + i.valor, 0)
 
   const { data: faturas = [] } = useQuery({
-    queryKey: ['faturas', cartaoId],
-    queryFn: () => buscarFaturas(cartaoId),
+    queryKey: ['faturas', cartaoId, mesFatura],
+    queryFn: () => buscarFaturas(cartaoId, mesFatura || undefined),
     enabled: !!cartaoId,
   })
 
@@ -142,13 +153,28 @@ export default function CartaoDetalhe() {
         </div>
       </div>
 
-      {/* Fatura atual (em aberto) */}
+      {/* Fatura em aberto do ciclo selecionado — itens com data dentro da
+          janela que fecha no mês escolhido (ver ItemFaturaService.findAbertosPorCiclo).
+          Navega mês a mês para ver o que já está garantido em cada fatura futura. */}
       <div>
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-2">
           <h2 className="text-sm font-semibold text-conteudo-suave uppercase tracking-wider">
-            Fatura atual — {fmt(cartao.faturaAtualTotal)}
+            Fatura de {format(parseISO(`${mesCiclo}-01`), 'MMMM yyyy', { locale: ptBR })} — {fmt(totalCiclo)}
           </h2>
-          <AcaoNova aoClicar={() => { setEditing(undefined); setShowForm(true) }} rotulo="Nova compra" />
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 bg-superficie-2 rounded-xl px-2 py-1">
+              <button onClick={() => setMesCiclo(format(subMonths(parseISO(`${mesCiclo}-01`), 1), 'yyyy-MM'))} className="btn-ghost p-1">
+                <ChevronLeft size={16} />
+              </button>
+              <span className="text-xs text-conteudo-suave min-w-[64px] text-center capitalize">
+                {format(parseISO(`${mesCiclo}-01`), 'MMM yyyy', { locale: ptBR })}
+              </span>
+              <button onClick={() => setMesCiclo(format(addMonths(parseISO(`${mesCiclo}-01`), 1), 'yyyy-MM'))} className="btn-ghost p-1">
+                <ChevronRight size={16} />
+              </button>
+            </div>
+            <AcaoNova aoClicar={() => { setEditing(undefined); setShowForm(true) }} rotulo="Nova compra" />
+          </div>
         </div>
         <div className="card p-0 overflow-hidden divide-y divide-borda">
           {itensAbertos.length === 0 ? (
@@ -170,9 +196,24 @@ export default function CartaoDetalhe() {
 
       {/* Faturas fechadas */}
       <div>
-        <h2 className="text-sm font-semibold text-conteudo-suave uppercase tracking-wider mb-2">Faturas</h2>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-sm font-semibold text-conteudo-suave uppercase tracking-wider">Faturas</h2>
+          <div className="flex items-center gap-2">
+            <input
+              type="month" className="input py-1 text-sm w-40"
+              value={mesFatura} onChange={e => setMesFatura(e.target.value)}
+            />
+            {mesFatura && (
+              <button onClick={() => setMesFatura('')} className="text-xs text-acento hover:opacity-80">
+                Ver todas
+              </button>
+            )}
+          </div>
+        </div>
         {faturas.length === 0 ? (
-          <div className="card text-center py-8 text-conteudo-suave text-sm">Nenhuma fatura fechada ainda.</div>
+          <div className="card text-center py-8 text-conteudo-suave text-sm">
+            {mesFatura ? 'Nenhuma fatura fechada nesse mês.' : 'Nenhuma fatura fechada ainda.'}
+          </div>
         ) : (
           <div className="space-y-2">
             {faturas.map(fatura => {

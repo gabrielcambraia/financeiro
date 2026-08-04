@@ -10,6 +10,7 @@ import com.financeiro.entity.Conta;
 import com.financeiro.entity.Transacao;
 import com.financeiro.entity.enums.DirecaoTransferencia;
 import com.financeiro.entity.enums.StatusTransacao;
+import com.financeiro.entity.enums.TipoPagamento;
 import com.financeiro.entity.enums.TipoTransacao;
 import com.financeiro.erro.ExcecaoRecursoNaoEncontrado;
 import com.financeiro.repository.CategoriaRepository;
@@ -82,6 +83,7 @@ public class TransacaoService {
         if (dto.getTipo() == TipoTransacao.TRANSFERENCIA) {
             return criarTransferencia(dto);
         }
+        validarTipoPagamento(dto.getTipo(), dto.getTipoPagamento());
 
         Long espacoId = contextoEspaco.espacoAtual();
         Long usuarioId = contextoUsuario.usuarioAtual();
@@ -106,6 +108,9 @@ public class TransacaoService {
                 LocalDate dataParcela = dataBase.plusMonths(i - 1);
                 boolean paga = quitarNaCriacao && !dataParcela.isAfter(LocalDate.now());
                 Transacao t = buildTransacao(dto, conta, categoria, espacoId, usuarioId);
+                // O valor informado é o total da compra — cada parcela recebe uma
+                // fração dele, não o valor integral repetido.
+                t.setValor(CalculadoraParcelas.valorParcela(dto.getValor(), dto.getTotalParcelas(), i));
                 t.setTotalParcelas(dto.getTotalParcelas());
                 t.setNumeroParcela(i);
                 t.setGrupoParcelaId(grupoId);
@@ -202,6 +207,7 @@ public class TransacaoService {
         if (existente.getTipo() == TipoTransacao.TRANSFERENCIA) {
             return atualizarTransferencia(existente, dto);
         }
+        validarTipoPagamento(dto.getTipo(), dto.getTipoPagamento());
 
         Conta novaConta = contaRepository.findByIdAndEspacoId(dto.getContaId(), espacoId)
                 .orElseThrow(() -> new ExcecaoRecursoNaoEncontrado("Conta não encontrada"));
@@ -313,8 +319,12 @@ public class TransacaoService {
         }
     }
 
-    @Transactional
     public TransacaoDTO pagar(Long id, LocalDate dataPagamento) {
+        return pagar(id, dataPagamento, null);
+    }
+
+    @Transactional
+    public TransacaoDTO pagar(Long id, LocalDate dataPagamento, BigDecimal multa) {
         Long espacoId = contextoEspaco.espacoAtual();
         Transacao t = repository.findByIdAndEspacoId(id, espacoId)
                 .orElseThrow(() -> new ExcecaoRecursoNaoEncontrado("Transação não encontrada"));
@@ -332,6 +342,11 @@ public class TransacaoService {
                 : List.of(t);
         for (Transacao leg : alvos) {
             if (!leg.isSaldoAjustado()) {
+                // A multa precisa estar gravada ANTES de calcular o delta aplicado
+                // ao saldo — computeDelta soma multa apenas para DESPESA.
+                if (multa != null && leg.getTipo() == TipoTransacao.DESPESA) {
+                    leg.setMulta(multa);
+                }
                 contaService.adjustBalance(leg.getConta(), computeDelta(leg));
                 leg.setSaldoAjustado(true);
             }
@@ -356,6 +371,7 @@ public class TransacaoService {
                 leg.setSaldoAjustado(false);
             }
             leg.setDataPagamento(null);
+            leg.setMulta(null);
             repository.save(leg);
         }
         return toDTO(repository.findByIdAndEspacoId(id, espacoId).orElseThrow());
@@ -387,6 +403,12 @@ public class TransacaoService {
         return toDTO(repository.findByIdAndEspacoId(id, espacoId).orElseThrow());
     }
 
+    private void validarTipoPagamento(TipoTransacao tipo, TipoPagamento tipoPagamento) {
+        if (tipo == TipoTransacao.RECEITA && tipoPagamento == TipoPagamento.CREDITO) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Receita não pode ser em crédito");
+        }
+    }
+
     private void validarDataPagamento(LocalDate dataPagamento) {
         if (dataPagamento.isAfter(LocalDate.now())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
@@ -402,6 +424,7 @@ public class TransacaoService {
             contaService.adjustBalance(t.getConta(), computeDelta(t).negate());
             t.setSaldoAjustado(false);
         }
+        t.setMulta(null);
         t.setDataCancelamento(LocalDate.now());
         repository.save(t);
 
@@ -445,7 +468,12 @@ public class TransacaoService {
         if (t.getTipo() == TipoTransacao.TRANSFERENCIA) {
             return t.getDirecaoTransferencia() == DirecaoTransferencia.ENTRADA ? t.getValor() : t.getValor().negate();
         }
-        return t.getTipo() == TipoTransacao.RECEITA ? t.getValor() : t.getValor().negate();
+        if (t.getTipo() == TipoTransacao.RECEITA) {
+            return t.getValor();
+        }
+        // DESPESA: a multa por atraso, quando informada, é somada ao valor debitado.
+        BigDecimal valorEfetivo = t.getValor().add(t.getMulta() != null ? t.getMulta() : BigDecimal.ZERO);
+        return valorEfetivo.negate();
     }
 
     public TransacaoDTO toDTO(Transacao t) {
@@ -468,6 +496,7 @@ public class TransacaoService {
         dto.setUsuarioId(t.getUsuarioId());
         dto.setTransferenciaId(t.getTransferenciaId());
         dto.setDirecaoTransferencia(t.getDirecaoTransferencia());
+        dto.setMulta(t.getMulta());
 
         if (t.getTipo() == TipoTransacao.TRANSFERENCIA && t.getTransferenciaId() != null) {
             repository.findByEspacoIdAndTransferenciaId(t.getEspacoId(), t.getTransferenciaId()).stream()

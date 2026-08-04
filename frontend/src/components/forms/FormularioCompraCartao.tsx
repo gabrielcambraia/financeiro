@@ -7,6 +7,12 @@ import { criarItemFatura, atualizarItemFatura } from '../../api/itensFatura'
 import SobreposicaoModal from '../SobreposicaoModal'
 import type { ItemFatura } from '../../types'
 
+const fmtParcela = (valor: string | number, totalParcelas: string | number) => {
+  const n = Number(totalParcelas)
+  const v = Number(valor) / n
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0)
+}
+
 interface Props {
   cartaoId: number
   onClose: () => void
@@ -108,6 +114,11 @@ export default function FormularioCompraCartao({ cartaoId, onClose, editing }: P
                 value={form.totalParcelas}
                 onChange={e => set('totalParcelas', e.target.value)}
               />
+              {!!form.totalParcelas && Number(form.totalParcelas) > 1 && (
+                <p className="text-xs text-conteudo-suave mt-1">
+                  O valor acima é o total da compra — cada parcela fica em {fmtParcela(form.valor, form.totalParcelas)}.
+                </p>
+              )}
             </div>
           )}
 

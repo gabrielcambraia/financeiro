@@ -26,7 +26,7 @@ public class ServicoJwt {
 
     public ServicoJwt(
             @Value("${financeiro.jwt.segredo}") String segredo,
-            @Value("${financeiro.jwt.validade-acesso-minutos:15}") long validadeMinutos) {
+            @Value("${financeiro.jwt.validade-acesso-minutos:5}") long validadeMinutos) {
         this.chave = Keys.hmacShaKeyFor(segredo.getBytes(StandardCharsets.UTF_8));
         this.validadeMinutos = validadeMinutos;
     }
