@@ -1,5 +1,5 @@
 import cliente from './cliente'
-import type { Transacao, TipoTransacao } from '../types'
+import type { RespostaImpacto, Transacao, TipoTransacao } from '../types'
 
 interface FiltrosTransacao {
   month: string
@@ -24,6 +24,7 @@ interface PayloadCriarTransacao {
   quitarNaCriacao?: boolean
   fixa: boolean
   totalParcelas?: number
+  entidadeId?: number | null
 }
 
 export const buscarTransacoes = (filtros: FiltrosTransacao) =>
@@ -53,3 +54,9 @@ export const estornarTransacao = (id: number) =>
 
 export const cancelarTransacao = (id: number, scope: EscopoExclusao = 'UNICA') =>
   cliente.patch<Transacao>(`/transacoes/${id}/cancelar`, undefined, { params: { scope } }).then(r => r.data)
+
+export const impactoCancelamentoTransacao = (id: number) =>
+  cliente.get<RespostaImpacto>(`/transacoes/${id}/impacto-cancelamento`).then(r => r.data)
+
+export const impactoExclusaoTransacao = (id: number) =>
+  cliente.get<RespostaImpacto>(`/transacoes/${id}/impacto-exclusao`).then(r => r.data)

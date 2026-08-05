@@ -2,9 +2,13 @@ package com.financeiro.repository;
 
 import com.financeiro.entity.MovimentacaoAtivo;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 public interface MovimentacaoAtivoRepository extends JpaRepository<MovimentacaoAtivo, Long> {
 
@@ -17,4 +21,11 @@ public interface MovimentacaoAtivoRepository extends JpaRepository<MovimentacaoA
     List<MovimentacaoAtivo> findByEspacoId(Long espacoId);
 
     List<MovimentacaoAtivo> findByAtivoIdOrderByDataAsc(Long ativoId);
+
+    Optional<MovimentacaoAtivo> findByTransacaoId(Long transacaoId);
+
+    @Modifying
+    @org.springframework.transaction.annotation.Transactional
+    @Query("DELETE FROM MovimentacaoAtivo m WHERE m.ativo.id = :ativoId")
+    void deleteByAtivoId(@Param("ativoId") Long ativoId);
 }

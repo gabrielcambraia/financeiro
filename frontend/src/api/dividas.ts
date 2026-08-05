@@ -1,5 +1,5 @@
 import cliente from './cliente'
-import type { Divida, Transacao } from '../types'
+import type { Divida, RespostaImpacto, Transacao } from '../types'
 
 type PayloadDivida = {
   descricao: string
@@ -9,6 +9,7 @@ type PayloadDivida = {
   contaId: number
   categoriaId?: number
   dataInicio: string
+  entidadeId?: number | null
 }
 
 export const buscarDividas = () => cliente.get<Divida[]>('/dividas').then(r => r.data)
@@ -24,3 +25,9 @@ export const cancelarDivida = (id: number) =>
 
 export const excluirDivida = (id: number) =>
   cliente.delete(`/dividas/${id}`)
+
+export const impactoCancelamentoDivida = (id: number) =>
+  cliente.get<RespostaImpacto>(`/dividas/${id}/impacto-cancelamento`).then(r => r.data)
+
+export const impactoExclusaoDivida = (id: number) =>
+  cliente.get<RespostaImpacto>(`/dividas/${id}/impacto-exclusao`).then(r => r.data)

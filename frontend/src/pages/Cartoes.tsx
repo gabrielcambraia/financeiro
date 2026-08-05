@@ -8,6 +8,7 @@ import SobreposicaoModal from '../components/SobreposicaoModal'
 import SeletorBanco from '../components/SeletorBanco'
 import LogoBanco from '../components/LogoBanco'
 import AcaoNova from '../components/AcaoNova'
+import CampoEntidade from '../components/forms/CampoEntidade'
 import type { Cartao } from '../types'
 
 const fmt = (v: number) =>
@@ -16,6 +17,7 @@ const fmt = (v: number) =>
 const formPadrao = {
   nome: '', limite: '', diaFechamento: '', diaVencimento: '', contaPagamentoId: '',
   cor: '#6366f1', icone: 'credit-card', bancoId: undefined as number | undefined,
+  entidadeId: undefined as number | null | undefined,
 }
 
 export default function Cartoes() {
@@ -45,7 +47,7 @@ export default function Cartoes() {
     setForm({
       nome: c.nome, limite: String(c.limite), diaFechamento: String(c.diaFechamento),
       diaVencimento: String(c.diaVencimento), contaPagamentoId: String(c.contaPagamentoId),
-      cor: c.cor, icone: c.icone, bancoId: c.bancoId,
+      cor: c.cor, icone: c.icone, bancoId: c.bancoId, entidadeId: c.entidadeId,
     })
     setShowForm(true)
   }
@@ -62,6 +64,7 @@ export default function Cartoes() {
       cor: form.cor,
       icone: form.icone,
       bancoId: form.bancoId,
+      entidadeId: form.entidadeId ?? null,
     })
   }
 
@@ -146,6 +149,7 @@ export default function Cartoes() {
               <button onClick={closeForm} className="btn-ghost p-1.5 text-sm">✕</button>
             </div>
             <form onSubmit={handleSubmit} className="cartao-modal-corpo">
+              <CampoEntidade value={form.entidadeId} onChange={v => setForm(f => ({ ...f, entidadeId: v }))} />
               <div>
                 <label className="label">Banco</label>
                 <SeletorBanco bancoSelecionado={form.bancoId} aoSelecionar={b => setForm(f => ({ ...f, bancoId: b }))} />

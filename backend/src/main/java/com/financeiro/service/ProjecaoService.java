@@ -1,5 +1,6 @@
 package com.financeiro.service;
 
+import com.financeiro.context.ContextoEntidade;
 import com.financeiro.context.ContextoEspaco;
 import com.financeiro.dto.ProjecaoDTO;
 import com.financeiro.entity.Conta;
@@ -31,19 +32,26 @@ public class ProjecaoService {
     private final ContaRepository contaRepository;
     private final TransacaoRepository transacaoRepository;
     private final ContextoEspaco contextoEspaco;
+    private final ContextoEntidade contextoEntidade;
 
     public ProjecaoDTO projetar(int dias, Long contaId, BigDecimal simulacaoValor, LocalDate simulacaoData) {
         Long espacoId = contextoEspaco.espacoAtual();
+        Long entidadeId = contextoEntidade.entidadeAtual();
         LocalDate hoje = LocalDate.now();
         LocalDate fim = hoje.plusDays(dias);
 
         BigDecimal saldoAtual = contaId != null
                 ? contaRepository.findByIdAndEspacoId(contaId, espacoId).map(Conta::getSaldo).orElse(BigDecimal.ZERO)
-                : contaRepository.findByEspacoId(espacoId).stream()
+                : (entidadeId != null
+                        ? contaRepository.findByEspacoIdFiltradoPorEntidade(espacoId, entidadeId)
+                        : contaRepository.findByEspacoId(espacoId)).stream()
                         .map(Conta::getSaldo).reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        List<Transacao> pendencias = transacaoRepository
-                .findByEspacoIdAndDataVencimentoBetweenOrderByDataVencimentoAsc(espacoId, hoje, fim).stream()
+        var fonte = entidadeId != null
+                ? transacaoRepository.findByEspacoIdAndDataVencimentoBetweenFiltradoPorEntidade(espacoId, hoje, fim, entidadeId)
+                : transacaoRepository.findByEspacoIdAndDataVencimentoBetweenOrderByDataVencimentoAsc(espacoId, hoje, fim);
+
+        List<Transacao> pendencias = fonte.stream()
                 .filter(t -> t.getDataPagamento() == null && t.getDataCancelamento() == null)
                 .filter(t -> contaId == null || t.getConta().getId().equals(contaId))
                 .toList();

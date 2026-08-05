@@ -44,14 +44,31 @@ public class Usuario {
     @Column(name = "nivel_acesso", nullable = false)
     private NivelAcesso nivelAcesso = NivelAcesso.USUARIO;
 
+    @Column
+    private String telefone;
+
+    @Column(name = "email_verificado_em")
+    private LocalDateTime emailVerificadoEm;
+
+    @Column(name = "telefone_verificado_em")
+    private LocalDateTime telefoneVerificadoEm;
+
     @Convert(converter = ConversorLocalDateTime.class)
     @Column(name = "criado_em", nullable = false)
     private LocalDateTime criadoEm;
+
+    @Column(name = "atualizado_em")
+    private LocalDateTime atualizadoEm;
 
     @PrePersist
     public void prePersist() {
         if (this.criadoEm == null) {
             this.criadoEm = LocalDateTime.now();
         }
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        this.atualizadoEm = LocalDateTime.now();
     }
 }

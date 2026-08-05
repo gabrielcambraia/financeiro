@@ -1,5 +1,6 @@
 package com.financeiro.service;
 
+import com.financeiro.context.ContextoEntidade;
 import com.financeiro.context.ContextoEspaco;
 import com.financeiro.dto.CategoriaDTO;
 import com.financeiro.dto.OrcamentoDTO;
@@ -30,10 +31,15 @@ public class OrcamentoService {
     private final CategoriaRepository categoriaRepository;
     private final TransacaoRepository transacaoRepository;
     private final ContextoEspaco contextoEspaco;
+    private final ContextoEntidade contextoEntidade;
 
     public List<OrcamentoDTO> findByMes(String mes) {
         Long espacoId = contextoEspaco.espacoAtual();
-        return repository.findByEspacoIdAndMes(espacoId, mes).stream().map(this::toDTO).toList();
+        Long entidadeId = contextoEntidade.entidadeAtual();
+        List<Orcamento> lista = entidadeId != null
+                ? repository.findByEspacoIdAndMesFiltradoPorEntidade(espacoId, mes, entidadeId)
+                : repository.findByEspacoIdAndMes(espacoId, mes);
+        return lista.stream().map(this::toDTO).toList();
     }
 
     public OrcamentoDTO create(OrcamentoDTO dto) {
@@ -51,6 +57,7 @@ public class OrcamentoService {
                 .mes(dto.getMes())
                 .limite(dto.getLimite())
                 .espacoId(espacoId)
+                .entidadeId(dto.getEntidadeId())
                 .build();
         return toDTO(repository.save(orcamento));
     }
@@ -127,6 +134,7 @@ public class OrcamentoService {
         dto.setLimite(o.getLimite());
         dto.setGasto(gasto);
         dto.setPercentualUsado(percentual);
+        dto.setEntidadeId(o.getEntidadeId());
         return dto;
     }
 }

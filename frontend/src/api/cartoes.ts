@@ -10,6 +10,7 @@ type PayloadCartao = {
   cor: string
   icone: string
   bancoId?: number
+  entidadeId?: number | null
 }
 
 export const buscarCartoes = () => cliente.get<Cartao[]>('/cartoes').then(r => r.data)

@@ -52,6 +52,8 @@ public class TransacaoDTO {
 
     private Integer totalParcelas;
 
+    private Long entidadeId;
+
     // campos de resposta
     private ContaDTO conta;
     private CategoriaDTO categoria;

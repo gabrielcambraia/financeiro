@@ -1,5 +1,6 @@
 package com.financeiro.service;
 
+import com.financeiro.context.ContextoEntidade;
 import com.financeiro.context.ContextoEspaco;
 import com.financeiro.dto.CategoriaDTO;
 import com.financeiro.dto.PainelDTO;
@@ -31,6 +32,7 @@ public class PainelService {
     private final ContaRepository contaRepository;
     private final ContaService contaService;
     private final ContextoEspaco contextoEspaco;
+    private final ContextoEntidade contextoEntidade;
 
     public PainelDTO getDashboard(String month, Long contaId) {
         Long espacoId = contextoEspaco.espacoAtual();
@@ -80,6 +82,17 @@ public class PainelService {
     }
 
     private List<Transacao> fetch(Long espacoId, Long contaId, LocalDate start, LocalDate end, boolean asc) {
+        Long entidadeId = contextoEntidade.entidadeAtual();
+        if (entidadeId != null) {
+            if (contaId != null) {
+                return asc
+                        ? transacaoRepository.findByEspacoIdAndContaIdAndDataBetweenAscFiltradoPorEntidade(espacoId, contaId, start, end, entidadeId)
+                        : transacaoRepository.findByEspacoIdAndContaIdAndDataBetweenFiltradoPorEntidade(espacoId, contaId, start, end, entidadeId);
+            }
+            return asc
+                    ? transacaoRepository.findByEspacoIdAndDataBetweenAscFiltradoPorEntidade(espacoId, start, end, entidadeId)
+                    : transacaoRepository.findByEspacoIdAndDataBetweenFiltradoPorEntidade(espacoId, start, end, entidadeId);
+        }
         if (contaId != null) {
             return asc
                     ? transacaoRepository.findByEspacoIdAndContaIdAndDataBetweenOrderByDataAsc(espacoId, contaId, start, end)
@@ -147,7 +160,11 @@ public class PainelService {
     }
 
     private List<PainelDTO.SaldoConta> buildSaldosContas(Long espacoId) {
-        return contaRepository.findByEspacoId(espacoId).stream().map(c ->
+        Long entidadeId = contextoEntidade.entidadeAtual();
+        var contas = entidadeId != null
+                ? contaRepository.findByEspacoIdFiltradoPorEntidade(espacoId, entidadeId)
+                : contaRepository.findByEspacoId(espacoId);
+        return contas.stream().map(c ->
                 PainelDTO.SaldoConta.builder()
                         .conta(contaService.toDTO(c))
                         .saldo(c.getSaldo())

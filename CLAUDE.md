@@ -108,6 +108,49 @@ Quando um link navega para outra página já filtrada (ex.: "Ver todas" num card
 - Só use `state` para filtros que são estado local da página de destino (ex.: `filtroTipo` em `Transacoes.tsx`) e que, portanto, resetam a cada visita.
 - Exemplo de referência: `frontend/src/components/CartaoVencimentos.tsx` (origem, `<Link state={{ tipo, dataVencimentoFim }}>`) e `frontend/src/pages/Transacoes.tsx` (destino, lê `useLocation().state`).
 
+## Convenção de datas no banco
+
+**A partir de V17, todas as colunas de data/hora usam `TIMESTAMP` ou `DATE` nativo do PostgreSQL.** Não use `TEXT` para datas em código novo.
+
+- Colunas de auditoria (`criado_em`, `atualizado_em`): `TIMESTAMP NOT NULL DEFAULT NOW()`
+- Datas de domínio (`data`, `data_vencimento`, `expira_em`, `vigencia_inicio`...): `TIMESTAMP` ou `DATE` sem default (obrigatório via Java)
+- `data_nascimento` de PF: `TEXT` (string livre — o usuário pode digitar "1990-01" sem dia)
+- Entidades Java: **não usar** `@Convert(converter = ConversorLocalDateTime.class)` em colunas novas; o Hibernate mapeia `LocalDateTime`↔`TIMESTAMP` nativamente
+
+### Origem do padrão TEXT (V1–V16)
+
+O projeto começou com SQLite, cujo driver JDBC (xerial) gravava `LocalDateTime` como epoch millis em vez de ISO string. Os conversores `ConversorLocalDate` e `ConversorLocalDateTime` foram criados para contornar isso. Ao migrar para PostgreSQL o padrão TEXT foi mantido por compatibilidade, mas é um legado — não deve ser propagado.
+
+### Plano de migração das tabelas legadas (V1–V16)
+
+Tabelas com colunas `TEXT` que deveriam ser `TIMESTAMP`/`DATE`:
+
+| Tabela | Colunas TEXT que serão migradas |
+|---|---|
+| `espacos` | `criado_em` |
+| `usuarios` | `criado_em` |
+| `contas` | `criado_em` |
+| `categorias` | `criado_em` |
+| `transacoes` | `data`, `data_vencimento`, `data_pagamento`, `data_cancelamento`, `criado_em` |
+| `tokens_atualizacao` | `criado_em`, `expira_em` |
+| `cartoes` | `criado_em` |
+| `faturas` | `data_fechamento`, `data_vencimento` |
+| `itens_fatura` | `data`, `data_cancelamento` |
+| `orcamentos` | `criado_em` |
+| `metas` | `prazo`, `criado_em` |
+| `dividas` | `data_inicio`, `data_fim`, `criado_em` |
+| `ativos` | `data_compra`, `criado_em` |
+| `rendimentos` | `data`, `criado_em` |
+
+**Como executar a migração:**
+1. Criar `V22__datas_para_timestamp.sql` com `ALTER TABLE ... ALTER COLUMN ... TYPE TIMESTAMP USING coluna::TIMESTAMP`
+   - PostgreSQL converte ISO 8601 (`'2026-08-05T10:30:00'`) para `TIMESTAMP` nativamente no `USING`
+2. Remover `@Convert(converter = ConversorLocalDateTime.class)` das entidades correspondentes
+3. Testar localmente com `docker compose down -v && docker compose up -d` (banco limpo)
+4. Os conversores `ConversorLocalDate`/`ConversorLocalDateTime` podem ser removidos quando não houver mais nenhum `@Convert` referenciando-os
+
+> ⚠️ Esta migration altera colunas em tabelas com dados em produção. Testar exaustivamente antes de aplicar na `main`.
+
 ## Migrações Flyway
 
 Sempre incrementar — nunca editar uma migration já aplicada.
@@ -130,6 +173,11 @@ Sempre incrementar — nunca editar uma migration já aplicada.
 | V14 | Configuração de plataforma |
 | V15 | Rendimento automático de ativos |
 | V16 | Saldo inicial de conta (`saldo_inicial`) |
+| V17 | Planos e assinaturas por espaço |
+| V18 | Perfil de usuário e verificação de contato |
+| V19 | Entidades (CPF/CNPJ por espaço) |
+| V20 | Códigos de verificação / OTP |
+| V21 | `entidade_id` nas tabelas de domínio |
 
 ## Dev mode (frontend separado)
 

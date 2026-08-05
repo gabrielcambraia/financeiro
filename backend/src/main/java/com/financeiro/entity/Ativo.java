@@ -63,6 +63,9 @@ public class Ativo {
     @Column(name = "usuario_id", nullable = false)
     private Long usuarioId;
 
+    @Column(name = "entidade_id")
+    private Long entidadeId;
+
     // ---------- rendimento automático (ver AgendadorRendimento) ----------
 
     @Builder.Default

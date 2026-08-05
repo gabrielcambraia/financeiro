@@ -1,20 +1,32 @@
 package com.financeiro.service;
 
+import com.financeiro.context.ContextoEntidade;
 import com.financeiro.context.ContextoEspaco;
 import com.financeiro.context.ContextoUsuario;
 import com.financeiro.dto.CategoriaDTO;
 import com.financeiro.dto.ContaDTO;
+import com.financeiro.dto.RespostaImpacto;
 import com.financeiro.dto.TransacaoDTO;
+import com.financeiro.entity.Ativo;
 import com.financeiro.entity.Categoria;
 import com.financeiro.entity.Conta;
+import com.financeiro.entity.Fatura;
+import com.financeiro.entity.Meta;
+import com.financeiro.entity.MovimentacaoAtivo;
 import com.financeiro.entity.Transacao;
 import com.financeiro.entity.enums.DirecaoTransferencia;
 import com.financeiro.entity.enums.StatusTransacao;
 import com.financeiro.entity.enums.TipoPagamento;
+import com.financeiro.entity.enums.TipoMovimentacaoAtivo;
 import com.financeiro.entity.enums.TipoTransacao;
 import com.financeiro.erro.ExcecaoRecursoNaoEncontrado;
+import com.financeiro.repository.AtivoRepository;
 import com.financeiro.repository.CategoriaRepository;
 import com.financeiro.repository.ContaRepository;
+import com.financeiro.repository.DividaRepository;
+import com.financeiro.repository.FaturaRepository;
+import com.financeiro.repository.MetaRepository;
+import com.financeiro.repository.MovimentacaoAtivoRepository;
 import com.financeiro.repository.TransacaoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -37,8 +49,14 @@ public class TransacaoService {
     private final ContaRepository contaRepository;
     private final CategoriaRepository categoriaRepository;
     private final ContaService contaService;
+    private final AtivoRepository ativoRepository;
+    private final MovimentacaoAtivoRepository movimentacaoAtivoRepository;
+    private final MetaRepository metaRepository;
+    private final FaturaRepository faturaRepository;
+    private final DividaRepository dividaRepository;
     private final ContextoEspaco contextoEspaco;
     private final ContextoUsuario contextoUsuario;
+    private final ContextoEntidade contextoEntidade;
 
     public List<TransacaoDTO> findByFilters(String month, Long contaId, TipoTransacao tipo, Long categoriaId) {
         return findByFilters(month, contaId, tipo, categoriaId, null, null);
@@ -52,22 +70,39 @@ public class TransacaoService {
     public List<TransacaoDTO> findByFilters(String month, Long contaId, TipoTransacao tipo, Long categoriaId,
                                              LocalDate dataVencimentoInicio, LocalDate dataVencimentoFim) {
         Long espacoId = contextoEspaco.espacoAtual();
+        Long entidadeId = contextoEntidade.entidadeAtual();
 
         List<Transacao> raw;
         if (dataVencimentoFim != null) {
             LocalDate inicio = dataVencimentoInicio != null ? dataVencimentoInicio : LocalDate.of(1970, 1, 1);
-            raw = contaId != null
-                    ? repository.findByEspacoIdAndContaIdAndDataVencimentoBetweenAndDataPagamentoIsNullAndDataCancelamentoIsNullOrderByDataVencimentoAsc(
-                            espacoId, contaId, inicio, dataVencimentoFim)
-                    : repository.findByEspacoIdAndDataVencimentoBetweenAndDataPagamentoIsNullAndDataCancelamentoIsNullOrderByDataVencimentoAsc(
-                            espacoId, inicio, dataVencimentoFim);
+            if (contaId != null) {
+                raw = entidadeId != null
+                        ? repository.findByEspacoIdAndContaIdAndDataVencimentoBetweenFiltradoPorEntidade(
+                                espacoId, contaId, inicio, dataVencimentoFim, entidadeId)
+                        : repository.findByEspacoIdAndContaIdAndDataVencimentoBetweenAndDataPagamentoIsNullAndDataCancelamentoIsNullOrderByDataVencimentoAsc(
+                                espacoId, contaId, inicio, dataVencimentoFim);
+            } else {
+                raw = entidadeId != null
+                        ? repository.findVencimentosPorPeriodoFiltradoPorEntidade(
+                                espacoId, inicio, dataVencimentoFim, entidadeId)
+                        : repository.findByEspacoIdAndDataVencimentoBetweenAndDataPagamentoIsNullAndDataCancelamentoIsNullOrderByDataVencimentoAsc(
+                                espacoId, inicio, dataVencimentoFim);
+            }
         } else {
             YearMonth ym = YearMonth.parse(month);
             LocalDate start = ym.atDay(1);
             LocalDate end = ym.atEndOfMonth();
-            raw = contaId != null
-                    ? repository.findByEspacoIdAndContaIdAndDataBetweenOrderByDataDesc(espacoId, contaId, start, end)
-                    : repository.findByEspacoIdAndDataBetweenOrderByDataDesc(espacoId, start, end);
+            if (contaId != null) {
+                raw = entidadeId != null
+                        ? repository.findByEspacoIdAndContaIdAndDataBetweenFiltradoPorEntidade(
+                                espacoId, contaId, start, end, entidadeId)
+                        : repository.findByEspacoIdAndContaIdAndDataBetweenOrderByDataDesc(espacoId, contaId, start, end);
+            } else {
+                raw = entidadeId != null
+                        ? repository.findByEspacoIdAndDataBetweenFiltradoPorEntidade(
+                                espacoId, start, end, entidadeId)
+                        : repository.findByEspacoIdAndDataBetweenOrderByDataDesc(espacoId, start, end);
+            }
         }
 
         return raw.stream()
@@ -280,6 +315,8 @@ public class TransacaoService {
         Transacao t = repository.findByIdAndEspacoId(id, espacoId)
                 .orElseThrow(() -> new ExcecaoRecursoNaoEncontrado("Transação não encontrada"));
 
+        verificarBloqueioFatura(t);
+
         if (t.getTipo() == TipoTransacao.TRANSFERENCIA) {
             List<Transacao> par = repository.findByEspacoIdAndTransferenciaId(espacoId, t.getTransferenciaId());
             par.stream().filter(Transacao::isSaldoAjustado).forEach(tx ->
@@ -290,6 +327,7 @@ public class TransacaoService {
 
         if ("GRUPO".equals(scope) && t.getGrupoParcelaId() != null) {
             List<Transacao> grupo = repository.findByEspacoIdAndGrupoParcelaId(espacoId, t.getGrupoParcelaId());
+            grupo.forEach(this::propagarExclusaoParaOrigem);
             grupo.stream().filter(Transacao::isSaldoAjustado).forEach(tx ->
                     contaService.adjustBalance(tx.getConta(), computeDelta(tx).negate()));
             repository.deleteAll(grupo);
@@ -297,21 +335,25 @@ public class TransacaoService {
             if (t.getGrupoParcelaId() != null) {
                 List<Transacao> futuras = repository.findByEspacoIdAndGrupoParcelaIdAndDataGreaterThanEqual(
                         espacoId, t.getGrupoParcelaId(), t.getData());
+                futuras.forEach(this::propagarExclusaoParaOrigem);
                 futuras.stream().filter(Transacao::isSaldoAjustado).forEach(tx ->
                         contaService.adjustBalance(tx.getConta(), computeDelta(tx).negate()));
                 repository.deleteAll(futuras);
             } else if (t.isFixa()) {
                 List<Transacao> futuras = repository.findByEspacoIdAndFixaTrueAndDataGreaterThanEqual(espacoId, t.getData());
+                futuras.forEach(this::propagarExclusaoParaOrigem);
                 futuras.stream().filter(Transacao::isSaldoAjustado).forEach(tx ->
                         contaService.adjustBalance(tx.getConta(), computeDelta(tx).negate()));
                 repository.deleteAll(futuras);
             } else {
+                propagarExclusaoParaOrigem(t);
                 if (t.isSaldoAjustado()) {
                     contaService.adjustBalance(t.getConta(), computeDelta(t).negate());
                 }
                 repository.delete(t);
             }
         } else {
+            propagarExclusaoParaOrigem(t);
             if (t.isSaldoAjustado()) {
                 contaService.adjustBalance(t.getConta(), computeDelta(t).negate());
             }
@@ -383,21 +425,24 @@ public class TransacaoService {
         Transacao t = repository.findByIdAndEspacoId(id, espacoId)
                 .orElseThrow(() -> new ExcecaoRecursoNaoEncontrado("Transação não encontrada"));
 
+        verificarBloqueioFatura(t);
+
         if ("GRUPO".equals(scope) && t.getGrupoParcelaId() != null) {
             repository.findByEspacoIdAndGrupoParcelaId(espacoId, t.getGrupoParcelaId())
-                    .forEach(this::cancelarTransacao);
+                    .forEach(tx -> cancelarTransacao(tx, true));
         } else if ("FUTURAS".equals(scope)) {
             if (t.getGrupoParcelaId() != null) {
                 repository.findByEspacoIdAndGrupoParcelaIdAndDataGreaterThanEqual(
-                        espacoId, t.getGrupoParcelaId(), t.getData()).forEach(this::cancelarTransacao);
+                        espacoId, t.getGrupoParcelaId(), t.getData())
+                        .forEach(tx -> cancelarTransacao(tx, true));
             } else if (t.isFixa()) {
                 repository.findByEspacoIdAndFixaTrueAndDataGreaterThanEqual(espacoId, t.getData())
-                        .forEach(this::cancelarTransacao);
+                        .forEach(tx -> cancelarTransacao(tx, true));
             } else {
-                cancelarTransacao(t);
+                cancelarTransacao(t, true);
             }
         } else {
-            cancelarTransacao(t);
+            cancelarTransacao(t, true);
         }
 
         return toDTO(repository.findByIdAndEspacoId(id, espacoId).orElseThrow());
@@ -416,11 +461,12 @@ public class TransacaoService {
         }
     }
 
-    private void cancelarTransacao(Transacao t) {
+    private void cancelarTransacao(Transacao t, boolean propagarOrigem) {
         if (t.getDataCancelamento() != null) {
             return; // já cancelada, idempotente — também trava a recursão da perna abaixo
         }
-        if (t.isSaldoAjustado()) {
+        boolean eraSaldoAjustado = t.isSaldoAjustado();
+        if (eraSaldoAjustado) {
             contaService.adjustBalance(t.getConta(), computeDelta(t).negate());
             t.setSaldoAjustado(false);
         }
@@ -428,10 +474,162 @@ public class TransacaoService {
         t.setDataCancelamento(LocalDate.now());
         repository.save(t);
 
+        if (propagarOrigem && eraSaldoAjustado) {
+            propagarCancelamentoParaOrigem(t);
+        }
+
         if (t.getTipo() == TipoTransacao.TRANSFERENCIA && t.getTransferenciaId() != null) {
             repository.findByEspacoIdAndTransferenciaId(t.getEspacoId(), t.getTransferenciaId())
-                    .forEach(this::cancelarTransacao);
+                    .forEach(perna -> cancelarTransacao(perna, false));
         }
+    }
+
+    private void propagarCancelamentoParaOrigem(Transacao t) {
+        if (t.getMeta() != null) {
+            Meta meta = t.getMeta();
+            if (t.getTipo() == TipoTransacao.DESPESA) {
+                meta.setValorAtual(meta.getValorAtual().subtract(t.getValor()));
+            } else if (t.getTipo() == TipoTransacao.RECEITA) {
+                meta.setValorAtual(meta.getValorAtual().add(t.getValor()));
+            }
+            metaRepository.save(meta);
+        }
+        movimentacaoAtivoRepository.findByTransacaoId(t.getId()).ifPresent(mov -> {
+            Ativo ativo = mov.getAtivo();
+            if (mov.getTipo() == TipoMovimentacaoAtivo.APORTE) {
+                ativo.setValorAtual(ativo.getValorAtual().subtract(mov.getValor()));
+            } else if (mov.getTipo() == TipoMovimentacaoAtivo.RESGATE) {
+                ativo.setValorAtual(ativo.getValorAtual().add(mov.getValor()));
+            }
+            ativoRepository.save(ativo);
+            movimentacaoAtivoRepository.delete(mov);
+        });
+    }
+
+    private void propagarExclusaoParaOrigem(Transacao t) {
+        if (t.getMeta() != null && t.isSaldoAjustado()) {
+            Meta meta = t.getMeta();
+            if (t.getTipo() == TipoTransacao.DESPESA) {
+                meta.setValorAtual(meta.getValorAtual().subtract(t.getValor()));
+            } else if (t.getTipo() == TipoTransacao.RECEITA) {
+                meta.setValorAtual(meta.getValorAtual().add(t.getValor()));
+            }
+            metaRepository.save(meta);
+        }
+        movimentacaoAtivoRepository.findByTransacaoId(t.getId()).ifPresent(mov -> {
+            if (t.isSaldoAjustado()) {
+                Ativo ativo = mov.getAtivo();
+                if (mov.getTipo() == TipoMovimentacaoAtivo.APORTE) {
+                    ativo.setValorAtual(ativo.getValorAtual().subtract(mov.getValor()));
+                } else if (mov.getTipo() == TipoMovimentacaoAtivo.RESGATE) {
+                    ativo.setValorAtual(ativo.getValorAtual().add(mov.getValor()));
+                }
+                ativoRepository.save(ativo);
+            }
+            movimentacaoAtivoRepository.delete(mov);
+        });
+    }
+
+    private void verificarBloqueioFatura(Transacao t) {
+        faturaRepository.findByTransacaoDespesaId(t.getId()).ifPresent(f ->
+            { throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Esta transação corresponde ao pagamento da fatura do cartão "
+                            + f.getCartao().getNome()
+                            + ". Para cancelar, acesse a fatura."); });
+    }
+
+    public RespostaImpacto calcularImpactoCancelamento(Long id) {
+        Long espacoId = contextoEspaco.espacoAtual();
+        Transacao t = repository.findByIdAndEspacoId(id, espacoId)
+                .orElseThrow(() -> new ExcecaoRecursoNaoEncontrado("Transação não encontrada"));
+
+        var faturaOpt = faturaRepository.findByTransacaoDespesaId(id);
+        if (faturaOpt.isPresent()) {
+            Fatura f = faturaOpt.get();
+            return new RespostaImpacto(true,
+                    "Esta transação corresponde ao pagamento da fatura do cartão "
+                            + f.getCartao().getNome() + ". Para cancelar, acesse a fatura.",
+                    List.of(), null);
+        }
+
+        RespostaImpacto.OrigemVinculada origem = null;
+        if (t.getMeta() != null) {
+            Meta meta = t.getMeta();
+            String efeito = t.getTipo() == TipoTransacao.DESPESA
+                    ? "Reduzirá a meta \"" + meta.getNome() + "\" em R$ " + t.getValor()
+                    : "Adicionará R$ " + t.getValor() + " de volta à meta \"" + meta.getNome() + "\"";
+            origem = new RespostaImpacto.OrigemVinculada("META", meta.getId(), meta.getNome(), efeito);
+        } else {
+            var movOpt = movimentacaoAtivoRepository.findByTransacaoId(id);
+            if (movOpt.isPresent()) {
+                MovimentacaoAtivo mov = movOpt.get();
+                Ativo ativo = mov.getAtivo();
+                String efeito = mov.getTipo() == TipoMovimentacaoAtivo.APORTE
+                        ? "Reduzirá o investimento \"" + ativo.getNome() + "\" em R$ " + t.getValor()
+                        : "Adicionará R$ " + t.getValor() + " de volta ao investimento \"" + ativo.getNome() + "\"";
+                origem = new RespostaImpacto.OrigemVinculada("ATIVO", ativo.getId(), ativo.getNome(), efeito);
+            } else if (t.getGrupoParcelaId() != null) {
+                var dividaOpt = dividaRepository.findByEspacoIdAndGrupoParcelaId(espacoId, t.getGrupoParcelaId());
+                if (dividaOpt.isPresent()) {
+                    var divida = dividaOpt.get();
+                    String efeito = t.isSaldoAjustado()
+                            ? "Reverterá o pagamento desta parcela da dívida"
+                            : "Esta parcela ainda não estava paga";
+                    origem = new RespostaImpacto.OrigemVinculada(
+                            "DIVIDA", divida.getId(), divida.getDescricao(), efeito);
+                }
+            }
+        }
+        return new RespostaImpacto(false, null, List.of(), origem);
+    }
+
+    public RespostaImpacto calcularImpactoExclusao(Long id) {
+        Long espacoId = contextoEspaco.espacoAtual();
+        Transacao t = repository.findByIdAndEspacoId(id, espacoId)
+                .orElseThrow(() -> new ExcecaoRecursoNaoEncontrado("Transação não encontrada"));
+
+        var faturaOpt = faturaRepository.findByTransacaoDespesaId(id);
+        if (faturaOpt.isPresent()) {
+            Fatura f = faturaOpt.get();
+            return new RespostaImpacto(true,
+                    "Esta transação corresponde ao pagamento da fatura do cartão "
+                            + f.getCartao().getNome() + ". Para excluir, acesse a fatura.",
+                    List.of(), null);
+        }
+
+        RespostaImpacto.OrigemVinculada origem = null;
+        if (t.getMeta() != null) {
+            Meta meta = t.getMeta();
+            String efeito = t.isSaldoAjustado()
+                    ? (t.getTipo() == TipoTransacao.DESPESA
+                            ? "Reduzirá a meta \"" + meta.getNome() + "\" em R$ " + t.getValor()
+                            : "Adicionará R$ " + t.getValor() + " de volta à meta \"" + meta.getNome() + "\"")
+                    : "Lançamento pendente — sem impacto no saldo da meta";
+            origem = new RespostaImpacto.OrigemVinculada("META", meta.getId(), meta.getNome(), efeito);
+        } else {
+            var movOpt = movimentacaoAtivoRepository.findByTransacaoId(id);
+            if (movOpt.isPresent()) {
+                MovimentacaoAtivo mov = movOpt.get();
+                Ativo ativo = mov.getAtivo();
+                String efeito = t.isSaldoAjustado()
+                        ? (mov.getTipo() == TipoMovimentacaoAtivo.APORTE
+                                ? "Reduzirá o investimento \"" + ativo.getNome() + "\" em R$ " + t.getValor()
+                                : "Adicionará R$ " + t.getValor() + " de volta ao investimento \"" + ativo.getNome() + "\"")
+                        : "Lançamento pendente — sem impacto no saldo do investimento";
+                origem = new RespostaImpacto.OrigemVinculada("ATIVO", ativo.getId(), ativo.getNome(), efeito);
+            } else if (t.getGrupoParcelaId() != null) {
+                var dividaOpt = dividaRepository.findByEspacoIdAndGrupoParcelaId(espacoId, t.getGrupoParcelaId());
+                if (dividaOpt.isPresent()) {
+                    var divida = dividaOpt.get();
+                    String efeito = t.isSaldoAjustado()
+                            ? "Reverterá o pagamento desta parcela da dívida"
+                            : "Esta parcela ainda não estava paga";
+                    origem = new RespostaImpacto.OrigemVinculada(
+                            "DIVIDA", divida.getId(), divida.getDescricao(), efeito);
+                }
+            }
+        }
+        return new RespostaImpacto(false, null, List.of(), origem);
     }
 
     private Transacao buildTransacao(TransacaoDTO dto, Conta conta, Categoria categoria, Long espacoId, Long usuarioId) {
@@ -447,6 +645,7 @@ public class TransacaoService {
                 .fixa(dto.isFixa())
                 .espacoId(espacoId)
                 .usuarioId(usuarioId)
+                .entidadeId(dto.getEntidadeId())
                 .build();
     }
 
@@ -525,6 +724,7 @@ public class TransacaoService {
             dto.setCategoriaId(t.getCategoria().getId());
         }
 
+        dto.setEntidadeId(t.getEntidadeId());
         return dto;
     }
 }

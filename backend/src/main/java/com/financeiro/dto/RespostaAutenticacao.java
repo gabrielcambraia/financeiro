@@ -5,6 +5,8 @@ import com.financeiro.entity.enums.PapelUsuario;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 @AllArgsConstructor
 public class RespostaAutenticacao {
@@ -16,4 +18,5 @@ public class RespostaAutenticacao {
     private PapelUsuario papel;
     private boolean precisaTrocarSenha;
     private NivelAcesso nivelAcesso;
+    private List<RespostaEntidadeResumo> entidades;
 }

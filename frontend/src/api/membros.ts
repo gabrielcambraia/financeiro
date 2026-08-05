@@ -1,5 +1,5 @@
 import cliente from './cliente'
-import type { PapelUsuario } from '../store/lojaAutenticacao'
+import type { PapelUsuario } from '../types'
 
 export interface RespostaMembroAdicionado {
   usuarioId: number

@@ -108,6 +108,9 @@ public class Transacao {
     @Column(name = "usuario_id", nullable = false)
     private Long usuarioId;
 
+    @Column(name = "entidade_id")
+    private Long entidadeId;
+
     @PrePersist
     public void prePersist() {
         if (this.criadoEm == null) {

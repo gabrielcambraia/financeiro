@@ -2,18 +2,20 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { Pencil, Trash2, Ban, ArrowDownCircle, ArrowUpCircle, Target } from 'lucide-react'
-import { buscarMetas, criarMeta, atualizarMeta, excluirMeta, cancelarMeta, aportarMeta, resgatarMeta } from '../api/metas'
+import { buscarMetas, criarMeta, atualizarMeta, excluirMeta, cancelarMeta, aportarMeta, resgatarMeta, impactoCancelamentoMeta, impactoExclusaoMeta } from '../api/metas'
 import { buscarContas } from '../api/contas'
 import SobreposicaoModal from '../components/SobreposicaoModal'
+import ModalConfirmacao from '../components/ModalConfirmacao'
 import SeletorCor from '../components/SeletorCor'
 import AcaoNova from '../components/AcaoNova'
-import type { Meta } from '../types'
+import CampoEntidade from '../components/forms/CampoEntidade'
+import type { Meta, RespostaImpacto } from '../types'
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
 
 const CORES = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16']
-const formPadrao = { nome: '', valorAlvo: '', prazo: '', cor: CORES[0], icone: 'target' }
+const formPadrao = { nome: '', valorAlvo: '', prazo: '', cor: CORES[0], icone: 'target', entidadeId: undefined as number | null | undefined }
 const movimentoPadrao = { valor: '', contaId: '', data: format(new Date(), 'yyyy-MM-dd') }
 
 export default function Metas() {
@@ -23,6 +25,9 @@ export default function Metas() {
   const [form, setForm] = useState(formPadrao)
   const [movimento, setMovimento] = useState<{ meta: Meta; tipo: 'aportar' | 'resgatar' } | null>(null)
   const [movForm, setMovForm] = useState(movimentoPadrao)
+  const [modalAcao, setModalAcao] = useState<{
+    tipo: 'cancelar' | 'excluir'; item: Meta; impacto: RespostaImpacto | null; carregando: boolean
+  } | null>(null)
 
   const { data: metas = [] } = useQuery({ queryKey: ['metas'], queryFn: buscarMetas })
   const { data: contas = [] } = useQuery({ queryKey: ['contas'], queryFn: buscarContas })
@@ -58,7 +63,7 @@ export default function Metas() {
   const openCreate = () => { setEditing(null); setForm(formPadrao); setShowForm(true) }
   const openEdit = (m: Meta) => {
     setEditing(m)
-    setForm({ nome: m.nome, valorAlvo: String(m.valorAlvo), prazo: m.prazo ?? '', cor: m.cor, icone: m.icone })
+    setForm({ nome: m.nome, valorAlvo: String(m.valorAlvo), prazo: m.prazo ?? '', cor: m.cor, icone: m.icone, entidadeId: m.entidadeId })
     setShowForm(true)
   }
   const closeForm = () => { setShowForm(false); setEditing(null) }
@@ -68,7 +73,20 @@ export default function Metas() {
     saveMutation.mutate({
       nome: form.nome, valorAlvo: Number(form.valorAlvo),
       prazo: form.prazo || undefined, cor: form.cor, icone: form.icone,
+      entidadeId: form.entidadeId ?? null,
     })
+  }
+
+  const abrirModalAcao = async (meta: Meta, tipo: 'cancelar' | 'excluir') => {
+    setModalAcao({ tipo, item: meta, impacto: null, carregando: true })
+    try {
+      const impacto = tipo === 'cancelar'
+        ? await impactoCancelamentoMeta(meta.id)
+        : await impactoExclusaoMeta(meta.id)
+      setModalAcao({ tipo, item: meta, impacto, carregando: false })
+    } catch {
+      setModalAcao({ tipo, item: meta, impacto: null, carregando: false })
+    }
   }
 
   const openMovimento = (meta: Meta, tipo: 'aportar' | 'resgatar') => {
@@ -120,12 +138,12 @@ export default function Metas() {
                   <Pencil size={14} />
                 </button>
                 {!meta.dataCancelamento && (
-                  <button onClick={() => { if (confirm('Cancelar esta meta?')) cancelarMutation.mutate(meta.id) }}
+                  <button onClick={() => abrirModalAcao(meta, 'cancelar')}
                     className="p-1.5 rounded-lg hover:bg-orange-900/40 text-conteudo-suave hover:text-orange-500 transition-colors">
                     <Ban size={14} />
                   </button>
                 )}
-                <button onClick={() => { if (confirm('Excluir esta meta?')) deleteMutation.mutate(meta.id) }}
+                <button onClick={() => abrirModalAcao(meta, 'excluir')}
                   className="p-1.5 rounded-lg hover:bg-red-900/40 text-conteudo-suave hover:text-red-400 transition-colors">
                   <Trash2 size={14} />
                 </button>
@@ -159,6 +177,23 @@ export default function Metas() {
         )}
       </div>
 
+      <ModalConfirmacao
+        aberto={modalAcao !== null}
+        titulo={modalAcao?.tipo === 'cancelar' ? 'Cancelar meta' : 'Excluir meta'}
+        aoFechar={() => setModalAcao(null)}
+        carregandoImpacto={modalAcao?.carregando}
+        impacto={modalAcao?.impacto}
+        botoes={modalAcao ? [
+          modalAcao.tipo === 'cancelar'
+            ? { rotulo: 'Cancelar meta', variante: 'atencao' as const, aoClicar: () => { cancelarMutation.mutate(modalAcao.item.id); setModalAcao(null) } }
+            : { rotulo: 'Excluir meta', variante: 'perigo' as const, aoClicar: () => { deleteMutation.mutate(modalAcao.item.id); setModalAcao(null) } },
+        ] : []}
+      >
+        {modalAcao?.tipo === 'cancelar'
+          ? `Deseja cancelar a meta "${modalAcao?.item.nome}"?`
+          : `Deseja excluir a meta "${modalAcao?.item.nome}"? Esta ação não pode ser desfeita.`}
+      </ModalConfirmacao>
+
       {showForm && (
         <SobreposicaoModal aoFechar={closeForm}>
           <div className="cartao-modal max-w-md">
@@ -167,6 +202,7 @@ export default function Metas() {
               <button onClick={closeForm} className="btn-ghost p-1.5 text-sm">✕</button>
             </div>
             <form onSubmit={handleSubmit} className="cartao-modal-corpo">
+              <CampoEntidade value={form.entidadeId} onChange={v => setForm(f => ({ ...f, entidadeId: v }))} />
               <div>
                 <label className="label">Nome</label>
                 <input className="input" placeholder="Ex: Reserva de emergência" required

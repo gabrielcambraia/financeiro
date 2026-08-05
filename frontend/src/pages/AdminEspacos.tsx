@@ -3,9 +3,10 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import { Pencil } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { listarEspacosAdmin, alterarTipoEspaco, alterarModulosEspaco, type EspacoAdmin } from '../api/espacosAdmin'
+import { alterarPlanoEspaco } from '../api/planosAdmin'
 import SobreposicaoModal from '../components/SobreposicaoModal'
 import Paginacao from '../components/Paginacao'
-import type { TipoEspaco, ModuloEspaco } from '../types'
+import type { TipoEspaco, ModuloEspaco, CodigoPlano } from '../types'
 
 const rotuloTipo: Record<TipoEspaco, string> = {
   PESSOAL: 'Pessoal',
@@ -32,6 +33,9 @@ export default function AdminEspacos() {
   const [editandoModulos, setEditandoModulos] = useState<EspacoAdmin | null>(null)
   const [modulosSelecionados, setModulosSelecionados] = useState<Set<ModuloEspaco>>(new Set())
 
+  const [editandoPlano, setEditandoPlano] = useState<EspacoAdmin | null>(null)
+  const [planoSelecionado, setPlanoSelecionado] = useState<CodigoPlano>('INDIVIDUAL')
+
   const { data } = useQuery({
     queryKey: ['admin-espacos', pagina],
     queryFn: () => listarEspacosAdmin(pagina),
@@ -54,6 +58,14 @@ export default function AdminEspacos() {
     },
   })
 
+  const mutacaoPlano = useMutation({
+    mutationFn: ({ id, plano }: { id: number; plano: CodigoPlano }) => alterarPlanoEspaco(id, plano),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['admin-espacos'] })
+      setEditandoPlano(null)
+    },
+  })
+
   const abrirModalTipo = (espaco: EspacoAdmin) => {
     setEditandoTipo(espaco)
     setTipoSelecionado(espaco.tipo)
@@ -62,6 +74,11 @@ export default function AdminEspacos() {
   const abrirModalModulos = (espaco: EspacoAdmin) => {
     setEditandoModulos(espaco)
     setModulosSelecionados(new Set(espaco.modulosHabilitados))
+  }
+
+  const abrirModalPlano = (espaco: EspacoAdmin) => {
+    setEditandoPlano(espaco)
+    setPlanoSelecionado(espaco.codigoPlano ?? 'INDIVIDUAL')
   }
 
   const alternarModulo = (modulo: ModuloEspaco) => {
@@ -81,6 +98,11 @@ export default function AdminEspacos() {
   const handleSubmitModulos = (e: React.FormEvent) => {
     e.preventDefault()
     if (editandoModulos) mutacaoModulos.mutate({ id: editandoModulos.id, modulos: Array.from(modulosSelecionados) })
+  }
+
+  const handleSubmitPlano = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (editandoPlano) mutacaoPlano.mutate({ id: editandoPlano.id, plano: planoSelecionado })
   }
 
   const alternarExpandido = (id: number) => {
@@ -110,6 +132,7 @@ export default function AdminEspacos() {
               <tr className="bg-superficie-2 text-xs text-conteudo-suave uppercase tracking-wider">
                 <th className="text-left font-semibold px-5 py-3">Espaço</th>
                 <th className="text-left font-semibold px-5 py-3">Tipo</th>
+                <th className="text-left font-semibold px-5 py-3">Plano</th>
                 <th className="text-left font-semibold px-5 py-3">Criado em</th>
                 <th className="text-left font-semibold px-5 py-3">Dono</th>
                 <th className="text-left font-semibold px-5 py-3">Vinculados</th>
@@ -134,6 +157,18 @@ export default function AdminEspacos() {
                         <button
                           onClick={() => abrirModalTipo(espaco)}
                           title="Editar tipo"
+                          className="p-1 rounded-lg hover:bg-superficie text-conteudo-suave hover:text-conteudo transition-colors md:opacity-0 md:group-hover:opacity-100"
+                        >
+                          <Pencil size={12} />
+                        </button>
+                      </div>
+                    </td>
+                    <td className="px-5 py-3 whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-conteudo-suave">{espaco.codigoPlano ?? '—'}</span>
+                        <button
+                          onClick={() => abrirModalPlano(espaco)}
+                          title="Editar plano"
                           className="p-1 rounded-lg hover:bg-superficie text-conteudo-suave hover:text-conteudo transition-colors md:opacity-0 md:group-hover:opacity-100"
                         >
                           <Pencil size={12} />
@@ -271,6 +306,40 @@ export default function AdminEspacos() {
                 </button>
                 <button type="submit" disabled={mutacaoModulos.isPending} className="flex-1 btn-primary">
                   {mutacaoModulos.isPending ? 'Salvando...' : 'Salvar'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </SobreposicaoModal>
+      )}
+
+      {editandoPlano && (
+        <SobreposicaoModal aoFechar={() => setEditandoPlano(null)}>
+          <div className="cartao-modal max-w-sm">
+            <div className="cartao-modal-cabecalho">
+              <h2 className="text-lg font-semibold text-conteudo">Editar plano — {editandoPlano.nome}</h2>
+              <button onClick={() => setEditandoPlano(null)} className="btn-ghost p-1.5 text-sm">✕</button>
+            </div>
+            <form onSubmit={handleSubmitPlano} className="cartao-modal-corpo">
+              <div>
+                <label className="label">Plano de assinatura</label>
+                <select
+                  className="input"
+                  value={planoSelecionado}
+                  onChange={e => setPlanoSelecionado(e.target.value as CodigoPlano)}
+                >
+                  <option value="INDIVIDUAL">Individual (1 entidade)</option>
+                  <option value="FAMILIA">Família (1 entidade)</option>
+                  <option value="EMPRESA">Empresa (5 entidades)</option>
+                </select>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setEditandoPlano(null)}
+                  className="flex-1 py-2.5 rounded-lg border border-borda text-conteudo-suave hover:text-conteudo transition-colors text-sm font-medium">
+                  Cancelar
+                </button>
+                <button type="submit" disabled={mutacaoPlano.isPending} className="flex-1 btn-primary">
+                  {mutacaoPlano.isPending ? 'Salvando...' : 'Salvar'}
                 </button>
               </div>
             </form>

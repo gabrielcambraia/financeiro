@@ -1,5 +1,5 @@
 import cliente from './cliente'
-import type { Ativo, MovimentacaoAtivo, Patrimonio, TipoAtivo, TipoRemuneracao } from '../types'
+import type { Ativo, MovimentacaoAtivo, Patrimonio, RespostaImpacto, TipoAtivo, TipoRemuneracao } from '../types'
 
 type PayloadAtivo = {
   nome: string
@@ -13,6 +13,7 @@ type PayloadAtivo = {
   isentoIr?: boolean
   valorInicial?: number | null
   dataInicial?: string | null
+  entidadeId?: number | null
 }
 
 type PayloadMovimento = {
@@ -49,3 +50,9 @@ export const resgatarAtivo = (id: number, data: PayloadMovimento) =>
 
 export const registrarRendimentoAtivo = (id: number, data: PayloadMovimento) =>
   cliente.patch<Ativo>(`/ativos/${id}/rendimento`, data).then(r => r.data)
+
+export const impactoCancelamentoAtivo = (id: number) =>
+  cliente.get<RespostaImpacto>(`/ativos/${id}/impacto-cancelamento`).then(r => r.data)
+
+export const impactoExclusaoAtivo = (id: number) =>
+  cliente.get<RespostaImpacto>(`/ativos/${id}/impacto-exclusao`).then(r => r.data)

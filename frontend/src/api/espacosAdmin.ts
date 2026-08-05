@@ -1,5 +1,5 @@
 import cliente from './cliente'
-import type { PapelUsuario } from '../store/lojaAutenticacao'
+import type { PapelUsuario, CodigoPlano } from '../types'
 import type { RespostaPaginada, TipoEspaco, PlanoEspaco, ModuloEspaco } from '../types'
 
 export interface VinculoEspaco {
@@ -15,6 +15,7 @@ export interface EspacoAdmin {
   nome: string
   tipo: TipoEspaco
   plano: PlanoEspaco
+  codigoPlano?: CodigoPlano
   criadoEm: string
   emailDono: string | null
   totalMembros: number

@@ -1,10 +1,12 @@
 package com.financeiro.service;
 
+import com.financeiro.context.ContextoEntidade;
 import com.financeiro.context.ContextoEspaco;
 import com.financeiro.context.ContextoUsuario;
 import com.financeiro.dto.CategoriaDTO;
 import com.financeiro.dto.ContaDTO;
 import com.financeiro.dto.DividaDTO;
+import com.financeiro.dto.RespostaImpacto;
 import com.financeiro.dto.TransacaoDTO;
 import com.financeiro.entity.Categoria;
 import com.financeiro.entity.Conta;
@@ -42,10 +44,15 @@ public class DividaService {
     private final TransacaoService transacaoService;
     private final ContextoEspaco contextoEspaco;
     private final ContextoUsuario contextoUsuario;
+    private final ContextoEntidade contextoEntidade;
 
     public List<DividaDTO> findAll() {
         Long espacoId = contextoEspaco.espacoAtual();
-        return repository.findByEspacoIdOrderByCriadoEmDesc(espacoId).stream().map(this::toDTO).toList();
+        Long entidadeId = contextoEntidade.entidadeAtual();
+        List<Divida> lista = entidadeId != null
+                ? repository.findByEspacoIdFiltradoPorEntidade(espacoId, entidadeId)
+                : repository.findByEspacoIdOrderByCriadoEmDesc(espacoId);
+        return lista.stream().map(this::toDTO).toList();
     }
 
     public List<TransacaoDTO> parcelas(Long id) {
@@ -109,6 +116,7 @@ public class DividaService {
                 .dataInicio(dto.getDataInicio())
                 .espacoId(espacoId)
                 .usuarioId(usuarioId)
+                .entidadeId(dto.getEntidadeId())
                 .build();
         return toDTO(repository.save(divida));
     }
@@ -138,6 +146,41 @@ public class DividaService {
         }
         transacaoRepository.deleteAll(transacaoRepository.findByEspacoIdAndGrupoParcelaId(espacoId, divida.getGrupoParcelaId()));
         repository.delete(divida);
+    }
+
+    public RespostaImpacto calcularImpactoCancelamento(Long id) {
+        Long espacoId = contextoEspaco.espacoAtual();
+        Divida divida = buscar(id);
+        List<RespostaImpacto.ItemImpacto> itens = transacaoRepository
+                .findByEspacoIdAndGrupoParcelaId(espacoId, divida.getGrupoParcelaId())
+                .stream()
+                .filter(t -> t.getDataCancelamento() == null)
+                .map(t -> new RespostaImpacto.ItemImpacto(
+                        t.isSaldoAjustado() ? "PAGA" : "PENDENTE",
+                        "Parcela " + t.getNumeroParcela() + "/" + t.getTotalParcelas()
+                                + " — vence " + t.getDataVencimento(),
+                        t.getValor()))
+                .toList();
+        return new RespostaImpacto(false, null, itens, null);
+    }
+
+    public RespostaImpacto calcularImpactoExclusao(Long id) {
+        Long espacoId = contextoEspaco.espacoAtual();
+        Divida divida = buscar(id);
+        List<Transacao> parcelas = transacaoRepository
+                .findByEspacoIdAndGrupoParcelaId(espacoId, divida.getGrupoParcelaId());
+        boolean bloqueado = parcelas.stream().anyMatch(Transacao::isSaldoAjustado);
+        String motivo = bloqueado
+                ? "Esta dívida já tem parcelas pagas — cancele em vez de excluir" : null;
+        List<RespostaImpacto.ItemImpacto> itens = bloqueado ? List.of()
+                : parcelas.stream()
+                        .map(t -> new RespostaImpacto.ItemImpacto(
+                                "PENDENTE",
+                                "Parcela " + t.getNumeroParcela() + "/" + t.getTotalParcelas()
+                                        + " — vence " + t.getDataVencimento(),
+                                t.getValor()))
+                        .toList();
+        return new RespostaImpacto(bloqueado, motivo, itens, null);
     }
 
     private Divida buscar(Long id) {
@@ -210,6 +253,7 @@ public class DividaService {
             dto.setCategoria(catDTO);
         }
 
+        dto.setEntidadeId(d.getEntidadeId());
         return dto;
     }
 }

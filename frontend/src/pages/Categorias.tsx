@@ -5,12 +5,13 @@ import { buscarCategorias, criarCategoria, atualizarCategoria, excluirCategoria 
 import SobreposicaoModal from '../components/SobreposicaoModal'
 import SeletorCor from '../components/SeletorCor'
 import AcaoNova from '../components/AcaoNova'
+import CampoEntidade from '../components/forms/CampoEntidade'
 import type { Categoria, TipoTransacao } from '../types'
 
 const CORES = ['#ef4444','#f97316','#eab308','#22c55e','#10b981','#06b6d4','#3b82f6','#8b5cf6','#ec4899','#6b7280','#6366f1','#84cc16']
 const ICONES = ['utensils','shopping-cart','car','heart-pulse','home','gamepad-2','shirt','book-open','tv','briefcase','laptop','trending-up','tag','plus-circle','ellipsis']
 
-const formPadrao = { nome: '', tipo: 'DESPESA' as TipoTransacao, cor: CORES[0], icone: ICONES[0] }
+const formPadrao = { nome: '', tipo: 'DESPESA' as TipoTransacao, cor: CORES[0], icone: ICONES[0], entidadeId: undefined as number | null | undefined }
 
 export default function Categorias() {
   const qc = useQueryClient()
@@ -36,12 +37,12 @@ export default function Categorias() {
   })
 
   const openCreate = () => { setEditing(null); setForm({ ...formPadrao, tipo: aba }); setShowForm(true) }
-  const openEdit = (c: Categoria) => { setEditing(c); setForm({ nome: c.nome, tipo: c.tipo, cor: c.cor, icone: c.icone }); setShowForm(true) }
+  const openEdit = (c: Categoria) => { setEditing(c); setForm({ nome: c.nome, tipo: c.tipo, cor: c.cor, icone: c.icone, entidadeId: c.entidadeId }); setShowForm(true) }
   const closeForm = () => { setShowForm(false); setEditing(null) }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    saveMutation.mutate(form)
+    saveMutation.mutate({ ...form, entidadeId: form.entidadeId ?? null })
   }
 
   return (
@@ -100,6 +101,7 @@ export default function Categorias() {
               <button onClick={closeForm} className="btn-ghost p-1.5 text-sm">✕</button>
             </div>
             <form onSubmit={handleSubmit} className="cartao-modal-corpo">
+              <CampoEntidade value={form.entidadeId} onChange={v => setForm(f => ({ ...f, entidadeId: v }))} />
               <div>
                 <label className="label">Nome</label>
                 <input className="input" placeholder="Ex: Alimentação, Salário..." required

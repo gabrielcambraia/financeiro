@@ -34,6 +34,8 @@ public class AtivoDTO {
     private LocalDate inicioRendimento;
     private boolean isentoIr;
 
+    private Long entidadeId;
+
     // aporte inicial opcional na criação — vira um aporte normal (debita a conta
     // vinculada) logo após o ativo ser criado; ver AtivoService.create()
     private BigDecimal valorInicial;

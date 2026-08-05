@@ -1,6 +1,5 @@
 import cliente from './cliente'
-import type { PapelUsuario } from '../store/lojaAutenticacao'
-import type { NivelAcesso } from '../types'
+import type { EntidadeResumo, NivelAcesso, PapelUsuario, TipoPessoa } from '../types'
 
 export interface RespostaAutenticacao {
   token: string
@@ -11,13 +10,38 @@ export interface RespostaAutenticacao {
   papel: PapelUsuario
   precisaTrocarSenha: boolean
   nivelAcesso: NivelAcesso
+  entidades?: EntidadeResumo[]
 }
 
 export interface RespostaConfigAuth {
   requerAutenticacao: boolean
 }
 
-export const registrar = (dados: { nome: string; email: string; senha: string }) =>
+export interface DadosPrimeiraEntidade {
+  tipoPessoa: TipoPessoa
+  nome: string
+  nomeFantasia?: string
+  documento: string
+  inscricaoEstadual?: string
+  dataNascimento?: string
+  email?: string
+  telefone?: string
+  cep?: string
+  logradouro?: string
+  numero?: string
+  complemento?: string
+  bairro?: string
+  cidade?: string
+  uf?: string
+}
+
+export const registrar = (dados: {
+  nome: string
+  email: string
+  senha: string
+  telefone?: string
+  entidade: DadosPrimeiraEntidade
+}) =>
   cliente.post<RespostaAutenticacao>('/auth/register', dados).then(r => r.data)
 
 export const entrar = (dados: { email: string; senha: string }) =>

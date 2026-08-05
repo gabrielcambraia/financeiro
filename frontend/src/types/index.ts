@@ -4,11 +4,58 @@ export type TipoPagamento = 'DEBITO' | 'CREDITO'
 export type StatusTransacao = 'PENDENTE' | 'PAGA' | 'ATRASADA' | 'CANCELADA'
 export type DirecaoTransferencia = 'SAIDA' | 'ENTRADA'
 export type NivelAcesso = 'USUARIO' | 'ADMIN'
+export type PapelUsuario = 'DONO' | 'MEMBRO'
 export type TipoEspaco = 'PESSOAL' | 'FAMILIA' | 'EMPRESA'
 export type PlanoEspaco = 'GRATUITO' | 'PAGO'
 // Catálogo de módulos opcionais por espaço — hoje sem nenhuma validação de
 // acesso, só a base para a tela de admin marcar quais espaços têm cada um.
 export type ModuloEspaco = 'WHATSAPP_IA'
+
+// Planos e entidades
+export type CodigoPlano = 'INDIVIDUAL' | 'FAMILIA' | 'EMPRESA'
+export type StatusAssinatura = 'ATIVA' | 'SUSPENSA' | 'CANCELADA'
+export type TipoPessoa = 'FISICA' | 'JURIDICA'
+
+export interface Entidade {
+  id: number
+  tipoPessoa: TipoPessoa
+  nome: string
+  nomeFantasia?: string
+  documento: string
+  inscricaoEstadual?: string
+  dataNascimento?: string
+  email?: string
+  telefone?: string
+  cep?: string
+  logradouro?: string
+  numero?: string
+  complemento?: string
+  bairro?: string
+  cidade?: string
+  uf?: string
+  criadoEm: string
+  atualizadoEm: string
+}
+
+export interface Assinatura {
+  id: number
+  codigoPlano: CodigoPlano
+  nomePlano: string
+  limiteEntidades: number
+  entidadesUsadas: number
+  status: StatusAssinatura
+  vigenciaInicio: string
+  vigenciaFim?: string
+}
+
+export interface PlanoAdmin {
+  id: number
+  codigo: CodigoPlano
+  nome: string
+  limiteEntidades: number
+  ativo: boolean
+  criadoEm: string
+}
 
 export interface RespostaPaginada<T> {
   itens: T[]
@@ -41,6 +88,7 @@ export interface Conta {
   icone: string
   bancoId?: number
   banco?: Banco
+  entidadeId?: number | null
 }
 
 export interface Categoria {
@@ -49,6 +97,7 @@ export interface Categoria {
   tipo: TipoTransacao
   cor: string
   icone: string
+  entidadeId?: number | null
 }
 
 export interface Transacao {
@@ -74,6 +123,7 @@ export interface Transacao {
   transferenciaId?: string
   direcaoTransferencia?: DirecaoTransferencia
   multa?: number
+  entidadeId?: number | null
 }
 
 export interface ResumoFluxo {
@@ -155,6 +205,7 @@ export interface Cartao {
   banco?: Banco
   faturaAtualTotal: number
   limiteDisponivel: number
+  entidadeId?: number | null
 }
 
 export interface ItemFatura {
@@ -188,6 +239,7 @@ export interface Fatura {
   valor: number
   status: StatusTransacao
   itens?: ItemFatura[]
+  entidadeId?: number | null
 }
 
 export interface Orcamento {
@@ -198,6 +250,7 @@ export interface Orcamento {
   limite: number
   gasto: number
   percentualUsado: number
+  entidadeId?: number | null
 }
 
 export interface Ativo {
@@ -217,6 +270,7 @@ export interface Ativo {
   inicioRendimento?: string
   isentoIr?: boolean
   rendidoAte?: string
+  entidadeId?: number | null
   // campos derivados (rentabilidade / IR estimado) — só em GET /ativos
   totalAportado?: number
   totalResgatado?: number
@@ -258,6 +312,7 @@ export interface Divida {
   status: StatusDivida
   proximaParcelaData?: string
   proximaParcelaValor?: number
+  entidadeId?: number | null
 }
 
 export interface Meta {
@@ -272,4 +327,31 @@ export interface Meta {
   percentualConcluido: number
   mesesEstimados?: number
   concluida: boolean
+  entidadeId?: number | null
+}
+
+export interface EntidadeResumo {
+  id: number
+  nome: string
+  tipoPessoa: TipoPessoa
+}
+
+export interface ItemImpacto {
+  tipo: string
+  descricao: string
+  valor: number
+}
+
+export interface OrigemVinculada {
+  tipo: 'ATIVO' | 'META' | 'DIVIDA' | 'FATURA'
+  id: number
+  nome: string
+  efeito: string
+}
+
+export interface RespostaImpacto {
+  bloqueado: boolean
+  motivoBloqueio?: string
+  itensAfetados: ItemImpacto[]
+  origem?: OrigemVinculada
 }

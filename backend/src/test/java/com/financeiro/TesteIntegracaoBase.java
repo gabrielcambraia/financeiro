@@ -1,9 +1,18 @@
 package com.financeiro;
 
 import com.financeiro.dto.ContaDTO;
+import com.financeiro.dto.PrimeiraEntidadeDTO;
+import com.financeiro.dto.RequisicaoCriarEntidade;
 import com.financeiro.dto.RequisicaoRegistro;
 import com.financeiro.dto.RespostaAutenticacao;
+import com.financeiro.dto.RespostaEntidade;
+import com.financeiro.entity.Assinatura;
+import com.financeiro.entity.Plano;
+import com.financeiro.entity.enums.CodigoPlano;
 import com.financeiro.entity.enums.TipoConta;
+import com.financeiro.entity.enums.TipoPessoa;
+import com.financeiro.repository.AssinaturaRepository;
+import com.financeiro.repository.PlanoRepository;
 import com.financeiro.seguranca.LimitadorTaxa;
 import com.financeiro.service.ServicoIndiceEconomico;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,6 +27,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -58,6 +68,9 @@ public abstract class TesteIntegracaoBase {
         POSTGRES.start();
     }
 
+    // Chave de 32 zero-bytes em base64 — válida para AES-256-GCM em testes.
+    private static final String CHAVE_TESTE = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+
     @DynamicPropertySource
     static void propriedades(DynamicPropertyRegistry registry) {
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
@@ -65,6 +78,10 @@ public abstract class TesteIntegracaoBase {
         registry.add("spring.datasource.password", POSTGRES::getPassword);
         registry.add("financeiro.jwt.segredo", () -> "segredo-de-teste-com-pelo-menos-32-bytes-1234567890");
         registry.add("financeiro.cookie.seguro", () -> "false");
+        registry.add("financeiro.cifragem.chave", () -> CHAVE_TESTE);
+        registry.add("financeiro.cifragem.chave-hmac", () -> CHAVE_TESTE);
+        registry.add("spring.mail.host", () -> "localhost");
+        registry.add("management.health.mail.enabled", () -> "false");
     }
 
     @LocalServerPort
@@ -89,6 +106,15 @@ public abstract class TesteIntegracaoBase {
     // fica só sem efeito nenhum teste precisa fazer nada a mais.
     @MockBean
     protected ServicoIndiceEconomico servicoIndiceEconomico;
+
+    @MockBean
+    protected JavaMailSender mailSender;
+
+    @Autowired
+    private AssinaturaRepository assinaturaRepository;
+
+    @Autowired
+    private PlanoRepository planoRepository;
 
     @BeforeEach
     void permitirAutenticacaoSemLimiteDeTaxa() {
@@ -118,10 +144,17 @@ public abstract class TesteIntegracaoBase {
     }
 
     protected RespostaAutenticacao registrarCompleto(String nome, String email) {
+        PrimeiraEntidadeDTO entidade = new PrimeiraEntidadeDTO();
+        entidade.setTipoPessoa(TipoPessoa.FISICA);
+        entidade.setNome(nome);
+        // CPF válido gerado para testes — dígitos verificadores corretos.
+        entidade.setDocumento("529.982.247-25");
+
         RequisicaoRegistro requisicao = new RequisicaoRegistro();
         requisicao.setNome(nome);
         requisicao.setEmail(email);
         requisicao.setSenha("senha12345");
+        requisicao.setEntidade(entidade);
 
         ResponseEntity<RespostaAutenticacao> resposta = restTemplate.postForEntity(
                 url("/api/auth/register"), requisicao, RespostaAutenticacao.class);
@@ -148,7 +181,32 @@ public abstract class TesteIntegracaoBase {
         return resposta.getBody().getId();
     }
 
+    /** Promove o espaço ao plano Empresa (limite_entidades=5) para testes que precisam de múltiplas entidades. */
+    protected void ativarPlanoEmpresa(Long espacoId) {
+        Plano empresa = planoRepository.findByCodigo(CodigoPlano.EMPRESA).orElseThrow();
+        Assinatura assinatura = assinaturaRepository.findByEspacoId(espacoId).orElseThrow();
+        assinatura.setPlanoId(empresa.getId());
+        assinaturaRepository.save(assinatura);
+    }
+
+    /** Cria uma segunda entidade no espaço do token e devolve o ID. */
+    protected Long criarEntidade(String token, String nome, TipoPessoa tipoPessoa) {
+        RequisicaoCriarEntidade req = new RequisicaoCriarEntidade();
+        req.setTipoPessoa(tipoPessoa);
+        req.setNome(nome);
+        req.setDocumento(tipoPessoa == TipoPessoa.FISICA ? "529.982.247-25" : "11.222.333/0001-81");
+        ResponseEntity<RespostaEntidade> resp = post("/api/entidades", req, token, RespostaEntidade.class);
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        return resp.getBody().id();
+    }
+
     // ---------- atalhos HTTP tipados sobre TestRestTemplate ----------
+
+    protected HttpHeaders autenticadoComEntidade(String token, Long entidadeId) {
+        HttpHeaders headers = autenticado(token);
+        headers.set("X-Entidade-Id", String.valueOf(entidadeId));
+        return headers;
+    }
 
     protected <T> ResponseEntity<T> get(String caminho, String token, Class<T> tipo) {
         return restTemplate.exchange(url(caminho), HttpMethod.GET, new HttpEntity<>(autenticado(token)), tipo);
@@ -158,12 +216,24 @@ public abstract class TesteIntegracaoBase {
         return restTemplate.exchange(url(caminho), HttpMethod.GET, new HttpEntity<>(autenticado(token)), tipo);
     }
 
+    protected <T> ResponseEntity<T> get(String caminho, String token, Long entidadeId, Class<T> tipo) {
+        return restTemplate.exchange(url(caminho), HttpMethod.GET, new HttpEntity<>(autenticadoComEntidade(token, entidadeId)), tipo);
+    }
+
+    protected <T> ResponseEntity<T> get(String caminho, String token, Long entidadeId, ParameterizedTypeReference<T> tipo) {
+        return restTemplate.exchange(url(caminho), HttpMethod.GET, new HttpEntity<>(autenticadoComEntidade(token, entidadeId)), tipo);
+    }
+
     protected <T> ResponseEntity<T> post(String caminho, Object corpo, String token, Class<T> tipo) {
         return restTemplate.exchange(url(caminho), HttpMethod.POST, new HttpEntity<>(corpo, autenticado(token)), tipo);
     }
 
     protected <T> ResponseEntity<T> post(String caminho, Object corpo, String token, ParameterizedTypeReference<T> tipo) {
         return restTemplate.exchange(url(caminho), HttpMethod.POST, new HttpEntity<>(corpo, autenticado(token)), tipo);
+    }
+
+    protected <T> ResponseEntity<T> post(String caminho, Object corpo, String token, Long entidadeId, Class<T> tipo) {
+        return restTemplate.exchange(url(caminho), HttpMethod.POST, new HttpEntity<>(corpo, autenticadoComEntidade(token, entidadeId)), tipo);
     }
 
     protected <T> ResponseEntity<T> put(String caminho, Object corpo, String token, Class<T> tipo) {

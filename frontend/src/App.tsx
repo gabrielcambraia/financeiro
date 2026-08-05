@@ -19,9 +19,11 @@ import Simulacao from './pages/Simulacao'
 import AdminBancos from './pages/AdminBancos'
 import AdminEspacos from './pages/AdminEspacos'
 import Login from './pages/Login'
+import LoginCodigo from './pages/LoginCodigo'
 import Registro from './pages/Registro'
 import TrocarSenha from './pages/TrocarSenha'
 import Perfil from './pages/Perfil'
+import Entidades from './pages/Entidades'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -36,6 +38,7 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/entrar-codigo" element={<LoginCodigo />} />
           <Route path="/registro" element={<Registro />} />
           <Route path="/trocar-senha" element={<TrocarSenha />} />
           <Route element={<RotaProtegida />}>
@@ -53,6 +56,7 @@ export default function App() {
               <Route path="investimentos" element={<Investimentos />} />
               <Route path="simulacao" element={<Simulacao />} />
               <Route path="perfil" element={<Perfil />} />
+              <Route path="entidades" element={<Entidades />} />
               <Route element={<RotaAdmin />}>
                 <Route path="admin/bancos" element={<AdminBancos />} />
                 <Route path="admin/espacos" element={<AdminEspacos />} />

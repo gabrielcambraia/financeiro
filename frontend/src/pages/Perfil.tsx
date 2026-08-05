@@ -1,14 +1,17 @@
 import { useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Copy, UserPlus, KeyRound, Palette, User, Image, Trash2, Upload } from 'lucide-react'
+import { Copy, UserPlus, KeyRound, Palette, User, Image, Trash2, Upload, CreditCard, Users } from 'lucide-react'
 import { trocarSenha } from '../api/autenticacao'
 import { adicionarMembro, listarMembros, type RespostaMembroAdicionado } from '../api/membros'
+import { buscarAssinatura } from '../api/entidades'
 import { enviarLogoPlataforma, removerLogoPlataforma, logoPlataformaUrl } from '../api/configuracaoPlataforma'
 import { useConfiguracaoPlataforma } from '../hooks/useConfiguracaoPlataforma'
 import { useLojaAutenticacao } from '../store/lojaAutenticacao'
 import { iniciaisDoNome } from '../utils/formatadores'
 import AlternadorTema from '../components/AlternadorTema'
 import CampoSenha from '../components/CampoSenha'
+import type { Assinatura } from '../types'
 
 function SecaoInformacoes() {
   const sessao = useLojaAutenticacao(s => s.sessao)
@@ -95,6 +98,41 @@ function SecaoLogoPlataforma() {
         </div>
       </div>
       {erro && <p className="text-sm text-red-500 mt-3">{erro}</p>}
+    </div>
+  )
+}
+
+function SecaoPlano() {
+  const { data: assinatura } = useQuery<Assinatura>({ queryKey: ['assinatura'], queryFn: buscarAssinatura })
+
+  return (
+    <div className="card">
+      <div className="flex items-center gap-2 mb-4">
+        <CreditCard size={16} className="text-acento" />
+        <h2 className="text-sm font-semibold text-conteudo">Plano</h2>
+      </div>
+      {assinatura ? (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-conteudo">{assinatura.nomePlano}</p>
+              <p className="text-xs text-conteudo-suave mt-0.5">
+                {assinatura.entidadesUsadas}/{assinatura.limiteEntidades} entidade{assinatura.limiteEntidades !== 1 ? 's' : ''} usada{assinatura.entidadesUsadas !== 1 ? 's' : ''}
+              </p>
+            </div>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-pastel-lilas text-pastel-lilas-texto font-medium">
+              {assinatura.status === 'ATIVA' ? 'Ativa' : assinatura.status}
+            </span>
+          </div>
+          <Link to="/entidades" className="flex items-center gap-2 text-sm text-acento hover:underline">
+            <Users size={14} /> Gerenciar entidades
+          </Link>
+        </div>
+      ) : (
+        <Link to="/entidades" className="flex items-center gap-2 text-sm text-acento hover:underline">
+          <Users size={14} /> Ver entidades
+        </Link>
+      )}
     </div>
   )
 }
@@ -289,6 +327,7 @@ export default function Perfil() {
       </div>
 
       <SecaoInformacoes />
+      <SecaoPlano />
       {sessao?.nivelAcesso === 'ADMIN' && <SecaoLogoPlataforma />}
       <SecaoAparencia />
       <SecaoTrocarSenha />

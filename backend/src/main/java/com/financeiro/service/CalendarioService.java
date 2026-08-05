@@ -1,5 +1,6 @@
 package com.financeiro.service;
 
+import com.financeiro.context.ContextoEntidade;
 import com.financeiro.context.ContextoEspaco;
 import com.financeiro.dto.TransacaoDTO;
 import com.financeiro.repository.TransacaoRepository;
@@ -22,14 +23,20 @@ public class CalendarioService {
     private final TransacaoRepository repository;
     private final TransacaoService transacaoService;
     private final ContextoEspaco contextoEspaco;
+    private final ContextoEntidade contextoEntidade;
 
     public List<TransacaoDTO> buscarMes(String mes) {
         Long espacoId = contextoEspaco.espacoAtual();
+        Long entidadeId = contextoEntidade.entidadeAtual();
         YearMonth ym = YearMonth.parse(mes);
         LocalDate inicio = ym.atDay(1);
         LocalDate fim = ym.atEndOfMonth();
 
-        return repository.findByEspacoIdAndDataVencimentoBetweenOrderByDataVencimentoAsc(espacoId, inicio, fim).stream()
+        var transacoes = entidadeId != null
+                ? repository.findByEspacoIdAndDataVencimentoBetweenFiltradoPorEntidade(espacoId, inicio, fim, entidadeId)
+                : repository.findByEspacoIdAndDataVencimentoBetweenOrderByDataVencimentoAsc(espacoId, inicio, fim);
+
+        return transacoes.stream()
                 .filter(t -> t.getDataCancelamento() == null)
                 .map(transacaoService::toDTO)
                 .toList();

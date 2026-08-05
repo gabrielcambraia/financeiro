@@ -52,7 +52,10 @@ export default function Login() {
           </button>
         </form>
 
-        <p className="text-sm text-conteudo-suave mt-5 text-center">
+        <p className="text-sm text-conteudo-suave mt-3 text-center">
+          <Link to="/entrar-codigo" className="text-acento hover:underline">Entrar com código por e-mail</Link>
+        </p>
+        <p className="text-sm text-conteudo-suave mt-2 text-center">
           Não tem conta? <Link to="/registro" className="text-acento hover:underline">Criar conta</Link>
         </p>
       </div>

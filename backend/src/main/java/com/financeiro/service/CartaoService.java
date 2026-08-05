@@ -1,5 +1,6 @@
 package com.financeiro.service;
 
+import com.financeiro.context.ContextoEntidade;
 import com.financeiro.context.ContextoEspaco;
 import com.financeiro.dto.CartaoDTO;
 import com.financeiro.entity.Banco;
@@ -30,11 +31,16 @@ public class CartaoService {
     private final ItemFaturaRepository itemFaturaRepository;
     private final FaturaRepository faturaRepository;
     private final ContextoEspaco contextoEspaco;
+    private final ContextoEntidade contextoEntidade;
     private final ContaService contaService;
 
     public List<CartaoDTO> findAll() {
         Long espacoId = contextoEspaco.espacoAtual();
-        return repository.findByEspacoId(espacoId).stream().map(this::toDTO).toList();
+        Long entidadeId = contextoEntidade.entidadeAtual();
+        List<Cartao> cartoes = entidadeId != null
+                ? repository.findByEspacoIdFiltradoPorEntidade(espacoId, entidadeId)
+                : repository.findByEspacoId(espacoId);
+        return cartoes.stream().map(this::toDTO).toList();
     }
 
     public CartaoDTO create(CartaoDTO dto) {
@@ -52,6 +58,7 @@ public class CartaoService {
                 .icone(dto.getIcone())
                 .banco(resolverBanco(dto.getBancoId()))
                 .espacoId(espacoId)
+                .entidadeId(dto.getEntidadeId())
                 .build();
         return toDTO(repository.save(cartao));
     }
@@ -119,6 +126,7 @@ public class CartaoService {
         }
         dto.setFaturaAtualTotal(faturaAtualTotal);
         dto.setLimiteDisponivel(c.getLimite().subtract(comprometido));
+        dto.setEntidadeId(c.getEntidadeId());
         return dto;
     }
 }
