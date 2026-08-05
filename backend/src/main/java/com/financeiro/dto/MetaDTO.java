@@ -27,6 +27,8 @@ public class MetaDTO {
     @NotBlank
     private String icone;
 
+    private Long entidadeId;
+
     // campos de resposta
     private BigDecimal valorAtual;
     private LocalDate dataCancelamento;

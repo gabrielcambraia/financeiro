@@ -6,6 +6,7 @@ import { sair } from '../api/autenticacao'
 import { iniciaisDoNome } from '../utils/formatadores'
 import AlternadorTema from './AlternadorTema'
 import NavegacaoInferior from './NavegacaoInferior'
+import SeletorEntidade from './SeletorEntidade'
 import { itensNavegacao } from '../config/navegacao'
 import { useConfiguracaoPlataforma } from '../hooks/useConfiguracaoPlataforma'
 import { logoPlataformaUrl } from '../api/configuracaoPlataforma'
@@ -42,6 +43,8 @@ export default function Estrutura() {
             {recolhido ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
           </button>
         </div>
+
+        <SeletorEntidade recolhido={recolhido} />
 
         <nav className="flex-1 min-h-0 overflow-y-auto p-2 space-y-1">
           {itensNavegacao(sessao?.nivelAcesso === 'ADMIN').map(({ to, icon: Icon, label }) => (
@@ -83,6 +86,9 @@ export default function Estrutura() {
       {/* Painel central branco flutuante e arredondado */}
       <div className="flex-1 flex flex-col bg-superficie rounded-none md:rounded-3xl overflow-hidden">
         <header className="flex items-center justify-end gap-3 px-6 py-3 border-b border-borda shrink-0">
+          <div className="md:hidden mr-auto">
+            <SeletorEntidade />
+          </div>
           <AlternadorTema />
           {sessao && (
             <Link to="/perfil"

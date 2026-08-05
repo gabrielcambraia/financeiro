@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { useLojaAutenticacao } from '../store/lojaAutenticacao'
+import { useLojaEntidadeAtual } from '../store/lojaEntidadeAtual'
 
 const cliente = axios.create({
   baseURL: '/api',
@@ -11,6 +12,10 @@ cliente.interceptors.request.use(config => {
   const token = useLojaAutenticacao.getState().sessao?.token
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
+  }
+  const entidadeAtualId = useLojaEntidadeAtual.getState().entidadeAtualId
+  if (entidadeAtualId != null && !config.url?.startsWith('/entidades')) {
+    config.headers['X-Entidade-Id'] = String(entidadeAtualId)
   }
   return config
 })

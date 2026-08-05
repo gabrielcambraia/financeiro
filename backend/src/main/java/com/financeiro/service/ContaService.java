@@ -1,5 +1,6 @@
 package com.financeiro.service;
 
+import com.financeiro.context.ContextoEntidade;
 import com.financeiro.context.ContextoEspaco;
 import com.financeiro.dto.ContaDTO;
 import com.financeiro.entity.Banco;
@@ -20,9 +21,15 @@ public class ContaService {
     private final BancoRepository bancoRepository;
     private final BancoService bancoService;
     private final ContextoEspaco contextoEspaco;
+    private final ContextoEntidade contextoEntidade;
 
     public List<ContaDTO> findAll() {
-        return repository.findByEspacoId(contextoEspaco.espacoAtual()).stream().map(this::toDTO).toList();
+        Long espacoId = contextoEspaco.espacoAtual();
+        Long entidadeId = contextoEntidade.entidadeAtual();
+        List<Conta> contas = entidadeId != null
+                ? repository.findByEspacoIdFiltradoPorEntidade(espacoId, entidadeId)
+                : repository.findByEspacoId(espacoId);
+        return contas.stream().map(this::toDTO).toList();
     }
 
     public ContaDTO create(ContaDTO dto) {
@@ -35,6 +42,7 @@ public class ContaService {
                 .icone(dto.getIcone())
                 .banco(resolverBanco(dto.getBancoId()))
                 .espacoId(contextoEspaco.espacoAtual())
+                .entidadeId(dto.getEntidadeId())
                 .build();
         return toDTO(repository.save(conta));
     }
@@ -70,6 +78,7 @@ public class ContaService {
         dto.setSaldoInicial(c.getSaldoInicial());
         dto.setCor(c.getCor());
         dto.setIcone(c.getIcone());
+        dto.setEntidadeId(c.getEntidadeId());
         if (c.getBanco() != null) {
             dto.setBancoId(c.getBanco().getId());
             dto.setBanco(bancoService.toDTO(c.getBanco()));

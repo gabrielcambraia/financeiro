@@ -17,6 +17,7 @@ public class FaturaDTO {
     private Long transacaoDespesaId;
     private BigDecimal valor;
     private StatusTransacao status;
+    private Long entidadeId;
     // Só preenchido na consulta de detalhe de uma fatura específica.
     private List<ItemFaturaDTO> itens;
 }

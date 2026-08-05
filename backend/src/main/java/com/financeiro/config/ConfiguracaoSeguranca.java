@@ -1,6 +1,7 @@
 package com.financeiro.config;
 
 import com.financeiro.seguranca.FiltroAutenticacaoJwt;
+import com.financeiro.seguranca.FiltroEntidadeAtual;
 import com.financeiro.seguranca.FiltroIdRequisicao;
 import com.financeiro.seguranca.FiltroLimiteTaxaAutenticacao;
 import com.financeiro.seguranca.FiltroProtecaoOrigem;
@@ -40,7 +41,7 @@ public class ConfiguracaoSeguranca {
     public SecurityFilterChain cadeiaSeguranca(
             HttpSecurity http, FiltroAutenticacaoJwt filtroJwt, FiltroTrocaSenhaObrigatoria filtroTrocaSenha,
             FiltroLimiteTaxaAutenticacao filtroLimiteTaxa, FiltroProtecaoOrigem filtroProtecaoOrigem,
-            FiltroIdRequisicao filtroIdRequisicao) throws Exception {
+            FiltroIdRequisicao filtroIdRequisicao, FiltroEntidadeAtual filtroEntidadeAtual) throws Exception {
         http
                 // CSRF "clássico" (token de sessão) não se aplica aqui: a API é stateless
                 // e autentica via header Authorization (Bearer), que um site terceiro não
@@ -71,7 +72,8 @@ public class ConfiguracaoSeguranca {
                 .sessionManagement(sessao -> sessao.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/config",
-                                "/api/auth/renovar", "/api/auth/sair").permitAll()
+                                "/api/auth/renovar", "/api/auth/sair",
+                                "/api/auth/otp/solicitar", "/api/auth/otp/verificar").permitAll()
                         .requestMatchers("/api/actuator/health/liveness", "/api/actuator/health/readiness")
                         .permitAll()
                         // Tag <img> não manda header Authorization — o logo do banco
@@ -90,7 +92,8 @@ public class ConfiguracaoSeguranca {
                 .addFilterBefore(filtroIdRequisicao, FiltroLimiteTaxaAutenticacao.class)
                 .addFilterBefore(filtroProtecaoOrigem, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(filtroJwt, UsernamePasswordAuthenticationFilter.class)
-                .addFilterAfter(filtroTrocaSenha, FiltroAutenticacaoJwt.class);
+                .addFilterAfter(filtroTrocaSenha, FiltroAutenticacaoJwt.class)
+                .addFilterAfter(filtroEntidadeAtual, FiltroTrocaSenhaObrigatoria.class);
 
         return http.build();
     }

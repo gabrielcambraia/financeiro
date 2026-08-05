@@ -5,6 +5,8 @@ import com.financeiro.entity.enums.TipoRemuneracao;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -23,4 +25,10 @@ public interface AtivoRepository extends JpaRepository<Ativo, Long> {
      * remuneracaoTipo) muda durante o processamento — só rendidoAte/valorAtual.
      */
     Page<Ativo> findByDataCancelamentoIsNullAndRemuneracaoTipoNot(TipoRemuneracao remuneracaoTipo, Pageable pageable);
+
+    @Query("SELECT a FROM Ativo a WHERE a.espacoId = :espacoId " +
+           "AND (:entidadeId IS NULL OR a.entidadeId = :entidadeId OR a.entidadeId IS NULL) " +
+           "ORDER BY a.criadoEm DESC")
+    List<Ativo> findByEspacoIdFiltradoPorEntidade(@Param("espacoId") Long espacoId,
+                                                  @Param("entidadeId") Long entidadeId);
 }

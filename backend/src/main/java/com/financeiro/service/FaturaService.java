@@ -1,5 +1,6 @@
 package com.financeiro.service;
 
+import com.financeiro.context.ContextoEntidade;
 import com.financeiro.context.ContextoEspaco;
 import com.financeiro.dto.FaturaDTO;
 import com.financeiro.entity.Fatura;
@@ -20,6 +21,7 @@ public class FaturaService {
     private final FaturaRepository repository;
     private final ItemFaturaRepository itemFaturaRepository;
     private final ContextoEspaco contextoEspaco;
+    private final ContextoEntidade contextoEntidade;
     private final CartaoService cartaoService;
     private final TransacaoService transacaoService;
     private final ItemFaturaService itemFaturaService;
@@ -32,13 +34,16 @@ public class FaturaService {
     // histórico de faturas de um cartão mês a mês em vez de trazer tudo de uma vez.
     public List<FaturaDTO> findByCartao(Long cartaoId, String month) {
         Long espacoId = contextoEspaco.espacoAtual();
-        List<com.financeiro.entity.Fatura> faturas;
+        Long entidadeId = contextoEntidade.entidadeAtual();
+        List<Fatura> faturas;
         if (month != null) {
             YearMonth ym = YearMonth.parse(month);
             LocalDate inicio = ym.atDay(1);
             LocalDate fim = ym.atEndOfMonth();
             faturas = repository.findByEspacoIdAndCartaoIdAndDataFechamentoBetweenOrderByDataFechamentoDesc(
                     espacoId, cartaoId, inicio, fim);
+        } else if (entidadeId != null) {
+            faturas = repository.findByEspacoIdAndCartaoIdFiltradoPorEntidade(espacoId, cartaoId, entidadeId);
         } else {
             faturas = repository.findByEspacoIdAndCartaoIdOrderByDataFechamentoDesc(espacoId, cartaoId);
         }
@@ -69,6 +74,7 @@ public class FaturaService {
                     .stream().map(itemFaturaService::toDTO).toList());
         }
 
+        dto.setEntidadeId(f.getEntidadeId());
         return dto;
     }
 }

@@ -33,6 +33,8 @@ public class DividaDTO {
     @NotNull
     private LocalDate dataInicio;
 
+    private Long entidadeId;
+
     // campos de resposta
     private ContaDTO conta;
     private CategoriaDTO categoria;

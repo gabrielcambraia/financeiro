@@ -3,6 +3,7 @@ package com.financeiro.controller;
 import com.financeiro.dto.AtivoDTO;
 import com.financeiro.dto.MovimentacaoAtivoDTO;
 import com.financeiro.dto.PatrimonioDTO;
+import com.financeiro.dto.RespostaImpacto;
 import com.financeiro.service.AtivoService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -68,5 +69,15 @@ public class AtivoController {
     @PatchMapping("/{id}/rendimento")
     public AtivoDTO rendimento(@PathVariable Long id, @Valid @RequestBody MovimentacaoAtivoDTO dto) {
         return service.registrarRendimento(id, dto);
+    }
+
+    @GetMapping("/{id}/impacto-cancelamento")
+    public RespostaImpacto impactoCancelamento(@PathVariable Long id) {
+        return service.calcularImpactoCancelamento(id);
+    }
+
+    @GetMapping("/{id}/impacto-exclusao")
+    public RespostaImpacto impactoExclusao(@PathVariable Long id) {
+        return service.calcularImpactoExclusao(id);
     }
 }

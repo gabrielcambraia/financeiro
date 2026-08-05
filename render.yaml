@@ -15,3 +15,17 @@ services:
         generateValue: true
       - key: CORS_ORIGENS_PERMITIDAS
         sync: false
+      - key: FINANCEIRO_CHAVE_CIFRAGEM
+        sync: false
+      - key: FINANCEIRO_CHAVE_HMAC_DOC
+        sync: false
+      - key: SPRING_MAIL_HOST
+        sync: false
+      - key: SPRING_MAIL_PORT
+        sync: false
+      - key: SPRING_MAIL_USERNAME
+        sync: false
+      - key: SPRING_MAIL_PASSWORD
+        sync: false
+      - key: FINANCEIRO_REMETENTE_EMAIL
+        sync: false

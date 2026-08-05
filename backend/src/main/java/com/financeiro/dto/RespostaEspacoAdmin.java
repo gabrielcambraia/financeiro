@@ -1,5 +1,6 @@
 package com.financeiro.dto;
 
+import com.financeiro.entity.enums.CodigoPlano;
 import com.financeiro.entity.enums.ModuloEspaco;
 import com.financeiro.entity.enums.PlanoEspaco;
 import com.financeiro.entity.enums.TipoEspaco;
@@ -18,6 +19,7 @@ public record RespostaEspacoAdmin(
         String nome,
         TipoEspaco tipo,
         PlanoEspaco plano,
+        CodigoPlano codigoPlano,
         LocalDateTime criadoEm,
         String emailDono,
         int totalMembros,

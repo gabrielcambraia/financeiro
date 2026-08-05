@@ -5,6 +5,7 @@ import com.financeiro.entity.enums.TipoTransacao;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -71,4 +72,85 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
 
     List<Transacao> findByEspacoIdAndContaIdAndDataVencimentoBetweenAndDataPagamentoIsNullAndDataCancelamentoIsNullOrderByDataVencimentoAsc(
             Long espacoId, Long contaId, LocalDate inicio, LocalDate fim);
+
+    @Query("SELECT t FROM Transacao t WHERE t.espacoId = :espacoId " +
+           "AND t.data BETWEEN :inicio AND :fim " +
+           "AND (:entidadeId IS NULL OR t.entidadeId = :entidadeId OR t.entidadeId IS NULL) " +
+           "ORDER BY t.data DESC")
+    List<Transacao> findByEspacoIdAndDataBetweenFiltradoPorEntidade(
+            @Param("espacoId") Long espacoId,
+            @Param("inicio") LocalDate inicio,
+            @Param("fim") LocalDate fim,
+            @Param("entidadeId") Long entidadeId);
+
+    @Query("SELECT t FROM Transacao t WHERE t.espacoId = :espacoId " +
+           "AND t.data BETWEEN :inicio AND :fim " +
+           "AND (:entidadeId IS NULL OR t.entidadeId = :entidadeId OR t.entidadeId IS NULL) " +
+           "ORDER BY t.data ASC")
+    List<Transacao> findByEspacoIdAndDataBetweenAscFiltradoPorEntidade(
+            @Param("espacoId") Long espacoId,
+            @Param("inicio") LocalDate inicio,
+            @Param("fim") LocalDate fim,
+            @Param("entidadeId") Long entidadeId);
+
+    @Query("SELECT t FROM Transacao t WHERE t.espacoId = :espacoId " +
+           "AND t.conta.id = :contaId AND t.data BETWEEN :inicio AND :fim " +
+           "AND (:entidadeId IS NULL OR t.entidadeId = :entidadeId OR t.entidadeId IS NULL) " +
+           "ORDER BY t.data DESC")
+    List<Transacao> findByEspacoIdAndContaIdAndDataBetweenFiltradoPorEntidade(
+            @Param("espacoId") Long espacoId,
+            @Param("contaId") Long contaId,
+            @Param("inicio") LocalDate inicio,
+            @Param("fim") LocalDate fim,
+            @Param("entidadeId") Long entidadeId);
+
+    @Query("SELECT t FROM Transacao t WHERE t.espacoId = :espacoId " +
+           "AND t.conta.id = :contaId AND t.data BETWEEN :inicio AND :fim " +
+           "AND (:entidadeId IS NULL OR t.entidadeId = :entidadeId OR t.entidadeId IS NULL) " +
+           "ORDER BY t.data ASC")
+    List<Transacao> findByEspacoIdAndContaIdAndDataBetweenAscFiltradoPorEntidade(
+            @Param("espacoId") Long espacoId,
+            @Param("contaId") Long contaId,
+            @Param("inicio") LocalDate inicio,
+            @Param("fim") LocalDate fim,
+            @Param("entidadeId") Long entidadeId);
+
+    @Query("SELECT t FROM Transacao t WHERE t.espacoId = :espacoId " +
+           "AND t.dataVencimento <= :limite " +
+           "AND t.dataPagamento IS NULL AND t.dataCancelamento IS NULL " +
+           "AND (:entidadeId IS NULL OR t.entidadeId = :entidadeId OR t.entidadeId IS NULL) " +
+           "ORDER BY t.dataVencimento ASC")
+    List<Transacao> findVencimentosPendentesFiltradoPorEntidade(
+            @Param("espacoId") Long espacoId,
+            @Param("limite") LocalDate limite,
+            @Param("entidadeId") Long entidadeId);
+
+    @Query("SELECT t FROM Transacao t WHERE t.espacoId = :espacoId " +
+           "AND t.dataVencimento BETWEEN :inicio AND :fim " +
+           "AND t.dataPagamento IS NULL AND t.dataCancelamento IS NULL " +
+           "AND (:entidadeId IS NULL OR t.entidadeId = :entidadeId OR t.entidadeId IS NULL) " +
+           "ORDER BY t.dataVencimento ASC")
+    List<Transacao> findVencimentosPorPeriodoFiltradoPorEntidade(
+            @Param("espacoId") Long espacoId,
+            @Param("inicio") LocalDate inicio,
+            @Param("fim") LocalDate fim,
+            @Param("entidadeId") Long entidadeId);
+
+    @Query("SELECT t FROM Transacao t WHERE t.espacoId = :espacoId " +
+           "AND t.dataVencimento BETWEEN :inicio AND :fim " +
+           "AND (:entidadeId IS NULL OR t.entidadeId = :entidadeId OR t.entidadeId IS NULL) " +
+           "ORDER BY t.dataVencimento ASC")
+    List<Transacao> findByEspacoIdAndDataVencimentoBetweenFiltradoPorEntidade(
+            @Param("espacoId") Long espacoId,
+            @Param("inicio") LocalDate inicio,
+            @Param("fim") LocalDate fim,
+            @Param("entidadeId") Long entidadeId);
+
+    List<Transacao> findByEspacoIdAndMetaIdAndDataCancelamentoIsNull(Long espacoId, Long metaId);
+
+    List<Transacao> findByEspacoIdAndMetaId(Long espacoId, Long metaId);
+
+    @Modifying
+    @Query("UPDATE Transacao t SET t.meta = null WHERE t.meta.id = :metaId")
+    void desvincularMeta(@Param("metaId") Long metaId);
 }

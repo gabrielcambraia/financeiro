@@ -1,10 +1,12 @@
 package com.financeiro.service;
 
+import com.financeiro.context.ContextoEntidade;
 import com.financeiro.context.ContextoEspaco;
 import com.financeiro.context.ContextoUsuario;
 import com.financeiro.dto.AtivoDTO;
 import com.financeiro.dto.MovimentacaoAtivoDTO;
 import com.financeiro.dto.PatrimonioDTO;
+import com.financeiro.dto.RespostaImpacto;
 import com.financeiro.entity.Ativo;
 import com.financeiro.entity.Conta;
 import com.financeiro.entity.MovimentacaoAtivo;
@@ -46,10 +48,14 @@ public class AtivoService {
     private final ContaService contaService;
     private final ContextoEspaco contextoEspaco;
     private final ContextoUsuario contextoUsuario;
+    private final ContextoEntidade contextoEntidade;
 
     public List<AtivoDTO> findAll() {
         Long espacoId = contextoEspaco.espacoAtual();
-        List<Ativo> ativos = repository.findByEspacoIdOrderByCriadoEmDesc(espacoId);
+        Long entidadeId = contextoEntidade.entidadeAtual();
+        List<Ativo> ativos = entidadeId != null
+                ? repository.findByEspacoIdFiltradoPorEntidade(espacoId, entidadeId)
+                : repository.findByEspacoIdOrderByCriadoEmDesc(espacoId);
         BigDecimal total = ativos.stream().map(Ativo::getValorAtual).reduce(BigDecimal.ZERO, BigDecimal::add);
 
         // Uma única query pra todas as movimentações do espaço, agrupada em memória por
@@ -88,6 +94,7 @@ public class AtivoService {
                 .taxa(dto.getTaxa())
                 .inicioRendimento(dto.getInicioRendimento())
                 .isentoIr(dto.isIsentoIr())
+                .entidadeId(dto.getEntidadeId())
                 .build();
         ativo = repository.save(ativo);
 
@@ -121,19 +128,65 @@ public class AtivoService {
         return toDTO(repository.save(ativo), null);
     }
 
+    @Transactional
     public void delete(Long id) {
         Ativo ativo = buscar(id);
         if (ativo.getValorAtual().compareTo(BigDecimal.ZERO) > 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Resgate o valor investido antes de excluir o ativo");
         }
+        movimentacaoRepository.deleteByAtivoId(ativo.getId());
         repository.delete(ativo);
     }
 
+    @Transactional
     public AtivoDTO cancelar(Long id) {
         Ativo ativo = buscar(id);
+        movimentacaoRepository.findByAtivoIdOrderByDataAsc(ativo.getId()).stream()
+                .filter(m -> m.getTransacao() != null && m.getTransacao().getDataCancelamento() == null)
+                .map(MovimentacaoAtivo::getTransacao)
+                .forEach(t -> {
+                    if (t.isSaldoAjustado()) {
+                        BigDecimal delta = t.getTipo() == TipoTransacao.RECEITA
+                                ? t.getValor().negate() : t.getValor();
+                        contaService.adjustBalance(t.getConta(), delta);
+                        t.setSaldoAjustado(false);
+                    }
+                    t.setDataCancelamento(LocalDate.now());
+                    transacaoRepository.save(t);
+                });
+        ativo.setValorAtual(BigDecimal.ZERO);
         ativo.setDataCancelamento(LocalDate.now());
         return toDTO(repository.save(ativo), null);
+    }
+
+    public RespostaImpacto calcularImpactoCancelamento(Long id) {
+        Ativo ativo = buscar(id);
+        List<RespostaImpacto.ItemImpacto> itens = movimentacaoRepository
+                .findByAtivoIdOrderByDataAsc(ativo.getId()).stream()
+                .filter(m -> m.getTransacao() != null && m.getTransacao().getDataCancelamento() == null)
+                .map(m -> new RespostaImpacto.ItemImpacto(
+                        m.getTipo().name(),
+                        m.getTransacao().getDescricao() + " em " + m.getData(),
+                        m.getValor()))
+                .toList();
+        return new RespostaImpacto(false, null, itens, null);
+    }
+
+    public RespostaImpacto calcularImpactoExclusao(Long id) {
+        Ativo ativo = buscar(id);
+        boolean bloqueado = ativo.getValorAtual().compareTo(BigDecimal.ZERO) > 0;
+        String motivo = bloqueado ? "Resgate o valor investido antes de excluir o ativo" : null;
+        List<RespostaImpacto.ItemImpacto> itens = bloqueado ? List.of()
+                : movimentacaoRepository.findByAtivoIdOrderByDataAsc(ativo.getId()).stream()
+                        .map(m -> new RespostaImpacto.ItemImpacto(
+                                m.getTipo().name(),
+                                m.getTransacao() != null
+                                        ? m.getTransacao().getDescricao() + " em " + m.getData()
+                                        : m.getTipo().name() + " em " + m.getData(),
+                                m.getValor()))
+                        .toList();
+        return new RespostaImpacto(bloqueado, motivo, itens, null);
     }
 
     @Transactional
@@ -364,6 +417,7 @@ public class AtivoService {
             dto.setPercentualCarteira(a.getValorAtual().divide(totalCarteira, 4, RoundingMode.HALF_UP).doubleValue() * 100);
         }
         aplicarCamposDerivados(dto, movimentos);
+        dto.setEntidadeId(a.getEntidadeId());
         return dto;
     }
 

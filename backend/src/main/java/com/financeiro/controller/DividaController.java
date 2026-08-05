@@ -1,6 +1,7 @@
 package com.financeiro.controller;
 
 import com.financeiro.dto.DividaDTO;
+import com.financeiro.dto.RespostaImpacto;
 import com.financeiro.dto.TransacaoDTO;
 import com.financeiro.service.DividaService;
 import jakarta.validation.Valid;
@@ -42,5 +43,15 @@ public class DividaController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable Long id) {
         service.delete(id);
+    }
+
+    @GetMapping("/{id}/impacto-cancelamento")
+    public RespostaImpacto impactoCancelamento(@PathVariable Long id) {
+        return service.calcularImpactoCancelamento(id);
+    }
+
+    @GetMapping("/{id}/impacto-exclusao")
+    public RespostaImpacto impactoExclusao(@PathVariable Long id) {
+        return service.calcularImpactoExclusao(id);
     }
 }

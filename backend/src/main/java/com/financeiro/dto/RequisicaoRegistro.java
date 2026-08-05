@@ -1,7 +1,9 @@
 package com.financeiro.dto;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -18,4 +20,10 @@ public class RequisicaoRegistro {
     @NotBlank
     @Size(min = 8, message = "A senha deve ter pelo menos 8 caracteres")
     private String senha;
+
+    private String telefone;
+
+    @NotNull
+    @Valid
+    private PrimeiraEntidadeDTO entidade;
 }

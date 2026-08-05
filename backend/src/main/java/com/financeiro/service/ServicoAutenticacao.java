@@ -1,17 +1,24 @@
 package com.financeiro.service;
 
 import com.financeiro.context.ContextoUsuario;
+import com.financeiro.dto.PrimeiraEntidadeDTO;
 import com.financeiro.dto.RequisicaoLogin;
 import com.financeiro.dto.RequisicaoRegistro;
 import com.financeiro.dto.RequisicaoTrocarSenha;
 import com.financeiro.dto.RespostaAutenticacao;
+import com.financeiro.dto.RespostaEntidadeResumo;
+import com.financeiro.entity.Entidade;
 import com.financeiro.entity.Espaco;
 import com.financeiro.entity.Usuario;
 import com.financeiro.entity.UsuarioEspaco;
 import com.financeiro.entity.UsuarioEspacoId;
+import com.financeiro.entity.enums.CanalNotificacao;
+import com.financeiro.entity.enums.CodigoPlano;
 import com.financeiro.entity.enums.PapelUsuario;
 import com.financeiro.entity.enums.PlanoEspaco;
+import com.financeiro.entity.enums.PropositoCodigo;
 import com.financeiro.entity.enums.TipoEspaco;
+import com.financeiro.repository.EntidadeRepository;
 import com.financeiro.repository.EspacoRepository;
 import com.financeiro.repository.UsuarioEspacoRepository;
 import com.financeiro.repository.UsuarioRepository;
@@ -36,28 +43,43 @@ public class ServicoAutenticacao {
     private final UsuarioRepository usuarioRepository;
     private final EspacoRepository espacoRepository;
     private final UsuarioEspacoRepository usuarioEspacoRepository;
+    private final EntidadeRepository entidadeRepository;
     private final PasswordEncoder passwordEncoder;
     private final ServicoJwt servicoJwt;
     private final ServicoTokenAtualizacao servicoTokenAtualizacao;
     private final SemeadorCategoriasPadrao semeadorCategoriasPadrao;
+    private final ServicoAssinatura servicoAssinatura;
+    private final CifradorDados cifradorDados;
+    private final ValidadorDocumento validadorDocumento;
+    private final ServicoCodigoVerificacao servicoCodigoVerificacao;
     private final ContextoUsuario contextoUsuario;
 
     public ServicoAutenticacao(
             UsuarioRepository usuarioRepository,
             EspacoRepository espacoRepository,
             UsuarioEspacoRepository usuarioEspacoRepository,
+            EntidadeRepository entidadeRepository,
             PasswordEncoder passwordEncoder,
             ServicoJwt servicoJwt,
             ServicoTokenAtualizacao servicoTokenAtualizacao,
             SemeadorCategoriasPadrao semeadorCategoriasPadrao,
+            ServicoAssinatura servicoAssinatura,
+            CifradorDados cifradorDados,
+            ValidadorDocumento validadorDocumento,
+            ServicoCodigoVerificacao servicoCodigoVerificacao,
             ContextoUsuario contextoUsuario) {
         this.usuarioRepository = usuarioRepository;
         this.espacoRepository = espacoRepository;
         this.usuarioEspacoRepository = usuarioEspacoRepository;
+        this.entidadeRepository = entidadeRepository;
         this.passwordEncoder = passwordEncoder;
         this.servicoJwt = servicoJwt;
         this.servicoTokenAtualizacao = servicoTokenAtualizacao;
         this.semeadorCategoriasPadrao = semeadorCategoriasPadrao;
+        this.servicoAssinatura = servicoAssinatura;
+        this.cifradorDados = cifradorDados;
+        this.validadorDocumento = validadorDocumento;
+        this.servicoCodigoVerificacao = servicoCodigoVerificacao;
         this.contextoUsuario = contextoUsuario;
     }
 
@@ -65,7 +87,7 @@ public class ServicoAutenticacao {
     }
 
     @Transactional
-    public ResultadoAutenticacao registrar(RequisicaoRegistro requisicao, String userAgent) {
+    public ResultadoAutenticacao registrar(RequisicaoRegistro requisicao, String userAgent, String ipOrigem) {
         if (usuarioRepository.findByEmail(requisicao.getEmail()).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "E-mail já cadastrado");
         }
@@ -74,6 +96,7 @@ public class ServicoAutenticacao {
                 .nome(requisicao.getNome())
                 .email(requisicao.getEmail())
                 .senhaHash(passwordEncoder.encode(requisicao.getSenha()))
+                .telefone(requisicao.getTelefone())
                 .build());
 
         Espaco espaco = espacoRepository.save(Espaco.builder()
@@ -87,12 +110,46 @@ public class ServicoAutenticacao {
                 .papel(PapelUsuario.DONO)
                 .build());
 
+        servicoAssinatura.criarParaEspaco(espaco.getId(), CodigoPlano.INDIVIDUAL);
+
+        PrimeiraEntidadeDTO ent = requisicao.getEntidade();
+        String docLimpo = validadorDocumento.limparEValidar(ent.getDocumento(), ent.getTipoPessoa());
+        String hashDoc = cifradorDados.hashDocumento(docLimpo);
+        entidadeRepository.save(Entidade.builder()
+                .espacoId(espaco.getId())
+                .tipoPessoa(ent.getTipoPessoa())
+                .nome(ent.getNome())
+                .nomeFantasia(ent.getNomeFantasia())
+                .documentoCifrado(cifradorDados.cifrar(docLimpo))
+                .documentoHash(hashDoc)
+                .inscricaoEstadual(ent.getInscricaoEstadual())
+                .dataNascimento(ent.getDataNascimento())
+                .email(ent.getEmail())
+                .telefone(ent.getTelefone())
+                .cep(ent.getCep())
+                .logradouro(ent.getLogradouro())
+                .numero(ent.getNumero())
+                .complemento(ent.getComplemento())
+                .bairro(ent.getBairro())
+                .cidade(ent.getCidade())
+                .uf(ent.getUf())
+                .build());
+
         semeadorCategoriasPadrao.semear(espaco.getId());
+
+        // Envio de código de verificação de e-mail (assíncrono — não bloqueia a transação)
+        try {
+            servicoCodigoVerificacao.solicitar(
+                    usuario.getEmail(), CanalNotificacao.EMAIL, PropositoCodigo.VERIFICAR_EMAIL, ipOrigem, usuario.getId());
+        } catch (ResponseStatusException e) {
+            log.warn("Envio de código de verificação falhou no registro: {}", e.getReason());
+        }
 
         String token = servicoJwt.gerarToken(usuario.getId(), espaco.getId(), usuario.getEmail(), false, usuario.getNivelAcesso());
         TokenRenovado tokenAtualizacao = servicoTokenAtualizacao.emitir(usuario.getId(), espaco.getId(), userAgent);
         RespostaAutenticacao resposta = new RespostaAutenticacao(token, usuario.getId(), usuario.getNome(),
-                usuario.getEmail(), espaco.getId(), PapelUsuario.DONO, false, usuario.getNivelAcesso());
+                usuario.getEmail(), espaco.getId(), PapelUsuario.DONO, false, usuario.getNivelAcesso(),
+                resumirEntidades(espaco.getId()));
         return new ResultadoAutenticacao(resposta, tokenAtualizacao.tokenBruto());
     }
 
@@ -115,7 +172,7 @@ public class ServicoAutenticacao {
                 usuario.getId(), vinculo.getId().getEspacoId(), userAgent);
         RespostaAutenticacao resposta = new RespostaAutenticacao(token, usuario.getId(), usuario.getNome(),
                 usuario.getEmail(), vinculo.getId().getEspacoId(), vinculo.getPapel(), usuario.isPrecisaTrocarSenha(),
-                usuario.getNivelAcesso());
+                usuario.getNivelAcesso(), resumirEntidades(vinculo.getId().getEspacoId()));
         return new ResultadoAutenticacao(resposta, tokenAtualizacao.tokenBruto());
     }
 
@@ -143,7 +200,8 @@ public class ServicoAutenticacao {
         TokenRenovado tokenAtualizacao = servicoTokenAtualizacao.emitir(
                 usuario.getId(), vinculo.getId().getEspacoId(), userAgent);
         RespostaAutenticacao resposta = new RespostaAutenticacao(token, usuario.getId(), usuario.getNome(),
-                usuario.getEmail(), vinculo.getId().getEspacoId(), vinculo.getPapel(), false, usuario.getNivelAcesso());
+                usuario.getEmail(), vinculo.getId().getEspacoId(), vinculo.getPapel(), false, usuario.getNivelAcesso(),
+                resumirEntidades(vinculo.getId().getEspacoId()));
         return new ResultadoAutenticacao(resposta, tokenAtualizacao.tokenBruto());
     }
 
@@ -162,7 +220,7 @@ public class ServicoAutenticacao {
                 usuario.isPrecisaTrocarSenha(), usuario.getNivelAcesso());
         RespostaAutenticacao resposta = new RespostaAutenticacao(token, usuario.getId(), usuario.getNome(),
                 usuario.getEmail(), vinculo.getId().getEspacoId(), vinculo.getPapel(), usuario.isPrecisaTrocarSenha(),
-                usuario.getNivelAcesso());
+                usuario.getNivelAcesso(), resumirEntidades(vinculo.getId().getEspacoId()));
         return new ResultadoAutenticacao(resposta, renovado.tokenBruto());
     }
 
@@ -170,5 +228,11 @@ public class ServicoAutenticacao {
         if (tokenAtualizacaoBruto != null) {
             servicoTokenAtualizacao.revogar(tokenAtualizacaoBruto);
         }
+    }
+
+    private java.util.List<RespostaEntidadeResumo> resumirEntidades(Long espacoId) {
+        return entidadeRepository.findByEspacoId(espacoId).stream()
+                .map(e -> new RespostaEntidadeResumo(e.getId(), e.getNome(), e.getTipoPessoa()))
+                .toList();
     }
 }

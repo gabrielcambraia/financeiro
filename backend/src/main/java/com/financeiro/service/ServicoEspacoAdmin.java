@@ -3,12 +3,17 @@ package com.financeiro.service;
 import com.financeiro.dto.RespostaEspacoAdmin;
 import com.financeiro.dto.RespostaPaginada;
 import com.financeiro.dto.RespostaVinculoEspaco;
+import com.financeiro.entity.Assinatura;
+import com.financeiro.entity.Plano;
 import com.financeiro.entity.Espaco;
+import com.financeiro.entity.enums.CodigoPlano;
 import com.financeiro.entity.enums.ModuloEspaco;
 import com.financeiro.entity.enums.PapelUsuario;
 import com.financeiro.entity.enums.TipoEspaco;
 import com.financeiro.erro.ExcecaoRecursoNaoEncontrado;
+import com.financeiro.repository.AssinaturaRepository;
 import com.financeiro.repository.EspacoRepository;
+import com.financeiro.repository.PlanoRepository;
 import com.financeiro.repository.UsuarioEspacoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -35,6 +40,8 @@ public class ServicoEspacoAdmin {
 
     private final EspacoRepository espacoRepository;
     private final UsuarioEspacoRepository usuarioEspacoRepository;
+    private final AssinaturaRepository assinaturaRepository;
+    private final PlanoRepository planoRepository;
 
     @Transactional(readOnly = true)
     public RespostaPaginada<RespostaEspacoAdmin> listar(int pagina) {
@@ -53,14 +60,28 @@ public class ServicoEspacoAdmin {
 
         Map<Long, Set<ModuloEspaco>> modulosPorEspaco = agruparModulos(espacoRepository.listarModulosDosEspacos(ids));
 
+        Map<Long, CodigoPlano> codigosPorEspaco = buscarCodigosPorEspaco(ids);
+
         List<RespostaEspacoAdmin> itens = paginaEspacos.getContent().stream()
                 .map(espaco -> montarResposta(
                         espaco,
                         vinculosPorEspaco.getOrDefault(espaco.getId(), List.of()),
-                        modulosPorEspaco.getOrDefault(espaco.getId(), Set.of())))
+                        modulosPorEspaco.getOrDefault(espaco.getId(), Set.of()),
+                        codigosPorEspaco.get(espaco.getId())))
                 .toList();
 
         return RespostaPaginada.de(paginaEspacos, itens);
+    }
+
+    private Map<Long, CodigoPlano> buscarCodigosPorEspaco(List<Long> espacoIds) {
+        List<Assinatura> assinaturas = assinaturaRepository.findByEspacoIdIn(espacoIds);
+        Set<Long> planoIds = assinaturas.stream().map(Assinatura::getPlanoId).collect(Collectors.toSet());
+        Map<Long, CodigoPlano> codigoPorPlanoId = planoRepository.findAllById(planoIds).stream()
+                .collect(Collectors.toMap(Plano::getId, Plano::getCodigo));
+        // HashMap aceita null values; usar toMap para preservar os que não têm plano.
+        Map<Long, CodigoPlano> resultado = new java.util.HashMap<>();
+        assinaturas.forEach(a -> resultado.put(a.getEspacoId(), codigoPorPlanoId.get(a.getPlanoId())));
+        return resultado;
     }
 
     @Transactional
@@ -86,7 +107,15 @@ public class ServicoEspacoAdmin {
 
     private RespostaEspacoAdmin montarRespostaComVinculos(Espaco espaco) {
         List<RespostaVinculoEspaco> vinculos = usuarioEspacoRepository.listarVinculosDosEspacos(List.of(espaco.getId()));
-        return montarResposta(espaco, vinculos, espaco.getModulosHabilitados());
+        CodigoPlano codigoPlano = buscarCodigoPlano(espaco.getId());
+        return montarResposta(espaco, vinculos, espaco.getModulosHabilitados(), codigoPlano);
+    }
+
+    private CodigoPlano buscarCodigoPlano(Long espacoId) {
+        return assinaturaRepository.findByEspacoId(espacoId)
+                .flatMap(a -> planoRepository.findById(a.getPlanoId()))
+                .map(Plano::getCodigo)
+                .orElse(null);
     }
 
     private Map<Long, Set<ModuloEspaco>> agruparModulos(List<Object[]> linhas) {
@@ -100,7 +129,7 @@ public class ServicoEspacoAdmin {
     }
 
     private RespostaEspacoAdmin montarResposta(Espaco espaco, List<RespostaVinculoEspaco> vinculos,
-                                                Set<ModuloEspaco> modulosHabilitados) {
+                                                Set<ModuloEspaco> modulosHabilitados, CodigoPlano codigoPlano) {
         String emailDono = vinculos.stream()
                 .filter(v -> v.getPapel() == PapelUsuario.DONO)
                 .findFirst()
@@ -112,6 +141,7 @@ public class ServicoEspacoAdmin {
                 espaco.getNome(),
                 espaco.getTipo(),
                 espaco.getPlano(),
+                codigoPlano,
                 espaco.getCriadoEm(),
                 emailDono,
                 vinculos.size(),

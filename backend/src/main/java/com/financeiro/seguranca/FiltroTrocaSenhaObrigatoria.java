@@ -25,7 +25,10 @@ public class FiltroTrocaSenhaObrigatoria extends OncePerRequestFilter {
 
     private static final Set<String> ROTAS_PERMITIDAS = Set.of(
             "/api/auth/trocar-senha", "/api/auth/config", "/api/auth/login",
-            "/api/auth/renovar", "/api/auth/sair");
+            "/api/auth/renovar", "/api/auth/sair",
+            "/api/auth/otp/solicitar", "/api/auth/otp/verificar",
+            "/api/auth/verificar-contato/email/solicitar", "/api/auth/verificar-contato/email/confirmar",
+            "/api/auth/verificar-contato/telefone/solicitar", "/api/auth/verificar-contato/telefone/confirmar");
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)

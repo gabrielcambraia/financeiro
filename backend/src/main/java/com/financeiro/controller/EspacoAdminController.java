@@ -1,9 +1,11 @@
 package com.financeiro.controller;
 
 import com.financeiro.dto.RequisicaoAlterarModulosEspaco;
+import com.financeiro.dto.RequisicaoAlterarPlanoEspaco;
 import com.financeiro.dto.RequisicaoAlterarTipoEspaco;
 import com.financeiro.dto.RespostaEspacoAdmin;
 import com.financeiro.dto.RespostaPaginada;
+import com.financeiro.service.ServicoAssinatura;
 import com.financeiro.service.ServicoEspacoAdmin;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 public class EspacoAdminController {
 
     private final ServicoEspacoAdmin servico;
+    private final ServicoAssinatura servicoAssinatura;
 
     @GetMapping
     @PreAuthorize("@autorizacaoAdmin.exigirAdmin()")
@@ -40,5 +43,11 @@ public class EspacoAdminController {
     public RespostaEspacoAdmin alterarModulos(@PathVariable Long id,
                                                @Valid @RequestBody RequisicaoAlterarModulosEspaco requisicao) {
         return servico.alterarModulos(id, requisicao.getModulos());
+    }
+
+    @PatchMapping("/{id}/plano")
+    @PreAuthorize("@autorizacaoAdmin.exigirAdmin()")
+    public void alterarPlano(@PathVariable Long id, @Valid @RequestBody RequisicaoAlterarPlanoEspaco requisicao) {
+        servicoAssinatura.trocarPlano(id, requisicao.getPlano());
     }
 }

@@ -6,13 +6,16 @@ import { Pencil, Trash2, Ban, ArrowUpCircle, ArrowDownCircle, TrendingUp, Wallet
 import {
   buscarAtivos, buscarPatrimonio, criarAtivo, atualizarAtivo, excluirAtivo, cancelarAtivo,
   aportarAtivo, resgatarAtivo, registrarRendimentoAtivo,
+  impactoCancelamentoAtivo, impactoExclusaoAtivo,
 } from '../api/ativos'
 import { buscarContas } from '../api/contas'
 import { useLojaTema } from '../store/lojaTema'
 import SobreposicaoModal from '../components/SobreposicaoModal'
+import ModalConfirmacao from '../components/ModalConfirmacao'
 import SeletorCor from '../components/SeletorCor'
 import AcaoNova from '../components/AcaoNova'
-import type { Ativo, TipoAtivo, TipoRemuneracao } from '../types'
+import CampoEntidade from '../components/forms/CampoEntidade'
+import type { Ativo, TipoAtivo, TipoRemuneracao, RespostaImpacto } from '../types'
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
@@ -47,6 +50,7 @@ const formPadrao = {
   nome: '', tipo: 'RENDA_FIXA' as TipoAtivo, contaId: '', cor: CORES[0], icone: 'trending-up',
   remuneracaoTipo: 'NENHUMA' as TipoRemuneracao, taxa: '', inicioRendimento: '', isentoIr: false,
   valorInicial: '', dataInicial: format(new Date(), 'yyyy-MM-dd'),
+  entidadeId: undefined as number | null | undefined,
 }
 const movimentoPadrao = { valor: '', contaId: '', data: format(new Date(), 'yyyy-MM-dd') }
 
@@ -59,6 +63,9 @@ export default function Investimentos() {
   const [form, setForm] = useState(formPadrao)
   const [movimento, setMovimento] = useState<{ ativo: Ativo; tipo: 'aportar' | 'resgatar' | 'rendimento' } | null>(null)
   const [movForm, setMovForm] = useState(movimentoPadrao)
+  const [modalAcao, setModalAcao] = useState<{
+    tipo: 'cancelar' | 'excluir'; item: Ativo; impacto: RespostaImpacto | null; carregando: boolean
+  } | null>(null)
 
   const { data: ativos = [] } = useQuery({ queryKey: ['ativos'], queryFn: buscarAtivos })
   const { data: patrimonio } = useQuery({ queryKey: ['patrimonio'], queryFn: () => buscarPatrimonio(6) })
@@ -108,6 +115,7 @@ export default function Investimentos() {
       inicioRendimento: a.inicioRendimento ?? '',
       isentoIr: a.isentoIr ?? false,
       valorInicial: '', dataInicial: format(new Date(), 'yyyy-MM-dd'),
+      entidadeId: a.entidadeId,
     })
     setShowForm(true)
   }
@@ -121,8 +129,21 @@ export default function Investimentos() {
       taxa: form.remuneracaoTipo !== 'NENHUMA' && form.taxa !== '' ? Number(form.taxa) : null,
       inicioRendimento: form.remuneracaoTipo !== 'NENHUMA' && form.inicioRendimento ? form.inicioRendimento : null,
       isentoIr: form.isentoIr,
+      entidadeId: form.entidadeId ?? null,
       ...(!editing && form.valorInicial !== '' ? { valorInicial: Number(form.valorInicial), dataInicial: form.dataInicial } : {}),
     })
+  }
+
+  const abrirModalAcao = async (ativo: Ativo, tipo: 'cancelar' | 'excluir') => {
+    setModalAcao({ tipo, item: ativo, impacto: null, carregando: true })
+    try {
+      const impacto = tipo === 'cancelar'
+        ? await impactoCancelamentoAtivo(ativo.id)
+        : await impactoExclusaoAtivo(ativo.id)
+      setModalAcao({ tipo, item: ativo, impacto, carregando: false })
+    } catch {
+      setModalAcao({ tipo, item: ativo, impacto: null, carregando: false })
+    }
   }
 
   const openMovimento = (ativo: Ativo, tipo: 'aportar' | 'resgatar' | 'rendimento') => {
@@ -212,12 +233,12 @@ export default function Investimentos() {
                   <Pencil size={14} />
                 </button>
                 {!ativo.dataCancelamento && (
-                  <button onClick={() => { if (confirm('Cancelar este ativo?')) cancelarMutation.mutate(ativo.id) }}
+                  <button onClick={() => abrirModalAcao(ativo, 'cancelar')}
                     className="p-1.5 rounded-lg hover:bg-orange-900/40 text-conteudo-suave hover:text-orange-500 transition-colors">
                     <Ban size={14} />
                   </button>
                 )}
-                <button onClick={() => { if (confirm('Excluir este ativo?')) deleteMutation.mutate(ativo.id) }}
+                <button onClick={() => abrirModalAcao(ativo, 'excluir')}
                   className="p-1.5 rounded-lg hover:bg-red-900/40 text-conteudo-suave hover:text-red-400 transition-colors">
                   <Trash2 size={14} />
                 </button>
@@ -266,6 +287,23 @@ export default function Investimentos() {
         )}
       </div>
 
+      <ModalConfirmacao
+        aberto={modalAcao !== null}
+        titulo={modalAcao?.tipo === 'cancelar' ? 'Cancelar ativo' : 'Excluir ativo'}
+        aoFechar={() => setModalAcao(null)}
+        carregandoImpacto={modalAcao?.carregando}
+        impacto={modalAcao?.impacto}
+        botoes={modalAcao ? [
+          modalAcao.tipo === 'cancelar'
+            ? { rotulo: 'Cancelar ativo', variante: 'atencao' as const, aoClicar: () => { cancelarMutation.mutate(modalAcao.item.id); setModalAcao(null) } }
+            : { rotulo: 'Excluir ativo', variante: 'perigo' as const, aoClicar: () => { deleteMutation.mutate(modalAcao.item.id); setModalAcao(null) } },
+        ] : []}
+      >
+        {modalAcao?.tipo === 'cancelar'
+          ? `Deseja cancelar o ativo "${modalAcao?.item.nome}"?`
+          : `Deseja excluir o ativo "${modalAcao?.item.nome}"? Esta ação não pode ser desfeita.`}
+      </ModalConfirmacao>
+
       {showForm && (
         <SobreposicaoModal aoFechar={closeForm}>
           <div className="cartao-modal max-w-md">
@@ -274,6 +312,7 @@ export default function Investimentos() {
               <button onClick={closeForm} className="btn-ghost p-1.5 text-sm">✕</button>
             </div>
             <form onSubmit={handleSubmit} className="cartao-modal-corpo">
+              <CampoEntidade value={form.entidadeId} onChange={v => setForm(f => ({ ...f, entidadeId: v }))} />
               <div>
                 <label className="label">Nome</label>
                 <input className="input" placeholder="Ex: Tesouro Selic, PETR4..." required

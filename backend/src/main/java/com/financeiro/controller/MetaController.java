@@ -2,6 +2,7 @@ package com.financeiro.controller;
 
 import com.financeiro.dto.MetaDTO;
 import com.financeiro.dto.MetaMovimentoDTO;
+import com.financeiro.dto.RespostaImpacto;
 import com.financeiro.service.MetaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -52,5 +53,15 @@ public class MetaController {
     @PatchMapping("/{id}/resgatar")
     public MetaDTO resgatar(@PathVariable Long id, @Valid @RequestBody MetaMovimentoDTO dto) {
         return service.resgatar(id, dto);
+    }
+
+    @GetMapping("/{id}/impacto-cancelamento")
+    public RespostaImpacto impactoCancelamento(@PathVariable Long id) {
+        return service.calcularImpactoCancelamento(id);
+    }
+
+    @GetMapping("/{id}/impacto-exclusao")
+    public RespostaImpacto impactoExclusao(@PathVariable Long id) {
+        return service.calcularImpactoExclusao(id);
     }
 }

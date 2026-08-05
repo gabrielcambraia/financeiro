@@ -11,7 +11,7 @@ import java.util.List;
  * devido sobre o rendimento de um ativo de renda fixa, aplicando a tabela
  * regressiva brasileira sobre o prazo médio ponderado dos aportes.
  */
-public final class CalculadoraIr {
+public final class  CalculadoraIr {
 
     private static final BigDecimal ALIQUOTA_ATE_180_DIAS = new BigDecimal("0.225");
     private static final BigDecimal ALIQUOTA_ATE_360_DIAS = new BigDecimal("0.20");

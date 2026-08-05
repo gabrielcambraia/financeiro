@@ -18,7 +18,7 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Fatura {
+public class  Fatura {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -42,4 +42,7 @@ public class Fatura {
 
     @Column(name = "espaco_id", nullable = false)
     private Long espacoId;
+
+    @Column(name = "entidade_id")
+    private Long entidadeId;
 }

@@ -2,13 +2,15 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { format, parseISO } from 'date-fns'
 import { Ban, Trash2, ChevronDown, ChevronUp, HandCoins } from 'lucide-react'
-import { buscarDividas, buscarParcelasDivida, criarDivida, cancelarDivida, excluirDivida } from '../api/dividas'
+import { buscarDividas, buscarParcelasDivida, criarDivida, cancelarDivida, excluirDivida, impactoCancelamentoDivida, impactoExclusaoDivida } from '../api/dividas'
 import { buscarContas } from '../api/contas'
 import { buscarCategorias } from '../api/categorias'
 import { pagarTransacao, estornarTransacao } from '../api/transacoes'
 import SobreposicaoModal from '../components/SobreposicaoModal'
+import ModalConfirmacao from '../components/ModalConfirmacao'
 import AcaoNova from '../components/AcaoNova'
-import type { Divida, StatusTransacao, StatusDivida } from '../types'
+import CampoEntidade from '../components/forms/CampoEntidade'
+import type { Divida, StatusTransacao, StatusDivida, RespostaImpacto } from '../types'
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
@@ -31,7 +33,7 @@ const corStatusTx: Record<StatusTransacao, string> = {
 
 const formPadrao = {
   descricao: '', credor: '', valorTotal: '', totalParcelas: '2', contaId: '', categoriaId: '',
-  dataInicio: format(new Date(), 'yyyy-MM-dd'),
+  dataInicio: format(new Date(), 'yyyy-MM-dd'), entidadeId: undefined as number | null | undefined,
 }
 
 export default function Dividas() {
@@ -39,6 +41,9 @@ export default function Dividas() {
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(formPadrao)
   const [expandida, setExpandida] = useState<number | null>(null)
+  const [modalAcao, setModalAcao] = useState<{
+    tipo: 'cancelar' | 'excluir'; item: Divida; impacto: RespostaImpacto | null; carregando: boolean
+  } | null>(null)
 
   const { data: dividas = [] } = useQuery({ queryKey: ['dividas'], queryFn: buscarDividas })
   const { data: contas = [] } = useQuery({ queryKey: ['contas'], queryFn: buscarContas })
@@ -71,6 +76,18 @@ export default function Dividas() {
   const pagarMutation = useMutation({ mutationFn: (id: number) => pagarTransacao(id), onSuccess: invalidar })
   const estornarMutation = useMutation({ mutationFn: (id: number) => estornarTransacao(id), onSuccess: invalidar })
 
+  const abrirModalAcao = async (divida: Divida, tipo: 'cancelar' | 'excluir') => {
+    setModalAcao({ tipo, item: divida, impacto: null, carregando: true })
+    try {
+      const impacto = tipo === 'cancelar'
+        ? await impactoCancelamentoDivida(divida.id)
+        : await impactoExclusaoDivida(divida.id)
+      setModalAcao({ tipo, item: divida, impacto, carregando: false })
+    } catch {
+      setModalAcao({ tipo, item: divida, impacto: null, carregando: false })
+    }
+  }
+
   const closeForm = () => { setShowForm(false); setForm(formPadrao) }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -83,6 +100,7 @@ export default function Dividas() {
       contaId: Number(form.contaId),
       categoriaId: form.categoriaId ? Number(form.categoriaId) : undefined,
       dataInicio: form.dataInicio,
+      entidadeId: form.entidadeId ?? null,
     })
   }
 
@@ -129,12 +147,12 @@ export default function Dividas() {
                 <div className="border-t border-borda">
                   {d.status !== 'CANCELADA' && (
                     <div className="px-5 py-2.5 border-b border-borda flex gap-2">
-                      <button onClick={() => { if (confirm('Cancelar esta dívida e reverter parcelas pagas?')) cancelarMutation.mutate(d.id) }}
+                      <button onClick={() => abrirModalAcao(d, 'cancelar')}
                         className="flex items-center gap-1.5 py-1.5 px-3 rounded-lg border border-orange-800 text-orange-500 hover:bg-orange-900/20 transition-colors text-sm font-medium">
                         <Ban size={14} /> Cancelar dívida
                       </button>
                       {d.parcelasPagas === 0 && (
-                        <button onClick={() => { if (confirm('Excluir esta dívida e todas as parcelas?')) deleteMutation.mutate(d.id) }}
+                        <button onClick={() => abrirModalAcao(d, 'excluir')}
                           className="flex items-center gap-1.5 py-1.5 px-3 rounded-lg border border-red-800 text-red-500 hover:bg-red-900/20 transition-colors text-sm font-medium">
                           <Trash2 size={14} /> Excluir
                         </button>
@@ -182,6 +200,23 @@ export default function Dividas() {
         )}
       </div>
 
+      <ModalConfirmacao
+        aberto={modalAcao !== null}
+        titulo={modalAcao?.tipo === 'cancelar' ? 'Cancelar dívida' : 'Excluir dívida'}
+        aoFechar={() => setModalAcao(null)}
+        carregandoImpacto={modalAcao?.carregando}
+        impacto={modalAcao?.impacto}
+        botoes={modalAcao ? [
+          modalAcao.tipo === 'cancelar'
+            ? { rotulo: 'Cancelar dívida', variante: 'atencao' as const, aoClicar: () => { cancelarMutation.mutate(modalAcao.item.id); setModalAcao(null) } }
+            : { rotulo: 'Excluir dívida', variante: 'perigo' as const, aoClicar: () => { deleteMutation.mutate(modalAcao.item.id); setModalAcao(null) } },
+        ] : []}
+      >
+        {modalAcao?.tipo === 'cancelar'
+          ? `Deseja cancelar a dívida "${modalAcao?.item.descricao}"? As parcelas pagas serão revertidas.`
+          : `Deseja excluir a dívida "${modalAcao?.item.descricao}" e todas as suas parcelas?`}
+      </ModalConfirmacao>
+
       {showForm && (
         <SobreposicaoModal aoFechar={closeForm}>
           <div className="cartao-modal max-w-md">
@@ -190,6 +225,7 @@ export default function Dividas() {
               <button onClick={closeForm} className="btn-ghost p-1.5 text-sm">✕</button>
             </div>
             <form onSubmit={handleSubmit} className="cartao-modal-corpo">
+              <CampoEntidade value={form.entidadeId} onChange={v => setForm(f => ({ ...f, entidadeId: v }))} />
               <div>
                 <label className="label">Descrição</label>
                 <input className="input" placeholder="Ex: Acordo cartão antigo" required

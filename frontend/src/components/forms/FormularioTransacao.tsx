@@ -8,6 +8,7 @@ import { buscarCartoes } from '../../api/cartoes'
 import { criarTransacao, atualizarTransacao } from '../../api/transacoes'
 import { criarItemFatura, atualizarItemFatura } from '../../api/itensFatura'
 import SobreposicaoModal from '../SobreposicaoModal'
+import CampoEntidade from './CampoEntidade'
 import type { Transacao, ItemFatura, TipoTransacao, TipoPagamento } from '../../types'
 
 // A tela de Lançamentos mescla dois tipos de registro (ver Transacoes.tsx):
@@ -62,6 +63,7 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
     dataPagamento: editingTx ? (editingTx.dataPagamento ?? '') : (dataInicial <= hoje ? dataInicial : ''),
     fixa: editingTx?.fixa ?? false,
     totalParcelas: editingTx?.totalParcelas ?? editingItem?.totalParcelas ?? '',
+    entidadeId: (editingTx?.entidadeId ?? null) as number | null | undefined,
   })
   const paga = form.dataPagamento !== ''
   // Uma Transacao legada com tipoPagamento=CREDITO (criada antes desta
@@ -138,6 +140,7 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
         quitarNaCriacao: paga,
         fixa: tipo === 'TRANSFERENCIA' ? false : form.fixa,
         totalParcelas: tipo === 'TRANSFERENCIA' ? undefined : (form.totalParcelas ? Number(form.totalParcelas) : undefined),
+        entidadeId: form.entidadeId ?? null,
       }
       if (editingTx) { await atualizarTransacao(editingTx.id, payload); return }
       await criarTransacao(payload)
@@ -173,6 +176,8 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
         </div>
 
         <form onSubmit={handleSubmit} className="cartao-modal-corpo">
+          <CampoEntidade value={form.entidadeId} onChange={v => set('entidadeId', v)} />
+
           {/* Tipo */}
           <div className="flex rounded-xl overflow-hidden border border-borda">
             {(['DESPESA', 'RECEITA', 'TRANSFERENCIA'] as TipoTransacao[]).map(t => {

@@ -7,12 +7,13 @@ import { useLojaFiltro } from '../store/lojaFiltro'
 import SeletorMes from '../components/SeletorMes'
 import SobreposicaoModal from '../components/SobreposicaoModal'
 import AcaoNova from '../components/AcaoNova'
+import CampoEntidade from '../components/forms/CampoEntidade'
 import type { Orcamento } from '../types'
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
 
-const formPadrao = { categoriaId: '', limite: '' }
+const formPadrao = { categoriaId: '', limite: '', entidadeId: undefined as number | null | undefined }
 
 function corBarra(percentual: number) {
   if (percentual >= 100) return 'bg-red-500'
@@ -48,14 +49,14 @@ export default function Orcamentos() {
   const openCreate = () => { setEditing(null); setForm(formPadrao); setShowForm(true) }
   const openEdit = (o: Orcamento) => {
     setEditing(o)
-    setForm({ categoriaId: String(o.categoriaId), limite: String(o.limite) })
+    setForm({ categoriaId: String(o.categoriaId), limite: String(o.limite), entidadeId: o.entidadeId })
     setShowForm(true)
   }
   const closeForm = () => { setShowForm(false); setEditing(null) }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    saveMutation.mutate({ categoriaId: Number(form.categoriaId), mes, limite: Number(form.limite) })
+    saveMutation.mutate({ categoriaId: Number(form.categoriaId), mes, limite: Number(form.limite), entidadeId: form.entidadeId ?? null })
   }
 
   const totalLimite = orcamentos.reduce((s, o) => s + o.limite, 0)
@@ -136,6 +137,7 @@ export default function Orcamentos() {
               <button onClick={closeForm} className="btn-ghost p-1.5 text-sm">✕</button>
             </div>
             <form onSubmit={handleSubmit} className="cartao-modal-corpo">
+              <CampoEntidade value={form.entidadeId} onChange={v => setForm(f => ({ ...f, entidadeId: v }))} />
               <div>
                 <label className="label">Categoria</label>
                 <select className="select" required

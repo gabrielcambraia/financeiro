@@ -1,5 +1,6 @@
 package com.financeiro.controller;
 
+import com.financeiro.dto.RespostaImpacto;
 import com.financeiro.dto.TransacaoDTO;
 import com.financeiro.entity.enums.TipoTransacao;
 import com.financeiro.service.TransacaoService;
@@ -71,5 +72,15 @@ public class TransacaoController {
             @PathVariable Long id,
             @RequestParam(defaultValue = "UNICA") String scope) {
         return service.cancelar(id, scope);
+    }
+
+    @GetMapping("/{id}/impacto-cancelamento")
+    public RespostaImpacto impactoCancelamento(@PathVariable Long id) {
+        return service.calcularImpactoCancelamento(id);
+    }
+
+    @GetMapping("/{id}/impacto-exclusao")
+    public RespostaImpacto impactoExclusao(@PathVariable Long id) {
+        return service.calcularImpactoExclusao(id);
     }
 }

@@ -1,9 +1,11 @@
 package com.financeiro.service;
 
+import com.financeiro.context.ContextoEntidade;
 import com.financeiro.context.ContextoEspaco;
 import com.financeiro.context.ContextoUsuario;
 import com.financeiro.dto.MetaDTO;
 import com.financeiro.dto.MetaMovimentoDTO;
+import com.financeiro.dto.RespostaImpacto;
 import com.financeiro.entity.Conta;
 import com.financeiro.entity.Meta;
 import com.financeiro.entity.Transacao;
@@ -35,11 +37,16 @@ public class MetaService {
     private final TransacaoRepository transacaoRepository;
     private final ContaService contaService;
     private final ContextoEspaco contextoEspaco;
+    private final ContextoEntidade contextoEntidade;
     private final ContextoUsuario contextoUsuario;
 
     public List<MetaDTO> findAll() {
-        return repository.findByEspacoIdOrderByCriadoEmDesc(contextoEspaco.espacoAtual()).stream()
-                .map(this::toDTO).toList();
+        Long espacoId = contextoEspaco.espacoAtual();
+        Long entidadeId = contextoEntidade.entidadeAtual();
+        List<Meta> metas = entidadeId != null
+                ? repository.findByEspacoIdFiltradoPorEntidade(espacoId, entidadeId)
+                : repository.findByEspacoIdOrderByCriadoEmDesc(espacoId);
+        return metas.stream().map(this::toDTO).toList();
     }
 
     public MetaDTO create(MetaDTO dto) {
@@ -51,6 +58,7 @@ public class MetaService {
                 .icone(dto.getIcone())
                 .espacoId(contextoEspaco.espacoAtual())
                 .usuarioId(contextoUsuario.usuarioAtual())
+                .entidadeId(dto.getEntidadeId())
                 .build();
         return toDTO(repository.save(meta));
     }
@@ -65,20 +73,62 @@ public class MetaService {
         return toDTO(repository.save(meta));
     }
 
+    @Transactional
     public void delete(Long id) {
         Meta meta = buscar(id);
         if (meta.getValorAtual().compareTo(BigDecimal.ZERO) > 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Resgate o valor guardado antes de excluir a meta");
         }
+        transacaoRepository.desvincularMeta(meta.getId());
         repository.delete(meta);
     }
 
     @Transactional
     public MetaDTO cancelar(Long id) {
         Meta meta = buscar(id);
+        transacaoRepository.findByEspacoIdAndMetaIdAndDataCancelamentoIsNull(
+                meta.getEspacoId(), meta.getId()).forEach(t -> {
+            if (t.isSaldoAjustado()) {
+                BigDecimal delta = t.getTipo() == TipoTransacao.RECEITA
+                        ? t.getValor() : t.getValor().negate();
+                contaService.adjustBalance(t.getConta(), delta);
+                t.setSaldoAjustado(false);
+            }
+            t.setDataCancelamento(LocalDate.now());
+            transacaoRepository.save(t);
+        });
+        meta.setValorAtual(BigDecimal.ZERO);
         meta.setDataCancelamento(LocalDate.now());
         return toDTO(repository.save(meta));
+    }
+
+    public RespostaImpacto calcularImpactoCancelamento(Long id) {
+        Meta meta = buscar(id);
+        List<RespostaImpacto.ItemImpacto> itens = transacaoRepository
+                .findByEspacoIdAndMetaIdAndDataCancelamentoIsNull(meta.getEspacoId(), meta.getId())
+                .stream()
+                .map(t -> new RespostaImpacto.ItemImpacto(
+                        t.getTipo().name(),
+                        t.getDescricao() + " em " + t.getData(),
+                        t.getValor()))
+                .toList();
+        return new RespostaImpacto(false, null, itens, null);
+    }
+
+    public RespostaImpacto calcularImpactoExclusao(Long id) {
+        Meta meta = buscar(id);
+        boolean bloqueado = meta.getValorAtual().compareTo(BigDecimal.ZERO) > 0;
+        String motivo = bloqueado ? "Resgate o valor guardado antes de excluir a meta" : null;
+        List<RespostaImpacto.ItemImpacto> itens = bloqueado ? List.of()
+                : transacaoRepository.findByEspacoIdAndMetaId(meta.getEspacoId(), meta.getId())
+                        .stream()
+                        .map(t -> new RespostaImpacto.ItemImpacto(
+                                t.getTipo().name(),
+                                t.getDescricao() + " em " + t.getData(),
+                                t.getValor()))
+                        .toList();
+        return new RespostaImpacto(bloqueado, motivo, itens, null);
     }
 
     @Transactional
@@ -175,6 +225,7 @@ public class MetaService {
         dto.setCor(m.getCor());
         dto.setIcone(m.getIcone());
         dto.setDataCancelamento(m.getDataCancelamento());
+        dto.setEntidadeId(m.getEntidadeId());
 
         boolean concluida = m.getValorAtual().compareTo(m.getValorAlvo()) >= 0;
         dto.setConcluida(concluida);

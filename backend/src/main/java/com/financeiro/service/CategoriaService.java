@@ -1,5 +1,6 @@
 package com.financeiro.service;
 
+import com.financeiro.context.ContextoEntidade;
 import com.financeiro.context.ContextoEspaco;
 import com.financeiro.dto.CategoriaDTO;
 import com.financeiro.entity.Categoria;
@@ -17,12 +18,21 @@ public class CategoriaService {
 
     private final CategoriaRepository repository;
     private final ContextoEspaco contextoEspaco;
+    private final ContextoEntidade contextoEntidade;
 
     public List<CategoriaDTO> findAll(TipoTransacao tipo) {
         Long espacoId = contextoEspaco.espacoAtual();
-        List<Categoria> list = tipo != null
-                ? repository.findByTipoAndEspacoId(tipo, espacoId)
-                : repository.findByEspacoId(espacoId);
+        Long entidadeId = contextoEntidade.entidadeAtual();
+        List<Categoria> list;
+        if (entidadeId != null) {
+            list = tipo != null
+                    ? repository.findByTipoAndEspacoIdFiltradoPorEntidade(tipo, espacoId, entidadeId)
+                    : repository.findByEspacoIdFiltradoPorEntidade(espacoId, entidadeId);
+        } else {
+            list = tipo != null
+                    ? repository.findByTipoAndEspacoId(tipo, espacoId)
+                    : repository.findByEspacoId(espacoId);
+        }
         return list.stream().map(this::toDTO).toList();
     }
 
@@ -33,6 +43,7 @@ public class CategoriaService {
                 .cor(dto.getCor())
                 .icone(dto.getIcone())
                 .espacoId(contextoEspaco.espacoAtual())
+                .entidadeId(dto.getEntidadeId())
                 .build();
         return toDTO(repository.save(cat));
     }
@@ -60,6 +71,7 @@ public class CategoriaService {
         dto.setTipo(c.getTipo());
         dto.setCor(c.getCor());
         dto.setIcone(c.getIcone());
+        dto.setEntidadeId(c.getEntidadeId());
         return dto;
     }
 }

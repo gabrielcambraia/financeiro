@@ -20,4 +20,6 @@ public class CategoriaDTO {
 
     @NotBlank
     private String icone;
+
+    private Long entidadeId;
 }

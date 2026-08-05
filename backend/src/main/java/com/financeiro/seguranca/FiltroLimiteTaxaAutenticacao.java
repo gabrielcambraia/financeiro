@@ -22,7 +22,8 @@ import java.util.Set;
 public class FiltroLimiteTaxaAutenticacao extends OncePerRequestFilter {
 
     private static final Set<String> ROTAS_LIMITADAS = Set.of(
-            "/api/auth/login", "/api/auth/register");
+            "/api/auth/login", "/api/auth/register",
+            "/api/auth/otp/solicitar", "/api/auth/otp/verificar");
 
     private final LimitadorTaxa limitadorTaxa;
 
@@ -34,7 +35,7 @@ public class FiltroLimiteTaxaAutenticacao extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
         if (ROTAS_LIMITADAS.contains(request.getRequestURI())) {
-            String chave = ipCliente(request) + ":" + request.getRequestURI();
+            String chave = request.getRemoteAddr() + ":" + request.getRequestURI();
             if (!limitadorTaxa.permitir(chave)) {
                 response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
                 response.setContentType(MediaType.APPLICATION_JSON_VALUE);
@@ -44,13 +45,5 @@ public class FiltroLimiteTaxaAutenticacao extends OncePerRequestFilter {
             }
         }
         chain.doFilter(request, response);
-    }
-
-    private String ipCliente(HttpServletRequest request) {
-        String encaminhadoPor = request.getHeader("X-Forwarded-For");
-        if (encaminhadoPor != null && !encaminhadoPor.isBlank()) {
-            return encaminhadoPor.split(",")[0].trim();
-        }
-        return request.getRemoteAddr();
     }
 }

@@ -5,6 +5,7 @@ type PayloadOrcamento = {
   categoriaId: number
   mes: string
   limite: number
+  entidadeId?: number | null
 }
 
 export const buscarOrcamentos = (mes: string) =>

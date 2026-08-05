@@ -1,4 +1,4 @@
-import { LayoutDashboard, ArrowLeftRight, Wallet, Tags, CreditCard, Landmark, PiggyBank, Target, Calendar, HandCoins, TrendingUp, LineChart, Building2 } from 'lucide-react'
+import { LayoutDashboard, ArrowLeftRight, Wallet, Tags, CreditCard, Landmark, PiggyBank, Target, Calendar, HandCoins, TrendingUp, LineChart, Building2, Users } from 'lucide-react'
 
 const itensBase = [
   { to: '/', icon: LayoutDashboard, label: 'Painel' },
@@ -12,6 +12,7 @@ const itensBase = [
   { to: '/dividas', icon: HandCoins, label: 'Dívidas' },
   { to: '/investimentos', icon: TrendingUp, label: 'Investimentos' },
   { to: '/categorias', icon: Tags, label: 'Categorias' },
+  { to: '/entidades', icon: Users, label: 'Entidades' },
 ]
 
 const itensAdmin = [

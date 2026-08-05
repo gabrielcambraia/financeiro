@@ -6,6 +6,7 @@ import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import {
   buscarTransacoes, excluirTransacao, pagarTransacao, estornarTransacao, cancelarTransacao,
+  impactoCancelamentoTransacao, impactoExclusaoTransacao,
   type EscopoExclusao,
 } from '../api/transacoes'
 import { buscarItensFatura, excluirItemFatura, cancelarItemFatura } from '../api/itensFatura'
@@ -18,7 +19,7 @@ import SeletorMes from '../components/SeletorMes'
 import FormularioTransacao, { type EdicaoLancamento } from '../components/forms/FormularioTransacao'
 import SobreposicaoModal from '../components/SobreposicaoModal'
 import AcaoNova from '../components/AcaoNova'
-import type { Transacao, ItemFatura, Fatura, TipoTransacao, StatusTransacao } from '../types'
+import type { Transacao, ItemFatura, Fatura, TipoTransacao, StatusTransacao, RespostaImpacto } from '../types'
 
 const rotuloStatus: Record<StatusTransacao, string> = {
   PAGA: 'Paga',
@@ -87,9 +88,29 @@ export default function Transacoes() {
   const [filtroCartao, setFiltroCartao] = useState<number | ''>('')
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<EdicaoLancamento | undefined>()
-  const [deleteModal, setDeleteModal] = useState<{ tx: Transacao } | null>(null)
-  const [cancelModal, setCancelModal] = useState<{ tx: Transacao } | null>(null)
+  const [deleteModal, setDeleteModal] = useState<{ tx: Transacao; impacto: RespostaImpacto | null; carregando: boolean } | null>(null)
+  const [cancelModal, setCancelModal] = useState<{ tx: Transacao; impacto: RespostaImpacto | null; carregando: boolean } | null>(null)
   const [pagarModal, setPagarModal] = useState<{ id: number; tipo: TipoTransacao; status: StatusTransacao } | null>(null)
+
+  const abrirDeleteModal = async (tx: Transacao) => {
+    setDeleteModal({ tx, impacto: null, carregando: true })
+    try {
+      const impacto = await impactoExclusaoTransacao(tx.id)
+      setDeleteModal({ tx, impacto, carregando: false })
+    } catch {
+      setDeleteModal({ tx, impacto: null, carregando: false })
+    }
+  }
+
+  const abrirCancelModal = async (tx: Transacao) => {
+    setCancelModal({ tx, impacto: null, carregando: true })
+    try {
+      const impacto = await impactoCancelamentoTransacao(tx.id)
+      setCancelModal({ tx, impacto, carregando: false })
+    } catch {
+      setCancelModal({ tx, impacto: null, carregando: false })
+    }
+  }
 
   // Com um cartão selecionado no filtro, a tela mostra só o que é daquele
   // cartão (compras em aberto + faturas fechadas) — nada de lançamentos de
@@ -442,7 +463,7 @@ export default function Transacoes() {
                         </button>
                       )}
                       {lanc.tx.status !== 'CANCELADA' && (
-                        <button onClick={() => setCancelModal({ tx: lanc.tx })}
+                        <button onClick={() => abrirCancelModal(lanc.tx)}
                           title="Cancelar"
                           className="p-1.5 rounded-lg hover:bg-orange-900/40 text-conteudo-suave hover:text-orange-500 transition-colors">
                           <Ban size={14} />
@@ -452,7 +473,7 @@ export default function Transacoes() {
                         className="p-1.5 rounded-lg hover:bg-superficie-2 text-conteudo-suave hover:text-conteudo transition-colors">
                         <Pencil size={14} />
                       </button>
-                      <button onClick={() => setDeleteModal({ tx: lanc.tx })}
+                      <button onClick={() => abrirDeleteModal(lanc.tx)}
                         className="p-1.5 rounded-lg hover:bg-red-900/40 text-conteudo-suave hover:text-red-500 transition-colors">
                         <Trash2 size={14} />
                       </button>
@@ -550,7 +571,7 @@ export default function Transacoes() {
             <div className="cartao-modal-cabecalho">
               <h3 className="text-base font-semibold text-conteudo">Excluir lançamento</h3>
             </div>
-            <div className="cartao-modal-corpo">
+            <div className="cartao-modal-corpo space-y-3">
               <p className="text-sm text-conteudo-suave">
                 {deleteModal.tx.tipo === 'TRANSFERENCIA'
                   ? 'Isso exclui as duas pontas da transferência (saída e entrada).'
@@ -560,32 +581,49 @@ export default function Transacoes() {
                       ? 'Este é um lançamento fixo.'
                       : 'Tem certeza que deseja excluir?'}
               </p>
+              {deleteModal.carregando && (
+                <p className="text-sm text-conteudo-suave animate-pulse">Verificando impacto...</p>
+              )}
+              {deleteModal.impacto?.bloqueado && (
+                <div className="rounded-lg border border-red-800/50 bg-red-900/20 p-3 text-sm text-red-400">
+                  {deleteModal.impacto.motivoBloqueio}
+                </div>
+              )}
+              {!deleteModal.impacto?.bloqueado && deleteModal.impacto?.origem && (
+                <div className="rounded-lg border border-orange-800/50 bg-orange-900/20 p-3 text-sm text-orange-400">
+                  ⚠ {deleteModal.impacto.origem.efeito}
+                </div>
+              )}
               <div className="space-y-2">
-                <button onClick={() => deleteMutation.mutate({ id: deleteModal.tx.id, scope: 'UNICA' })}
-                  className="w-full btn-danger">
-                  {deleteModal.tx.tipo === 'TRANSFERENCIA' ? 'Excluir transferência' : 'Excluir só este'}
-                </button>
-                {deleteModal.tx.grupoParcelaId && (
-                  <button onClick={() => deleteMutation.mutate({ id: deleteModal.tx.id, scope: 'FUTURAS' })}
-                    className="w-full py-2.5 rounded-lg border border-red-800 text-red-500 hover:bg-red-900/20 transition-colors text-sm font-medium">
-                    Excluir este e os próximos
-                  </button>
-                )}
-                {deleteModal.tx.grupoParcelaId && (
-                  <button onClick={() => deleteMutation.mutate({ id: deleteModal.tx.id, scope: 'GRUPO' })}
-                    className="w-full py-2.5 rounded-lg border border-red-800 text-red-500 hover:bg-red-900/20 transition-colors text-sm font-medium">
-                    Excluir todas as parcelas
-                  </button>
-                )}
-                {deleteModal.tx.fixa && (
-                  <button onClick={() => deleteMutation.mutate({ id: deleteModal.tx.id, scope: 'FUTURAS' })}
-                    className="w-full py-2.5 rounded-lg border border-red-800 text-red-500 hover:bg-red-900/20 transition-colors text-sm font-medium">
-                    Excluir este e os próximos meses
-                  </button>
+                {!deleteModal.impacto?.bloqueado && (
+                  <>
+                    <button onClick={() => deleteMutation.mutate({ id: deleteModal.tx.id, scope: 'UNICA' })}
+                      className="w-full btn-danger">
+                      {deleteModal.tx.tipo === 'TRANSFERENCIA' ? 'Excluir transferência' : 'Excluir só este'}
+                    </button>
+                    {deleteModal.tx.grupoParcelaId && (
+                      <button onClick={() => deleteMutation.mutate({ id: deleteModal.tx.id, scope: 'FUTURAS' })}
+                        className="w-full py-2.5 rounded-lg border border-red-800 text-red-500 hover:bg-red-900/20 transition-colors text-sm font-medium">
+                        Excluir este e os próximos
+                      </button>
+                    )}
+                    {deleteModal.tx.grupoParcelaId && (
+                      <button onClick={() => deleteMutation.mutate({ id: deleteModal.tx.id, scope: 'GRUPO' })}
+                        className="w-full py-2.5 rounded-lg border border-red-800 text-red-500 hover:bg-red-900/20 transition-colors text-sm font-medium">
+                        Excluir todas as parcelas
+                      </button>
+                    )}
+                    {deleteModal.tx.fixa && (
+                      <button onClick={() => deleteMutation.mutate({ id: deleteModal.tx.id, scope: 'FUTURAS' })}
+                        className="w-full py-2.5 rounded-lg border border-red-800 text-red-500 hover:bg-red-900/20 transition-colors text-sm font-medium">
+                        Excluir este e os próximos meses
+                      </button>
+                    )}
+                  </>
                 )}
                 <button onClick={() => setDeleteModal(null)}
                   className="w-full py-2.5 rounded-lg border border-borda text-conteudo-suave hover:text-conteudo transition-colors text-sm font-medium">
-                  Cancelar
+                  {deleteModal.impacto?.bloqueado ? 'Voltar' : 'Cancelar'}
                 </button>
               </div>
             </div>
@@ -600,34 +638,51 @@ export default function Transacoes() {
             <div className="cartao-modal-cabecalho">
               <h3 className="text-base font-semibold text-conteudo">Cancelar lançamento</h3>
             </div>
-            <div className="cartao-modal-corpo">
+            <div className="cartao-modal-corpo space-y-3">
               <p className="text-sm text-conteudo-suave">
                 {cancelModal.tx.tipo === 'TRANSFERENCIA'
                   ? 'As duas pontas da transferência (saída e entrada) ficam marcadas como canceladas e o saldo é revertido, se já estava paga.'
                   : 'O lançamento fica marcado como cancelado (e o saldo é revertido, se já estava pago), mas continua no histórico — diferente de excluir.'}
               </p>
+              {cancelModal.carregando && (
+                <p className="text-sm text-conteudo-suave animate-pulse">Verificando impacto...</p>
+              )}
+              {cancelModal.impacto?.bloqueado && (
+                <div className="rounded-lg border border-red-800/50 bg-red-900/20 p-3 text-sm text-red-400">
+                  {cancelModal.impacto.motivoBloqueio}
+                </div>
+              )}
+              {!cancelModal.impacto?.bloqueado && cancelModal.impacto?.origem && (
+                <div className="rounded-lg border border-orange-800/50 bg-orange-900/20 p-3 text-sm text-orange-400">
+                  ⚠ {cancelModal.impacto.origem.efeito}
+                </div>
+              )}
               <div className="space-y-2">
-                <button onClick={() => cancelarMutation.mutate({ id: cancelModal.tx.id, scope: 'UNICA' })}
-                  className="w-full py-2.5 rounded-lg border border-orange-800 text-orange-500 hover:bg-orange-900/20 transition-colors text-sm font-medium">
-                  {cancelModal.tx.tipo === 'TRANSFERENCIA' ? 'Cancelar transferência' : 'Cancelar só este'}
-                </button>
-                {cancelModal.tx.grupoParcelaId && (
-                  <button onClick={() => cancelarMutation.mutate({ id: cancelModal.tx.id, scope: 'FUTURAS' })}
-                    className="w-full py-2.5 rounded-lg border border-orange-800 text-orange-500 hover:bg-orange-900/20 transition-colors text-sm font-medium">
-                    Cancelar este e os próximos
-                  </button>
-                )}
-                {cancelModal.tx.grupoParcelaId && (
-                  <button onClick={() => cancelarMutation.mutate({ id: cancelModal.tx.id, scope: 'GRUPO' })}
-                    className="w-full py-2.5 rounded-lg border border-orange-800 text-orange-500 hover:bg-orange-900/20 transition-colors text-sm font-medium">
-                    Cancelar todas as parcelas
-                  </button>
-                )}
-                {cancelModal.tx.fixa && (
-                  <button onClick={() => cancelarMutation.mutate({ id: cancelModal.tx.id, scope: 'FUTURAS' })}
-                    className="w-full py-2.5 rounded-lg border border-orange-800 text-orange-500 hover:bg-orange-900/20 transition-colors text-sm font-medium">
-                    Cancelar este e os próximos meses
-                  </button>
+                {!cancelModal.impacto?.bloqueado && (
+                  <>
+                    <button onClick={() => cancelarMutation.mutate({ id: cancelModal.tx.id, scope: 'UNICA' })}
+                      className="w-full py-2.5 rounded-lg border border-orange-800 text-orange-500 hover:bg-orange-900/20 transition-colors text-sm font-medium">
+                      {cancelModal.tx.tipo === 'TRANSFERENCIA' ? 'Cancelar transferência' : 'Cancelar só este'}
+                    </button>
+                    {cancelModal.tx.grupoParcelaId && (
+                      <button onClick={() => cancelarMutation.mutate({ id: cancelModal.tx.id, scope: 'FUTURAS' })}
+                        className="w-full py-2.5 rounded-lg border border-orange-800 text-orange-500 hover:bg-orange-900/20 transition-colors text-sm font-medium">
+                        Cancelar este e os próximos
+                      </button>
+                    )}
+                    {cancelModal.tx.grupoParcelaId && (
+                      <button onClick={() => cancelarMutation.mutate({ id: cancelModal.tx.id, scope: 'GRUPO' })}
+                        className="w-full py-2.5 rounded-lg border border-orange-800 text-orange-500 hover:bg-orange-900/20 transition-colors text-sm font-medium">
+                        Cancelar todas as parcelas
+                      </button>
+                    )}
+                    {cancelModal.tx.fixa && (
+                      <button onClick={() => cancelarMutation.mutate({ id: cancelModal.tx.id, scope: 'FUTURAS' })}
+                        className="w-full py-2.5 rounded-lg border border-orange-800 text-orange-500 hover:bg-orange-900/20 transition-colors text-sm font-medium">
+                        Cancelar este e os próximos meses
+                      </button>
+                    )}
+                  </>
                 )}
                 <button onClick={() => setCancelModal(null)}
                   className="w-full py-2.5 rounded-lg border border-borda text-conteudo-suave hover:text-conteudo transition-colors text-sm font-medium">
