@@ -26,6 +26,7 @@ import com.financeiro.seguranca.ServicoJwt;
 import com.financeiro.seguranca.ServicoTokenAtualizacao;
 import com.financeiro.seguranca.TokenRenovado;
 import org.springframework.security.authentication.BadCredentialsException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,6 +38,7 @@ import org.springframework.http.HttpStatus;
  * usuário, o espaço pessoal dele, o vínculo (DONO) e as categorias padrão —
  * se algo falhar no meio, nada fica órfão.
  */
+@Slf4j
 @Service
 public class ServicoAutenticacao {
 

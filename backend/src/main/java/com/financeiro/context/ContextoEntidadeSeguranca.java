@@ -12,7 +12,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 @Component
 public class ContextoEntidadeSeguranca implements ContextoEntidade {
 
-    static final String ATRIBUTO = "entidadeAtualId";
+    public static final String ATRIBUTO = "entidadeAtualId";
 
     @Override
     public Long entidadeAtual() {

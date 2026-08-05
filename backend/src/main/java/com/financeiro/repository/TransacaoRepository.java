@@ -138,6 +138,19 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
             @Param("entidadeId") Long entidadeId);
 
     @Query("SELECT t FROM Transacao t WHERE t.espacoId = :espacoId " +
+           "AND t.conta.id = :contaId " +
+           "AND t.dataVencimento BETWEEN :inicio AND :fim " +
+           "AND t.dataPagamento IS NULL AND t.dataCancelamento IS NULL " +
+           "AND (:entidadeId IS NULL OR t.entidadeId = :entidadeId OR t.entidadeId IS NULL) " +
+           "ORDER BY t.dataVencimento ASC")
+    List<Transacao> findByEspacoIdAndContaIdAndDataVencimentoBetweenFiltradoPorEntidade(
+            @Param("espacoId") Long espacoId,
+            @Param("contaId") Long contaId,
+            @Param("inicio") LocalDate inicio,
+            @Param("fim") LocalDate fim,
+            @Param("entidadeId") Long entidadeId);
+
+    @Query("SELECT t FROM Transacao t WHERE t.espacoId = :espacoId " +
            "AND t.dataVencimento BETWEEN :inicio AND :fim " +
            "AND (:entidadeId IS NULL OR t.entidadeId = :entidadeId OR t.entidadeId IS NULL) " +
            "ORDER BY t.dataVencimento ASC")
