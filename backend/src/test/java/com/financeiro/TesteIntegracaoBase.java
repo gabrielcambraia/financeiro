@@ -76,6 +76,7 @@ public abstract class TesteIntegracaoBase {
         registry.add("financeiro.cifragem.chave", () -> CHAVE_TESTE);
         registry.add("financeiro.cifragem.chave-hmac", () -> CHAVE_TESTE);
         registry.add("spring.mail.host", () -> "localhost");
+        registry.add("management.health.mail.enabled", () -> "false");
     }
 
     @LocalServerPort

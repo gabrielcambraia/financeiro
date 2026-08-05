@@ -91,7 +91,7 @@ public class MetaService {
                 meta.getEspacoId(), meta.getId()).forEach(t -> {
             if (t.isSaldoAjustado()) {
                 BigDecimal delta = t.getTipo() == TipoTransacao.RECEITA
-                        ? t.getValor() : t.getValor().negate();
+                        ? t.getValor().negate() : t.getValor();
                 contaService.adjustBalance(t.getConta(), delta);
                 t.setSaldoAjustado(false);
             }
