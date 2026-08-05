@@ -25,6 +25,7 @@ public interface MovimentacaoAtivoRepository extends JpaRepository<MovimentacaoA
     Optional<MovimentacaoAtivo> findByTransacaoId(Long transacaoId);
 
     @Modifying
+    @org.springframework.transaction.annotation.Transactional
     @Query("DELETE FROM MovimentacaoAtivo m WHERE m.ativo.id = :ativoId")
     void deleteByAtivoId(@Param("ativoId") Long ativoId);
 }

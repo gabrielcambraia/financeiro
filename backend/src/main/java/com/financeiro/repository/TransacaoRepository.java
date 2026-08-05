@@ -57,7 +57,7 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
 
     @Query("select coalesce(sum(t.valor), 0) from Transacao t where t.espacoId = :espacoId and t.tipo = :tipo "
             + "and t.dataVencimento < :hoje and t.dataPagamento is null and t.dataCancelamento is null")
-    BigDecimal somaVencidas(Long espacoId, TipoTransacao tipo, LocalDate hoje);
+    BigDecimal somaVencidas(@Param("espacoId") Long espacoId, @Param("tipo") TipoTransacao tipo, @Param("hoje") LocalDate hoje);
 
     List<Transacao> findByEspacoIdAndTipoAndDataVencimentoBeforeAndDataPagamentoIsNullAndDataCancelamentoIsNullOrderByDataVencimentoAsc(
             Long espacoId, TipoTransacao tipo, LocalDate hoje, Pageable pageable);
@@ -165,6 +165,7 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
     List<Transacao> findByEspacoIdAndMetaId(Long espacoId, Long metaId);
 
     @Modifying
+    @org.springframework.transaction.annotation.Transactional
     @Query("UPDATE Transacao t SET t.meta = null WHERE t.meta.id = :metaId")
     void desvincularMeta(@Param("metaId") Long metaId);
 }
