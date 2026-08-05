@@ -83,7 +83,7 @@ export default function Investimentos() {
     mutationFn: (data: {
       nome: string; tipo: TipoAtivo; contaId: number; cor: string; icone: string
       remuneracaoTipo: TipoRemuneracao; taxa: number | null; inicioRendimento: string | null; isentoIr: boolean
-      valorInicial?: number | null; dataInicial?: string | null
+      valorInicial?: number | null; dataInicial?: string | null; entidadeId?: number | null
     }) =>
       editing ? atualizarAtivo(editing.id, data) : criarAtivo(data),
     onSuccess: async () => { await invalidar(); closeForm() },

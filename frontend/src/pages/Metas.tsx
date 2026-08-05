@@ -40,7 +40,7 @@ export default function Metas() {
   ])
 
   const saveMutation = useMutation({
-    mutationFn: (data: { nome: string; valorAlvo: number; prazo?: string; cor: string; icone: string }) =>
+    mutationFn: (data: { nome: string; valorAlvo: number; prazo?: string; cor: string; icone: string; entidadeId?: number | null }) =>
       editing ? atualizarMeta(editing.id, data) : criarMeta(data),
     onSuccess: async () => { await invalidar(); closeForm() },
   })
