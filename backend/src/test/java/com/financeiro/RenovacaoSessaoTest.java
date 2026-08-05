@@ -138,10 +138,16 @@ class RenovacaoSessaoTest extends TesteIntegracaoBase {
     }
 
     private ResponseEntity<RespostaAutenticacao> registrarCompleto(String base) {
+        com.financeiro.dto.PrimeiraEntidadeDTO entidade = new com.financeiro.dto.PrimeiraEntidadeDTO();
+        entidade.setTipoPessoa(com.financeiro.entity.enums.TipoPessoa.FISICA);
+        entidade.setNome("Usuária Teste");
+        entidade.setDocumento("529.982.247-25");
+
         com.financeiro.dto.RequisicaoRegistro requisicao = new com.financeiro.dto.RequisicaoRegistro();
         requisicao.setNome("Usuária Teste");
         requisicao.setEmail("usuaria" + java.util.UUID.randomUUID() + "@teste.com");
         requisicao.setSenha("senha12345");
+        requisicao.setEntidade(entidade);
         return restTemplate.postForEntity(url("/api/auth/register"), requisicao, RespostaAutenticacao.class);
     }
 

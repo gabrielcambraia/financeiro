@@ -37,6 +37,7 @@ class FiltroEntidadeCrossTenantTest extends TesteIntegracaoBase {
         tokenB = authB.getToken();
 
         // Entidade criada no espaço de A
+        ativarPlanoEmpresa(authA.getEspacoId());
         entidadeDeA = criarEntidade(tokenA, "PJ do A", TipoPessoa.JURIDICA);
     }
 

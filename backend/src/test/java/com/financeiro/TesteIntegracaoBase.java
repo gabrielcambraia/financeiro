@@ -6,8 +6,13 @@ import com.financeiro.dto.RequisicaoCriarEntidade;
 import com.financeiro.dto.RequisicaoRegistro;
 import com.financeiro.dto.RespostaAutenticacao;
 import com.financeiro.dto.RespostaEntidade;
+import com.financeiro.entity.Assinatura;
+import com.financeiro.entity.Plano;
+import com.financeiro.entity.enums.CodigoPlano;
 import com.financeiro.entity.enums.TipoConta;
 import com.financeiro.entity.enums.TipoPessoa;
+import com.financeiro.repository.AssinaturaRepository;
+import com.financeiro.repository.PlanoRepository;
 import com.financeiro.seguranca.LimitadorTaxa;
 import com.financeiro.service.ServicoIndiceEconomico;
 import org.junit.jupiter.api.BeforeEach;
@@ -105,6 +110,12 @@ public abstract class TesteIntegracaoBase {
     @MockBean
     protected JavaMailSender mailSender;
 
+    @Autowired
+    private AssinaturaRepository assinaturaRepository;
+
+    @Autowired
+    private PlanoRepository planoRepository;
+
     @BeforeEach
     void permitirAutenticacaoSemLimiteDeTaxa() {
         when(limitadorTaxa.permitir(anyString())).thenReturn(true);
@@ -168,6 +179,14 @@ public abstract class TesteIntegracaoBase {
         ResponseEntity<ContaDTO> resposta = post("/api/contas", dto, token, ContaDTO.class);
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         return resposta.getBody().getId();
+    }
+
+    /** Promove o espaço ao plano Empresa (limite_entidades=5) para testes que precisam de múltiplas entidades. */
+    protected void ativarPlanoEmpresa(Long espacoId) {
+        Plano empresa = planoRepository.findByCodigo(CodigoPlano.EMPRESA).orElseThrow();
+        Assinatura assinatura = assinaturaRepository.findByEspacoId(espacoId).orElseThrow();
+        assinatura.setPlanoId(empresa.getId());
+        assinaturaRepository.save(assinatura);
     }
 
     /** Cria uma segunda entidade no espaço do token e devolve o ID. */

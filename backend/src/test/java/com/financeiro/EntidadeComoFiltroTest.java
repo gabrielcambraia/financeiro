@@ -40,6 +40,8 @@ class EntidadeComoFiltroTest extends TesteIntegracaoBase {
         var auth = registrarCompleto("Teste Filtro", "filtro+" + UUID.randomUUID() + "@teste.com");
         token = auth.getToken();
 
+        ativarPlanoEmpresa(auth.getEspacoId());
+
         // A 1ª entidade criada no registro é recuperada via listagem
         ResponseEntity<List<Map>> entidades = get("/api/entidades", token,
                 new ParameterizedTypeReference<List<Map>>() {});
