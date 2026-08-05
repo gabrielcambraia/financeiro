@@ -32,7 +32,7 @@ export default function Orcamentos() {
   const { data: categorias = [] } = useQuery({ queryKey: ['categorias', 'DESPESA'], queryFn: () => buscarCategorias('DESPESA') })
 
   const saveMutation = useMutation({
-    mutationFn: (data: { categoriaId: number; mes: string; limite: number }) =>
+    mutationFn: (data: { categoriaId: number; mes: string; limite: number; entidadeId?: number | null }) =>
       editing ? atualizarOrcamento(editing.id, data) : criarOrcamento(data),
     onSuccess: async () => { await qc.invalidateQueries({ queryKey: ['orcamentos'] }); closeForm() },
     onError: (err: any) => alert(err?.response?.data?.mensagem || 'Não foi possível salvar o orçamento'),
