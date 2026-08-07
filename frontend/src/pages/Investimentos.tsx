@@ -16,6 +16,7 @@ import ModalConfirmacao from '../components/ModalConfirmacao'
 import SeletorCor from '../components/SeletorCor'
 import AcaoNova from '../components/AcaoNova'
 import CampoEntidade from '../components/forms/CampoEntidade'
+import Spinner from '../components/Spinner'
 import type { Ativo, TipoAtivo, TipoRemuneracao, RespostaImpacto } from '../types'
 
 const fmt = (v: number) =>
@@ -68,7 +69,7 @@ export default function Investimentos() {
     tipo: 'cancelar' | 'excluir'; item: Ativo; impacto: RespostaImpacto | null; carregando: boolean
   } | null>(null)
 
-  const { data: ativos = [] } = useQuery({ queryKey: ['ativos'], queryFn: buscarAtivos })
+  const { data: ativos = [], isLoading } = useQuery({ queryKey: ['ativos'], queryFn: buscarAtivos })
   const { data: patrimonio } = useQuery({ queryKey: ['patrimonio'], queryFn: () => buscarPatrimonio(6) })
   const { data: contas = [] } = useQuery({ queryKey: ['contas'], queryFn: buscarContas })
 
@@ -217,6 +218,9 @@ export default function Investimentos() {
         </div>
       )}
 
+      {isLoading ? (
+        <div className="flex justify-center py-16"><Spinner tamanho="lg" /></div>
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {ativos.map(ativo => (
           <div key={ativo.id} className="card group">
@@ -288,6 +292,7 @@ export default function Investimentos() {
           </div>
         )}
       </div>
+      )}
 
       <ModalConfirmacao
         aberto={modalAcao !== null}
