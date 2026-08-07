@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { ChevronLeft, ChevronRight, Pencil, Trash2, Ban, ChevronDown, ChevronUp, Layers } from 'lucide-react'
 import { format, parseISO, addMonths, subMonths } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -9,6 +10,7 @@ import { buscarItensFaturaPorCiclo, excluirItemFatura, cancelarItemFatura } from
 import { buscarFaturas, buscarFatura } from '../api/faturas'
 import { pagarTransacao, estornarTransacao } from '../api/transacoes'
 import FormularioCompraCartao from '../components/forms/FormularioCompraCartao'
+import ModalConfirmacao from '../components/ModalConfirmacao'
 import AcaoNova from '../components/AcaoNova'
 import LogoBanco from '../components/LogoBanco'
 import type { ItemFatura, StatusTransacao } from '../types'
@@ -83,6 +85,7 @@ export default function CartaoDetalhe() {
   const qc = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<ItemFatura | undefined>()
+  const [confirmarExcluirItem, setConfirmarExcluirItem] = useState<ItemFatura | null>(null)
   const [faturaExpandida, setFaturaExpandida] = useState<number | null>(null)
   // Vazio = todas as faturas. Compras parceladas podem cair em ciclos
   // diferentes do mês de hoje, então filtrar por mês ajuda a achar uma
@@ -129,10 +132,22 @@ export default function CartaoDetalhe() {
     ])
   }
 
-  const excluirMutation = useMutation({ mutationFn: excluirItemFatura, onSuccess: invalidarTudo })
-  const cancelarMutation = useMutation({ mutationFn: cancelarItemFatura, onSuccess: invalidarTudo })
-  const pagarMutation = useMutation({ mutationFn: (id: number) => pagarTransacao(id), onSuccess: invalidarTudo })
-  const estornarMutation = useMutation({ mutationFn: (id: number) => estornarTransacao(id), onSuccess: invalidarTudo })
+  const excluirMutation = useMutation({
+    mutationFn: excluirItemFatura,
+    onSuccess: async () => { await invalidarTudo(); setConfirmarExcluirItem(null); toast.success('Compra excluída') },
+  })
+  const cancelarMutation = useMutation({
+    mutationFn: cancelarItemFatura,
+    onSuccess: async () => { await invalidarTudo(); toast.success('Compra cancelada') },
+  })
+  const pagarMutation = useMutation({
+    mutationFn: (id: number) => pagarTransacao(id),
+    onSuccess: async () => { await invalidarTudo(); toast.success('Fatura marcada como paga') },
+  })
+  const estornarMutation = useMutation({
+    mutationFn: (id: number) => estornarTransacao(id),
+    onSuccess: async () => { await invalidarTudo(); toast.success('Pagamento estornado') },
+  })
 
   if (!cartao) {
     return <div className="p-6 text-conteudo-suave">Carregando...</div>
@@ -186,7 +201,7 @@ export default function CartaoDetalhe() {
                 item={item}
                 editavel
                 onEdit={() => { setEditing(item); setShowForm(true) }}
-                onExcluir={() => { if (confirm('Excluir esta compra?')) excluirMutation.mutate(item.id) }}
+                onExcluir={() => setConfirmarExcluirItem(item)}
                 onCancelar={() => cancelarMutation.mutate(item.id)}
               />
             ))
@@ -247,8 +262,9 @@ export default function CartaoDetalhe() {
                         <div className="px-4 py-2 border-b border-borda">
                           <button
                             onClick={() => pagarMutation.mutate(fatura.transacaoDespesaId)}
-                            className="btn-primary text-sm py-1.5 px-3">
-                            Marcar fatura como paga
+                            disabled={pagarMutation.isPending}
+                            className="btn-primary text-sm py-1.5 px-3 disabled:opacity-60 disabled:cursor-not-allowed">
+                            {pagarMutation.isPending ? 'Processando...' : 'Marcar fatura como paga'}
                           </button>
                         </div>
                       )}
@@ -256,8 +272,9 @@ export default function CartaoDetalhe() {
                         <div className="px-4 py-2 border-b border-borda">
                           <button
                             onClick={() => estornarMutation.mutate(fatura.transacaoDespesaId)}
-                            className="py-1.5 px-3 rounded-lg border border-amber-800 text-amber-500 hover:bg-amber-900/20 transition-colors text-sm font-medium">
-                            Estornar pagamento
+                            disabled={estornarMutation.isPending}
+                            className="py-1.5 px-3 rounded-lg border border-amber-800 text-amber-500 hover:bg-amber-900/20 transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed">
+                            {estornarMutation.isPending ? 'Processando...' : 'Estornar pagamento'}
                           </button>
                         </div>
                       )}
@@ -274,6 +291,15 @@ export default function CartaoDetalhe() {
           </div>
         )}
       </div>
+
+      <ModalConfirmacao
+        aberto={confirmarExcluirItem !== null}
+        titulo="Excluir compra"
+        aoFechar={() => !excluirMutation.isPending && setConfirmarExcluirItem(null)}
+        botoes={[{ rotulo: 'Excluir', variante: 'perigo', aoClicar: () => excluirMutation.mutate(confirmarExcluirItem!.id), carregando: excluirMutation.isPending }]}
+      >
+        {`Deseja excluir a compra "${confirmarExcluirItem?.descricao || confirmarExcluirItem?.categoria?.nome}"?`}
+      </ModalConfirmacao>
 
       {showForm && (
         <FormularioCompraCartao

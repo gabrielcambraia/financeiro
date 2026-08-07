@@ -6,6 +6,7 @@ import { CreditCard, Banknote, ArrowRightLeft } from 'lucide-react'
 import { buscarCalendario } from '../api/calendario'
 import { useLojaFiltro } from '../store/lojaFiltro'
 import SeletorMes from '../components/SeletorMes'
+import Spinner from '../components/Spinner'
 import type { StatusTransacao, Transacao } from '../types'
 
 const fmt = (v: number) =>
@@ -58,7 +59,7 @@ export default function Calendario() {
 
       {isLoading ? (
         <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-acento" />
+          <Spinner />
         </div>
       ) : (
         <>

@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { toast } from 'sonner'
 import { useLojaAutenticacao } from '../store/lojaAutenticacao'
 import { useLojaEntidadeAtual } from '../store/lojaEntidadeAtual'
 
@@ -79,7 +80,18 @@ cliente.interceptors.response.use(
       if (window.location.pathname !== '/trocar-senha') {
         window.location.href = '/trocar-senha'
       }
+      return Promise.reject(erro)
     }
+
+    // Dispara toast global para qualquer erro não tratado acima (exceto cancelamentos e erros de rede sem resposta)
+    const jaFoiTratado = erro.response?.status === 401 || erro.code === 'ERR_CANCELED'
+    if (!jaFoiTratado) {
+      const mensagem: string = erro.response?.data?.mensagem ?? 'Erro inesperado. Tente novamente.'
+      // Anexa mensagem tratada para quem precisar exibir inline (ex: Login, Registro)
+      ;(erro as { mensagemUsuario?: string }).mensagemUsuario = mensagem
+      toast.error(mensagem)
+    }
+
     return Promise.reject(erro)
   }
 )

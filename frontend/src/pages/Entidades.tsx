@@ -1,9 +1,12 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import {
   listarEntidades, criarEntidade, atualizarEntidade, excluirEntidade, buscarAssinatura, type DadosEntidade
 } from '../api/entidades'
 import SobreposicaoModal from '../components/SobreposicaoModal'
+import ModalConfirmacao from '../components/ModalConfirmacao'
+import Spinner from '../components/Spinner'
 import type { Assinatura, Entidade, TipoPessoa } from '../types'
 
 function rotuloTipoPessoa(t: TipoPessoa) {
@@ -37,6 +40,7 @@ export default function Entidades() {
   const [editando, setEditando] = useState<Entidade | null>(null)
   const [form, setForm] = useState<DadosEntidade>(dadosVazios())
   const [erro, setErro] = useState('')
+  const [confirmarExcluir, setConfirmarExcluir] = useState<Entidade | null>(null)
 
   const invalidar = () => {
     qc.invalidateQueries({ queryKey: ['entidades'] })
@@ -45,7 +49,7 @@ export default function Entidades() {
 
   const criar = useMutation({
     mutationFn: criarEntidade,
-    onSuccess: () => { invalidar(); fecharModal() },
+    onSuccess: () => { invalidar(); toast.success('Entidade salva'); fecharModal() },
     onError: (e: unknown) => {
       const err = e as { response?: { data?: { mensagem?: string } } }
       setErro(err?.response?.data?.mensagem ?? 'Erro ao salvar')
@@ -54,7 +58,7 @@ export default function Entidades() {
 
   const atualizar = useMutation({
     mutationFn: ({ id, dados }: { id: number; dados: DadosEntidade }) => atualizarEntidade(id, dados),
-    onSuccess: () => { invalidar(); fecharModal() },
+    onSuccess: () => { invalidar(); toast.success('Entidade salva'); fecharModal() },
     onError: (e: unknown) => {
       const err = e as { response?: { data?: { mensagem?: string } } }
       setErro(err?.response?.data?.mensagem ?? 'Erro ao salvar')
@@ -63,7 +67,7 @@ export default function Entidades() {
 
   const excluir = useMutation({
     mutationFn: excluirEntidade,
-    onSuccess: invalidar,
+    onSuccess: () => { invalidar(); setConfirmarExcluir(null); toast.success('Entidade excluída') },
   })
 
   const abrirNova = () => {
@@ -135,7 +139,7 @@ export default function Entidades() {
       </div>
 
       {isLoading ? (
-        <p className="text-conteudo-suave">Carregando...</p>
+        <div className="flex justify-center py-12"><Spinner /></div>
       ) : entidades.length === 0 ? (
         <p className="text-conteudo-suave text-center py-12">Nenhuma entidade cadastrada.</p>
       ) : (
@@ -152,13 +156,22 @@ export default function Entidades() {
               <div className="flex gap-2 shrink-0">
                 <button onClick={() => abrirEditar(ent)}
                   className="text-sm text-acento hover:underline">Editar</button>
-                <button onClick={() => excluir.mutate(ent.id)}
+                <button onClick={() => setConfirmarExcluir(ent)}
                   className="text-sm text-red-500 hover:underline">Excluir</button>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      <ModalConfirmacao
+        aberto={confirmarExcluir !== null}
+        titulo="Excluir entidade"
+        aoFechar={() => !excluir.isPending && setConfirmarExcluir(null)}
+        botoes={[{ rotulo: 'Excluir', variante: 'perigo', aoClicar: () => excluir.mutate(confirmarExcluir!.id), carregando: excluir.isPending }]}
+      >
+        {`Deseja excluir a entidade "${confirmarExcluir?.nome}"? Esta ação não pode ser desfeita.`}
+      </ModalConfirmacao>
 
       {modalAberto && (
         <SobreposicaoModal aoFechar={fecharModal}>

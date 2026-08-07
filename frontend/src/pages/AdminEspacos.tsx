@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { Pencil } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { listarEspacosAdmin, alterarTipoEspaco, alterarModulosEspaco, type EspacoAdmin } from '../api/espacosAdmin'
@@ -47,6 +48,7 @@ export default function AdminEspacos() {
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ['admin-espacos'] })
       setEditandoTipo(null)
+      toast.success('Tipo atualizado')
     },
   })
 
@@ -55,6 +57,7 @@ export default function AdminEspacos() {
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ['admin-espacos'] })
       setEditandoModulos(null)
+      toast.success('Módulos atualizados')
     },
   })
 
@@ -63,6 +66,7 @@ export default function AdminEspacos() {
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ['admin-espacos'] })
       setEditandoPlano(null)
+      toast.success('Plano atualizado')
     },
   })
 
