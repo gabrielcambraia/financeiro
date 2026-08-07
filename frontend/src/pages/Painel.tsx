@@ -8,6 +8,7 @@ import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { buscarPainel } from '../api/painel'
 import { useLojaFiltro } from '../store/lojaFiltro'
+import Spinner from '../components/Spinner'
 import SeletorMes from '../components/SeletorMes'
 import { buscarContas } from '../api/contas'
 import { useLojaTema } from '../store/lojaTema'
@@ -49,7 +50,7 @@ export default function Painel() {
   if (isLoading || !data) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-acento" />
+        <Spinner tamanho="lg" />
       </div>
     )
   }

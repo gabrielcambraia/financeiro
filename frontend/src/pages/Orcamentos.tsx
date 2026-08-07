@@ -1,13 +1,16 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { Pencil, Trash2 } from 'lucide-react'
 import { buscarOrcamentos, criarOrcamento, atualizarOrcamento, excluirOrcamento } from '../api/orcamentos'
 import { buscarCategorias } from '../api/categorias'
 import { useLojaFiltro } from '../store/lojaFiltro'
 import SeletorMes from '../components/SeletorMes'
 import SobreposicaoModal from '../components/SobreposicaoModal'
+import ModalConfirmacao from '../components/ModalConfirmacao'
 import AcaoNova from '../components/AcaoNova'
 import CampoEntidade from '../components/forms/CampoEntidade'
+import Spinner from '../components/Spinner'
 import type { Orcamento } from '../types'
 
 const fmt = (v: number) =>
@@ -27,20 +30,28 @@ export default function Orcamentos() {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Orcamento | null>(null)
   const [form, setForm] = useState(formPadrao)
+  const [confirmarExcluir, setConfirmarExcluir] = useState<Orcamento | null>(null)
 
-  const { data: orcamentos = [] } = useQuery({ queryKey: ['orcamentos', mes], queryFn: () => buscarOrcamentos(mes) })
+  const { data: orcamentos = [], isLoading } = useQuery({ queryKey: ['orcamentos', mes], queryFn: () => buscarOrcamentos(mes) })
   const { data: categorias = [] } = useQuery({ queryKey: ['categorias', 'DESPESA'], queryFn: () => buscarCategorias('DESPESA') })
 
   const saveMutation = useMutation({
     mutationFn: (data: { categoriaId: number; mes: string; limite: number; entidadeId?: number | null }) =>
       editing ? atualizarOrcamento(editing.id, data) : criarOrcamento(data),
-    onSuccess: async () => { await qc.invalidateQueries({ queryKey: ['orcamentos'] }); closeForm() },
-    onError: (err: any) => alert(err?.response?.data?.mensagem || 'Não foi possível salvar o orçamento'),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['orcamentos'] })
+      toast.success('Orçamento salvo')
+      closeForm()
+    },
   })
 
   const deleteMutation = useMutation({
     mutationFn: excluirOrcamento,
-    onSuccess: async () => { await qc.invalidateQueries({ queryKey: ['orcamentos'] }) },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['orcamentos'] })
+      setConfirmarExcluir(null)
+      toast.success('Orçamento excluído')
+    },
   })
 
   const categoriasDisponiveis = categorias.filter(c =>
@@ -103,7 +114,7 @@ export default function Orcamentos() {
                   <button onClick={() => openEdit(o)} className="p-1.5 rounded-lg hover:bg-superficie-2 text-conteudo-suave hover:text-conteudo transition-colors">
                     <Pencil size={14} />
                   </button>
-                  <button onClick={() => { if (confirm('Excluir este orçamento?')) deleteMutation.mutate(o.id) }}
+                  <button onClick={() => setConfirmarExcluir(o)}
                     className="p-1.5 rounded-lg hover:bg-red-900/40 text-conteudo-suave hover:text-red-400 transition-colors">
                     <Trash2 size={14} />
                   </button>
@@ -122,12 +133,24 @@ export default function Orcamentos() {
           </div>
         ))}
 
-        {orcamentos.length === 0 && (
+        {isLoading && (
+          <div className="flex justify-center py-12"><Spinner /></div>
+        )}
+        {!isLoading && orcamentos.length === 0 && (
           <div className="card text-center py-12 text-conteudo-suave">
             Nenhum orçamento definido para este mês.
           </div>
         )}
       </div>
+
+      <ModalConfirmacao
+        aberto={confirmarExcluir !== null}
+        titulo="Excluir orçamento"
+        aoFechar={() => !deleteMutation.isPending && setConfirmarExcluir(null)}
+        botoes={[{ rotulo: 'Excluir', variante: 'perigo', aoClicar: () => deleteMutation.mutate(confirmarExcluir!.id), carregando: deleteMutation.isPending }]}
+      >
+        {`Deseja excluir o orçamento de "${confirmarExcluir?.categoria?.nome}"?`}
+      </ModalConfirmacao>
 
       {showForm && (
         <SobreposicaoModal aoFechar={closeForm}>

@@ -1,10 +1,12 @@
 import { useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { Pencil, Trash2, Upload, ImageOff, Search } from 'lucide-react'
 import {
   buscarBancos, criarBanco, atualizarBanco, excluirBanco, enviarLogoBanco, removerLogoBanco,
 } from '../api/bancos'
 import SobreposicaoModal from '../components/SobreposicaoModal'
+import ModalConfirmacao from '../components/ModalConfirmacao'
 import LogoBanco from '../components/LogoBanco'
 import AcaoNova from '../components/AcaoNova'
 import type { Banco } from '../types'
@@ -18,6 +20,7 @@ export default function AdminBancos() {
   const [form, setForm] = useState(formPadrao)
   const [busca, setBusca] = useState('')
   const [uploadAlvoId, setUploadAlvoId] = useState<number | null>(null)
+  const [confirmarExcluir, setConfirmarExcluir] = useState<Banco | null>(null)
   const inputArquivoRef = useRef<HTMLInputElement>(null)
 
   const { data: bancos = [] } = useQuery({ queryKey: ['bancos'], queryFn: buscarBancos })
@@ -27,16 +30,29 @@ export default function AdminBancos() {
   const saveMutation = useMutation({
     mutationFn: (data: typeof formPadrao) =>
       editing ? atualizarBanco(editing.id, data) : criarBanco(data),
-    onSuccess: async () => { await invalidar(); closeForm() },
+    onSuccess: async () => {
+      await invalidar()
+      toast.success('Banco salvo')
+      closeForm()
+    },
   })
 
-  const deleteMutation = useMutation({ mutationFn: excluirBanco, onSuccess: invalidar })
+  const deleteMutation = useMutation({
+    mutationFn: excluirBanco,
+    onSuccess: async () => {
+      await invalidar()
+      setConfirmarExcluir(null)
+      toast.success('Banco excluído')
+    },
+  })
   const uploadMutation = useMutation({
     mutationFn: ({ id, arquivo }: { id: number; arquivo: File }) => enviarLogoBanco(id, arquivo),
-    onSuccess: invalidar,
-    onError: () => alert('Falha ao enviar imagem. Use PNG, JPEG ou WEBP de até 1MB.'),
+    onSuccess: async () => { await invalidar(); toast.success('Logo enviada') },
   })
-  const removerLogoMutation = useMutation({ mutationFn: removerLogoBanco, onSuccess: invalidar })
+  const removerLogoMutation = useMutation({
+    mutationFn: removerLogoBanco,
+    onSuccess: async () => { await invalidar(); toast.success('Logo removida') },
+  })
 
   const openCreate = () => { setEditing(null); setForm(formPadrao); setShowForm(true) }
   const openEdit = (b: Banco) => {
@@ -129,7 +145,7 @@ export default function AdminBancos() {
                         className="p-1.5 rounded-lg hover:bg-superficie-2 text-conteudo-suave hover:text-conteudo transition-colors">
                         <Pencil size={14} />
                       </button>
-                      <button onClick={() => { if (confirm('Excluir este banco?')) deleteMutation.mutate(banco.id) }} title="Excluir"
+                      <button onClick={() => setConfirmarExcluir(banco)} title="Excluir"
                         className="p-1.5 rounded-lg hover:bg-red-900/40 text-conteudo-suave hover:text-red-400 transition-colors">
                         <Trash2 size={14} />
                       </button>
@@ -149,6 +165,15 @@ export default function AdminBancos() {
       {bancosFiltrados.length > 0 && (
         <p className="text-xs text-conteudo-suave">{bancosFiltrados.length} registro{bancosFiltrados.length !== 1 ? 's' : ''}</p>
       )}
+
+      <ModalConfirmacao
+        aberto={confirmarExcluir !== null}
+        titulo="Excluir banco"
+        aoFechar={() => !deleteMutation.isPending && setConfirmarExcluir(null)}
+        botoes={[{ rotulo: 'Excluir', variante: 'perigo', aoClicar: () => deleteMutation.mutate(confirmarExcluir!.id), carregando: deleteMutation.isPending }]}
+      >
+        {`Deseja excluir o banco "${confirmarExcluir?.nome}"? Esta ação não pode ser desfeita.`}
+      </ModalConfirmacao>
 
       {showForm && (
         <SobreposicaoModal aoFechar={closeForm}>

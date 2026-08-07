@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { X } from 'lucide-react'
 import { format } from 'date-fns'
 import { buscarContas } from '../../api/contas'
@@ -147,10 +148,11 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
     },
     onSuccess: async () => {
       await invalidarTudo()
+      toast.success('Transação salva')
       onClose()
     },
     onError: (e: unknown) => {
-      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message
+      const msg = (e as { response?: { data?: { mensagem?: string } } })?.response?.data?.mensagem
       setErro(msg ?? 'Erro ao salvar. Tente novamente.')
     },
   })

@@ -1,12 +1,15 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { Pencil, Trash2, Search } from 'lucide-react'
 import { buscarContas, criarConta, atualizarConta, excluirConta } from '../api/contas'
 import SobreposicaoModal from '../components/SobreposicaoModal'
+import ModalConfirmacao from '../components/ModalConfirmacao'
 import SeletorBanco from '../components/SeletorBanco'
 import LogoBanco from '../components/LogoBanco'
 import AcaoNova from '../components/AcaoNova'
 import CampoEntidade from '../components/forms/CampoEntidade'
+import Spinner from '../components/Spinner'
 import type { Conta, TipoConta } from '../types'
 
 const fmt = (v: number) =>
@@ -27,8 +30,9 @@ export default function Contas() {
   const [editing, setEditing] = useState<Conta | null>(null)
   const [form, setForm] = useState(formPadrao)
   const [busca, setBusca] = useState('')
+  const [confirmarExcluir, setConfirmarExcluir] = useState<Conta | null>(null)
 
-  const { data: contas = [] } = useQuery({ queryKey: ['contas'], queryFn: buscarContas })
+  const { data: contas = [], isLoading } = useQuery({ queryKey: ['contas'], queryFn: buscarContas })
 
   const saveMutation = useMutation({
     mutationFn: () => {
@@ -37,12 +41,20 @@ export default function Contas() {
         ? atualizarConta(editing.id, base)
         : criarConta({ ...base, saldoInicial: Number(form.saldoInicial) })
     },
-    onSuccess: async () => { await qc.invalidateQueries({ queryKey: ['contas'] }); closeForm() },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['contas'] })
+      toast.success('Conta salva')
+      closeForm()
+    },
   })
 
   const deleteMutation = useMutation({
     mutationFn: excluirConta,
-    onSuccess: async () => { await qc.invalidateQueries({ queryKey: ['contas'] }) },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['contas'] })
+      setConfirmarExcluir(null)
+      toast.success('Conta excluída')
+    },
   })
 
   const openCreate = () => { setEditing(null); setForm(formPadrao); setShowForm(true) }
@@ -108,7 +120,7 @@ export default function Contas() {
                       <button onClick={() => openEdit(conta)} className="p-1.5 rounded-lg hover:bg-superficie-2 text-conteudo-suave hover:text-conteudo transition-colors">
                         <Pencil size={14} />
                       </button>
-                      <button onClick={() => { if (confirm('Excluir esta conta?')) deleteMutation.mutate(conta.id) }}
+                      <button onClick={() => setConfirmarExcluir(conta)}
                         className="p-1.5 rounded-lg hover:bg-red-900/40 text-conteudo-suave hover:text-red-400 transition-colors">
                         <Trash2 size={14} />
                       </button>
@@ -118,7 +130,10 @@ export default function Contas() {
               ))}
             </tbody>
           </table>
-          {contasFiltradas.length === 0 && (
+          {isLoading && (
+            <div className="flex justify-center py-12"><Spinner /></div>
+          )}
+          {!isLoading && contasFiltradas.length === 0 && (
             <p className="text-center py-12 text-conteudo-suave text-sm">
               {contas.length === 0 ? 'Nenhuma conta cadastrada. Crie a primeira!' : 'Nenhuma conta encontrada.'}
             </p>
@@ -129,7 +144,15 @@ export default function Contas() {
         <p className="text-xs text-conteudo-suave">{contasFiltradas.length} registro{contasFiltradas.length !== 1 ? 's' : ''}</p>
       )}
 
-      {/* Modal do formulário */}
+      <ModalConfirmacao
+        aberto={confirmarExcluir !== null}
+        titulo="Excluir conta"
+        aoFechar={() => !deleteMutation.isPending && setConfirmarExcluir(null)}
+        botoes={[{ rotulo: 'Excluir', variante: 'perigo', aoClicar: () => deleteMutation.mutate(confirmarExcluir!.id), carregando: deleteMutation.isPending }]}
+      >
+        {`Deseja excluir a conta "${confirmarExcluir?.nome}"? Esta ação não pode ser desfeita.`}
+      </ModalConfirmacao>
+
       {showForm && (
         <SobreposicaoModal aoFechar={closeForm}>
           <div className="cartao-modal max-w-md">
