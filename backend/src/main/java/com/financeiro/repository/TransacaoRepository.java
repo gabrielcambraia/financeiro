@@ -36,17 +36,28 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
 
     List<Transacao> findByEspacoIdAndGrupoParcelaIdAndDataGreaterThanEqual(Long espacoId, String grupoId, LocalDate fromDate);
 
-    List<Transacao> findByEspacoIdAndFixaTrueAndDataGreaterThanEqual(Long espacoId, LocalDate fromDate);
+    // --- série de fixas ---
 
-    // Método global usado apenas pelo AgendadorTransacaoFixa (job em background,
-    // sem contexto de espaço — processa todos os espaços e propaga o espacoId de
-    // cada linha de origem para as cópias que cria).
-    List<Transacao> findByFixaTrueAndDataBetween(LocalDate start, LocalDate end);
+    List<Transacao> findByEspacoIdAndOrigemFixaId(Long espacoId, Long origemFixaId);
 
-    boolean existsByEspacoIdAndFixaTrueAndContaIdAndValorAndTipoAndDescricaoAndDataBetween(
-            Long espacoId, Long contaId, java.math.BigDecimal valor,
-            com.financeiro.entity.enums.TipoTransacao tipo,
-            String descricao, LocalDate start, LocalDate end);
+    List<Transacao> findByEspacoIdAndOrigemFixaIdAndDataGreaterThanEqual(Long espacoId, Long origemFixaId, LocalDate fromDate);
+
+    boolean existsByEspacoIdAndOrigemFixaIdAndDataBetween(Long espacoId, Long origemFixaId, LocalDate start, LocalDate end);
+
+    // Usado pelo AgendadorTransacaoFixa: retorna os espaços que têm fixas ativas no
+    // período e, em seguida, carrega as fixas espaço a espaço para não materializar
+    // todos os registros de todos os tenants em memória de uma vez.
+    @Query("SELECT DISTINCT t.espacoId FROM Transacao t " +
+           "WHERE t.fixa = true AND t.serieAtiva = true AND t.data BETWEEN :inicio AND :fim")
+    List<Long> findEspacosComFixaAtivaNoPeriodo(@Param("inicio") LocalDate inicio, @Param("fim") LocalDate fim);
+
+    List<Transacao> findByEspacoIdAndFixaTrueAndSerieAtivaTrueAndDataBetween(
+            Long espacoId, LocalDate inicio, LocalDate fim);
+
+    @Modifying
+    @org.springframework.transaction.annotation.Transactional
+    @Query("UPDATE Transacao t SET t.serieAtiva = false WHERE t.espacoId = :espacoId AND t.origemFixaId = :origemFixaId AND t.data < :dataCorte")
+    void encerrarTrilhoAntigo(@Param("espacoId") Long espacoId, @Param("origemFixaId") Long origemFixaId, @Param("dataCorte") LocalDate dataCorte);
 
     // Painel: widget de vencimentos. "Vencidas" não tem limite inferior de
     // data (pode remontar a anos de histórico), então em vez de trazer a
@@ -76,7 +87,7 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
 
     @Query("SELECT t FROM Transacao t WHERE t.espacoId = :espacoId " +
            "AND t.data BETWEEN :inicio AND :fim " +
-           "AND (:entidadeId IS NULL OR t.entidadeId = :entidadeId OR t.entidadeId IS NULL) " +
+           "AND (:entidadeId IS NULL OR t.entidadeId = :entidadeId) " +
            "ORDER BY t.data DESC")
     List<Transacao> findByEspacoIdAndDataBetweenFiltradoPorEntidade(
             @Param("espacoId") Long espacoId,
@@ -86,7 +97,7 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
 
     @Query("SELECT t FROM Transacao t WHERE t.espacoId = :espacoId " +
            "AND t.data BETWEEN :inicio AND :fim " +
-           "AND (:entidadeId IS NULL OR t.entidadeId = :entidadeId OR t.entidadeId IS NULL) " +
+           "AND (:entidadeId IS NULL OR t.entidadeId = :entidadeId) " +
            "ORDER BY t.data ASC")
     List<Transacao> findByEspacoIdAndDataBetweenAscFiltradoPorEntidade(
             @Param("espacoId") Long espacoId,
@@ -96,7 +107,7 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
 
     @Query("SELECT t FROM Transacao t WHERE t.espacoId = :espacoId " +
            "AND t.conta.id = :contaId AND t.data BETWEEN :inicio AND :fim " +
-           "AND (:entidadeId IS NULL OR t.entidadeId = :entidadeId OR t.entidadeId IS NULL) " +
+           "AND (:entidadeId IS NULL OR t.entidadeId = :entidadeId) " +
            "ORDER BY t.data DESC")
     List<Transacao> findByEspacoIdAndContaIdAndDataBetweenFiltradoPorEntidade(
             @Param("espacoId") Long espacoId,
@@ -107,7 +118,7 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
 
     @Query("SELECT t FROM Transacao t WHERE t.espacoId = :espacoId " +
            "AND t.conta.id = :contaId AND t.data BETWEEN :inicio AND :fim " +
-           "AND (:entidadeId IS NULL OR t.entidadeId = :entidadeId OR t.entidadeId IS NULL) " +
+           "AND (:entidadeId IS NULL OR t.entidadeId = :entidadeId) " +
            "ORDER BY t.data ASC")
     List<Transacao> findByEspacoIdAndContaIdAndDataBetweenAscFiltradoPorEntidade(
             @Param("espacoId") Long espacoId,
@@ -119,7 +130,7 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
     @Query("SELECT t FROM Transacao t WHERE t.espacoId = :espacoId " +
            "AND t.dataVencimento <= :limite " +
            "AND t.dataPagamento IS NULL AND t.dataCancelamento IS NULL " +
-           "AND (:entidadeId IS NULL OR t.entidadeId = :entidadeId OR t.entidadeId IS NULL) " +
+           "AND (:entidadeId IS NULL OR t.entidadeId = :entidadeId) " +
            "ORDER BY t.dataVencimento ASC")
     List<Transacao> findVencimentosPendentesFiltradoPorEntidade(
             @Param("espacoId") Long espacoId,
@@ -129,7 +140,7 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
     @Query("SELECT t FROM Transacao t WHERE t.espacoId = :espacoId " +
            "AND t.dataVencimento BETWEEN :inicio AND :fim " +
            "AND t.dataPagamento IS NULL AND t.dataCancelamento IS NULL " +
-           "AND (:entidadeId IS NULL OR t.entidadeId = :entidadeId OR t.entidadeId IS NULL) " +
+           "AND (:entidadeId IS NULL OR t.entidadeId = :entidadeId) " +
            "ORDER BY t.dataVencimento ASC")
     List<Transacao> findVencimentosPorPeriodoFiltradoPorEntidade(
             @Param("espacoId") Long espacoId,
@@ -141,7 +152,7 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
            "AND t.conta.id = :contaId " +
            "AND t.dataVencimento BETWEEN :inicio AND :fim " +
            "AND t.dataPagamento IS NULL AND t.dataCancelamento IS NULL " +
-           "AND (:entidadeId IS NULL OR t.entidadeId = :entidadeId OR t.entidadeId IS NULL) " +
+           "AND (:entidadeId IS NULL OR t.entidadeId = :entidadeId) " +
            "ORDER BY t.dataVencimento ASC")
     List<Transacao> findByEspacoIdAndContaIdAndDataVencimentoBetweenFiltradoPorEntidade(
             @Param("espacoId") Long espacoId,
@@ -152,7 +163,7 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
 
     @Query("SELECT t FROM Transacao t WHERE t.espacoId = :espacoId " +
            "AND t.dataVencimento BETWEEN :inicio AND :fim " +
-           "AND (:entidadeId IS NULL OR t.entidadeId = :entidadeId OR t.entidadeId IS NULL) " +
+           "AND (:entidadeId IS NULL OR t.entidadeId = :entidadeId) " +
            "ORDER BY t.dataVencimento ASC")
     List<Transacao> findByEspacoIdAndDataVencimentoBetweenFiltradoPorEntidade(
             @Param("espacoId") Long espacoId,

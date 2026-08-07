@@ -49,31 +49,35 @@ public class AgendadorTransacaoFixa {
             // agendador NÃO ajusta mais saldo sozinho quando uma data é alcançada.
             // Ele só garante que as transações fixas continuem sendo pré-criadas
             // com 12 meses de antecedência, sempre nascendo PENDENTES.
-            for (int offset = 1; offset <= 12; offset++) {
-                YearMonth mesAlvo = mesAtual.plusMonths(offset);
-                extendTo(mesAtual, mesAlvo);
+            //
+            // Processa um espaço por vez para não carregar todas as fixas de todos
+            // os tenants em memória de uma só vez.
+            List<Long> espacos = repository.findEspacosComFixaAtivaNoPeriodo(
+                    mesAtual.atDay(1), mesAtual.atEndOfMonth());
+            for (Long espacoId : espacos) {
+                for (int offset = 1; offset <= 12; offset++) {
+                    extendTo(mesAtual, mesAtual.plusMonths(offset), espacoId);
+                }
             }
         } finally {
             MDC.clear();
         }
     }
 
-    // Nota: este agendador roda em background (startup + cron mensal), sem
-    // contexto de request/usuário. Por isso processa TODOS os espaços de uma
-    // vez em vez de usar ContextoEspaco — cada transação já carrega seu
-    // próprio espacoId (herdado da conta original), então maturar/estender
-    // por linha nunca mistura dados entre espaços.
-    private void extendTo(YearMonth mesOrigem, YearMonth mesAlvo) {
-        List<Transacao> modelos = repository.findByFixaTrueAndDataBetween(
-                mesOrigem.atDay(1), mesOrigem.atEndOfMonth());
+    private void extendTo(YearMonth mesOrigem, YearMonth mesAlvo, Long espacoId) {
+        List<Transacao> modelos = repository.findByEspacoIdAndFixaTrueAndSerieAtivaTrueAndDataBetween(
+                espacoId, mesOrigem.atDay(1), mesOrigem.atEndOfMonth());
 
         for (Transacao original : modelos) {
-            boolean existe = repository.existsByEspacoIdAndFixaTrueAndContaIdAndValorAndTipoAndDescricaoAndDataBetween(
+            if (original.getOrigemFixaId() == null) {
+                // Linha legada (antes da V23): auto-sana como cabeça da própria série.
+                original.setOrigemFixaId(original.getId());
+                original.setSerieAtiva(true);
+                repository.save(original);
+            }
+            boolean existe = repository.existsByEspacoIdAndOrigemFixaIdAndDataBetween(
                     original.getEspacoId(),
-                    original.getConta().getId(),
-                    original.getValor(),
-                    original.getTipo(),
-                    original.getDescricao(),
+                    original.getOrigemFixaId(),
                     mesAlvo.atDay(1), mesAlvo.atEndOfMonth());
 
             if (!existe) {
@@ -92,6 +96,9 @@ public class AgendadorTransacaoFixa {
                         .saldoAjustado(false)
                         .espacoId(original.getEspacoId())
                         .usuarioId(original.getUsuarioId())
+                        .origemFixaId(original.getOrigemFixaId())
+                        .serieAtiva(true)
+                        .entidadeId(original.getEntidadeId())
                         .build();
                 repository.save(copia);
                 log.info("Entrada criada para {} (conta={})", mesAlvo, original.getConta().getId());

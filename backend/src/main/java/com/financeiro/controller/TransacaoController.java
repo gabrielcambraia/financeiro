@@ -39,8 +39,11 @@ public class TransacaoController {
     }
 
     @PutMapping("/{id}")
-    public TransacaoDTO update(@PathVariable Long id, @Valid @RequestBody TransacaoDTO dto) {
-        return service.update(id, dto);
+    public TransacaoDTO update(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "UNICA") String scope,
+            @Valid @RequestBody TransacaoDTO dto) {
+        return service.update(id, dto, scope);
     }
 
     @DeleteMapping("/{id}")
@@ -56,9 +59,19 @@ public class TransacaoController {
         LocalDate dataPagamento = body != null && body.get("dataPagamento") != null
                 ? LocalDate.parse(body.get("dataPagamento"))
                 : null;
-        BigDecimal multa = body != null && body.get("multa") != null
-                ? new BigDecimal(body.get("multa"))
-                : null;
+        BigDecimal multa = null;
+        if (body != null && body.get("multa") != null) {
+            try {
+                multa = new BigDecimal(body.get("multa"));
+            } catch (NumberFormatException e) {
+                throw new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.BAD_REQUEST, "Multa inválida");
+            }
+            if (multa.compareTo(BigDecimal.ZERO) < 0) {
+                throw new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.BAD_REQUEST, "Multa não pode ser negativa");
+            }
+        }
         return service.pagar(id, dataPagamento, multa);
     }
 
