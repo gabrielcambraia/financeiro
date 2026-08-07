@@ -37,6 +37,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -168,6 +169,12 @@ public class TransacaoService {
             criadas.add(repository.save(t));
 
             if (dto.isFixa()) {
+                // Define origemFixaId na cabeça (auto-referência) para identificar a série.
+                t.setOrigemFixaId(t.getId());
+                t.setSerieAtiva(true);
+                repository.save(t);
+
+                Long cabecaId = t.getId();
                 LocalDate dataBase = dto.getData();
                 for (int i = 1; i <= 11; i++) {
                     LocalDate dataFutura = dataBase.plusMonths(i);
@@ -176,6 +183,8 @@ public class TransacaoService {
                     futura.setDataVencimento(dataFutura);
                     futura.setSaldoAjustado(false);
                     futura.setDataPagamento(null);
+                    futura.setOrigemFixaId(cabecaId);
+                    futura.setSerieAtiva(true);
                     repository.save(futura);
                 }
             }
@@ -230,7 +239,7 @@ public class TransacaoService {
     }
 
     @Transactional
-    public TransacaoDTO update(Long id, TransacaoDTO dto) {
+    public TransacaoDTO update(Long id, TransacaoDTO dto, String scope) {
         Long espacoId = contextoEspaco.espacoAtual();
         Transacao existente = repository.findByIdAndEspacoId(id, espacoId)
                 .orElseThrow(() -> new ExcecaoRecursoNaoEncontrado("Transação não encontrada"));
@@ -249,6 +258,10 @@ public class TransacaoService {
         Categoria novaCategoria = dto.getCategoriaId() != null
                 ? categoriaRepository.findByIdAndEspacoId(dto.getCategoriaId(), espacoId).orElse(null)
                 : null;
+
+        if ("FUTURAS".equals(scope) && existente.isFixa() && existente.getOrigemFixaId() != null) {
+            return atualizarFixasFuturas(existente, dto, novaConta, novaCategoria, espacoId);
+        }
 
         boolean estavaAjustada = existente.isSaldoAjustado();
         // A quitação é guiada pela data de pagamento informada, não mais por
@@ -279,6 +292,57 @@ public class TransacaoService {
         }
 
         return toDTO(existente);
+    }
+
+    private TransacaoDTO atualizarFixasFuturas(Transacao t, TransacaoDTO dto,
+                                                Conta novaConta, Categoria novaCategoria, Long espacoId) {
+        List<Transacao> futuras = repository.findByEspacoIdAndOrigemFixaIdAndDataGreaterThanEqual(
+                espacoId, t.getOrigemFixaId(), t.getData());
+
+        bloquearSePagaOuCanceladaNoEscopo(futuras, t.getData());
+
+        // Delta em dias para manter a cadência mensal em cada linha futura.
+        long deltaDias = ChronoUnit.DAYS.between(t.getData(), dto.getData());
+        LocalDate vencOriginal = t.getDataVencimento() != null ? t.getDataVencimento() : t.getData();
+        LocalDate vencNovo = dto.getDataVencimento() != null ? dto.getDataVencimento() : dto.getData();
+        long deltaVenc = ChronoUnit.DAYS.between(vencOriginal, vencNovo);
+
+        Long novaCabecaId = t.getId();
+        Long origemAntiga = t.getOrigemFixaId();
+
+        for (Transacao f : futuras) {
+            // Se a linha inicial (t) já estiver paga, reverte o saldo antigo e
+            // reaplicará com o novo valor/conta abaixo. Linhas futuras são
+            // garantidamente não pagas (bloqueadas pelo validador acima).
+            boolean eraSaldoAjustado = f.isSaldoAjustado();
+            BigDecimal deltaAntigo = eraSaldoAjustado ? computeDelta(f) : null;
+            Conta contaAntiga = f.getConta();
+
+            f.setConta(novaConta);
+            f.setCategoria(novaCategoria);
+            f.setTipo(dto.getTipo());
+            f.setTipoPagamento(dto.getTipoPagamento());
+            f.setValor(dto.getValor());
+            f.setDescricao(dto.getDescricao());
+            f.setEntidadeId(dto.getEntidadeId());
+            f.setData(f.getData().plusDays(deltaDias));
+            LocalDate baseVenc = f.getDataVencimento() != null ? f.getDataVencimento() : f.getData().minusDays(deltaDias);
+            f.setDataVencimento(baseVenc.plusDays(deltaVenc));
+            f.setOrigemFixaId(novaCabecaId);
+            f.setSerieAtiva(true);
+            repository.save(f);
+
+            if (eraSaldoAjustado) {
+                contaService.adjustBalance(contaAntiga, deltaAntigo.negate());
+                contaService.adjustBalance(novaConta, computeDelta(f));
+            }
+        }
+
+        // Encerra o trilho antigo: as linhas históricas (data < t.data) ficam no
+        // banco mas o agendador não as reprojetará para meses futuros.
+        repository.encerrarTrilhoAntigo(espacoId, origemAntiga, t.getData());
+
+        return toDTO(repository.findByIdAndEspacoId(t.getId(), espacoId).orElseThrow());
     }
 
     // Edição de transferência não troca as contas envolvidas (só valor, data,
@@ -340,11 +404,21 @@ public class TransacaoService {
                         contaService.adjustBalance(tx.getConta(), computeDelta(tx).negate()));
                 repository.deleteAll(futuras);
             } else if (t.isFixa()) {
-                List<Transacao> futuras = repository.findByEspacoIdAndFixaTrueAndDataGreaterThanEqual(espacoId, t.getData());
+                if (t.getOrigemFixaId() == null) {
+                    // Fixa criada antes da V23: auto-sana como cabeça da própria série,
+                    // igual ao que o agendador faz no startup.
+                    t.setOrigemFixaId(t.getId());
+                    t.setSerieAtiva(true);
+                    repository.save(t);
+                }
+                List<Transacao> futuras = repository.findByEspacoIdAndOrigemFixaIdAndDataGreaterThanEqual(
+                        espacoId, t.getOrigemFixaId(), t.getData());
+                bloquearSePagaOuCanceladaNoEscopo(futuras, t.getData());
                 futuras.forEach(this::propagarExclusaoParaOrigem);
                 futuras.stream().filter(Transacao::isSaldoAjustado).forEach(tx ->
                         contaService.adjustBalance(tx.getConta(), computeDelta(tx).negate()));
                 repository.deleteAll(futuras);
+                repository.encerrarTrilhoAntigo(espacoId, t.getOrigemFixaId(), t.getData());
             } else {
                 propagarExclusaoParaOrigem(t);
                 if (t.isSaldoAjustado()) {
@@ -361,6 +435,7 @@ public class TransacaoService {
         }
     }
 
+    @Transactional
     public TransacaoDTO pagar(Long id, LocalDate dataPagamento) {
         return pagar(id, dataPagamento, null);
     }
@@ -436,8 +511,16 @@ public class TransacaoService {
                         espacoId, t.getGrupoParcelaId(), t.getData())
                         .forEach(tx -> cancelarTransacao(tx, true));
             } else if (t.isFixa()) {
-                repository.findByEspacoIdAndFixaTrueAndDataGreaterThanEqual(espacoId, t.getData())
-                        .forEach(tx -> cancelarTransacao(tx, true));
+                if (t.getOrigemFixaId() == null) {
+                    t.setOrigemFixaId(t.getId());
+                    t.setSerieAtiva(true);
+                    repository.save(t);
+                }
+                List<Transacao> futuras = repository.findByEspacoIdAndOrigemFixaIdAndDataGreaterThanEqual(
+                        espacoId, t.getOrigemFixaId(), t.getData());
+                bloquearSePagaOuCanceladaNoEscopo(futuras, t.getData());
+                futuras.forEach(tx -> cancelarTransacao(tx, true));
+                repository.encerrarTrilhoAntigo(espacoId, t.getOrigemFixaId(), t.getData());
             } else {
                 cancelarTransacao(t, true);
             }
@@ -446,6 +529,20 @@ public class TransacaoService {
         }
 
         return toDTO(repository.findByIdAndEspacoId(id, espacoId).orElseThrow());
+    }
+
+    // Bloqueia a operação em lote se houver alguma linha ESTRITAMENTE futura
+    // (data > dataInicio) já paga ou cancelada. A linha inicial (data == dataInicio)
+    // pode estar paga; nesse caso o saldo é revertido/reaplicado normalmente.
+    private void bloquearSePagaOuCanceladaNoEscopo(List<Transacao> transacoes, LocalDate dataInicio) {
+        boolean temPagaOuCancelada = transacoes.stream()
+                .filter(t -> t.getData().isAfter(dataInicio))
+                .anyMatch(t -> t.getDataPagamento() != null || t.getDataCancelamento() != null);
+        if (temPagaOuCancelada) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Não é possível aplicar esta operação: há lançamentos pagos ou cancelados no escopo selecionado. " +
+                    "Desfaça o pagamento/cancelamento ou selecione uma data de início posterior.");
+        }
     }
 
     private void validarTipoPagamento(TipoTransacao tipo, TipoPagamento tipoPagamento) {

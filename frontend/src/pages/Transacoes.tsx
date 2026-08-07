@@ -88,8 +88,8 @@ export default function Transacoes() {
   const [filtroCartao, setFiltroCartao] = useState<number | ''>('')
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<EdicaoLancamento | undefined>()
-  const [deleteModal, setDeleteModal] = useState<{ tx: Transacao; impacto: RespostaImpacto | null; carregando: boolean } | null>(null)
-  const [cancelModal, setCancelModal] = useState<{ tx: Transacao; impacto: RespostaImpacto | null; carregando: boolean } | null>(null)
+  const [deleteModal, setDeleteModal] = useState<{ tx: Transacao; impacto: RespostaImpacto | null; carregando: boolean; erro?: string } | null>(null)
+  const [cancelModal, setCancelModal] = useState<{ tx: Transacao; impacto: RespostaImpacto | null; carregando: boolean; erro?: string } | null>(null)
   const [pagarModal, setPagarModal] = useState<{ id: number; tipo: TipoTransacao; status: StatusTransacao } | null>(null)
 
   const abrirDeleteModal = async (tx: Transacao) => {
@@ -173,6 +173,10 @@ export default function Transacoes() {
   const deleteMutation = useMutation({
     mutationFn: ({ id, scope }: { id: number; scope: EscopoExclusao }) => excluirTransacao(id, scope),
     onSuccess: async () => { await invalidarTudo(); setDeleteModal(null) },
+    onError: (e: unknown) => {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message
+      setDeleteModal(prev => prev ? { ...prev, erro: msg ?? 'Erro ao excluir.' } : prev)
+    },
   })
 
   const pagarMutation = useMutation({
@@ -189,6 +193,10 @@ export default function Transacoes() {
   const cancelarMutation = useMutation({
     mutationFn: ({ id, scope }: { id: number; scope: EscopoExclusao }) => cancelarTransacao(id, scope),
     onSuccess: async () => { await invalidarTudo(); setCancelModal(null) },
+    onError: (e: unknown) => {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message
+      setCancelModal(prev => prev ? { ...prev, erro: msg ?? 'Erro ao cancelar.' } : prev)
+    },
   })
 
   const excluirItemMutation = useMutation({
@@ -594,6 +602,11 @@ export default function Transacoes() {
                   ⚠ {deleteModal.impacto.origem.efeito}
                 </div>
               )}
+              {deleteModal.erro && (
+                <div className="rounded-lg border border-red-800/50 bg-red-900/20 p-3 text-sm text-red-400">
+                  {deleteModal.erro}
+                </div>
+              )}
               <div className="space-y-2">
                 {!deleteModal.impacto?.bloqueado && (
                   <>
@@ -655,6 +668,11 @@ export default function Transacoes() {
               {!cancelModal.impacto?.bloqueado && cancelModal.impacto?.origem && (
                 <div className="rounded-lg border border-orange-800/50 bg-orange-900/20 p-3 text-sm text-orange-400">
                   ⚠ {cancelModal.impacto.origem.efeito}
+                </div>
+              )}
+              {cancelModal.erro && (
+                <div className="rounded-lg border border-red-800/50 bg-red-900/20 p-3 text-sm text-red-400">
+                  {cancelModal.erro}
                 </div>
               )}
               <div className="space-y-2">
