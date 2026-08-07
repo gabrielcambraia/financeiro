@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { Trash2, Pencil, CreditCard, Banknote, Repeat, Layers, CheckCircle2, Ban, Undo2, ArrowRightLeft } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -19,6 +20,7 @@ import SeletorMes from '../components/SeletorMes'
 import FormularioTransacao, { type EdicaoLancamento } from '../components/forms/FormularioTransacao'
 import SobreposicaoModal from '../components/SobreposicaoModal'
 import AcaoNova from '../components/AcaoNova'
+import Spinner from '../components/Spinner'
 import type { Transacao, ItemFatura, Fatura, TipoTransacao, StatusTransacao, RespostaImpacto } from '../types'
 
 const rotuloStatus: Record<StatusTransacao, string> = {
@@ -172,9 +174,9 @@ export default function Transacoes() {
 
   const deleteMutation = useMutation({
     mutationFn: ({ id, scope }: { id: number; scope: EscopoExclusao }) => excluirTransacao(id, scope),
-    onSuccess: async () => { await invalidarTudo(); setDeleteModal(null) },
+    onSuccess: async () => { await invalidarTudo(); setDeleteModal(null); toast.success('Transação excluída') },
     onError: (e: unknown) => {
-      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message
+      const msg = (e as { response?: { data?: { mensagem?: string } } })?.response?.data?.mensagem
       setDeleteModal(prev => prev ? { ...prev, erro: msg ?? 'Erro ao excluir.' } : prev)
     },
   })
@@ -182,31 +184,31 @@ export default function Transacoes() {
   const pagarMutation = useMutation({
     mutationFn: ({ id, dataPagamento, multa }: { id: number; dataPagamento?: string; multa?: number }) =>
       pagarTransacao(id, { dataPagamento, multa }),
-    onSuccess: async () => { await invalidarTudo(); setPagarModal(null) },
+    onSuccess: async () => { await invalidarTudo(); setPagarModal(null); toast.success('Pagamento registrado') },
   })
 
   const estornarMutation = useMutation({
     mutationFn: (id: number) => estornarTransacao(id),
-    onSuccess: invalidarTudo,
+    onSuccess: async () => { await invalidarTudo(); toast.success('Pagamento estornado') },
   })
 
   const cancelarMutation = useMutation({
     mutationFn: ({ id, scope }: { id: number; scope: EscopoExclusao }) => cancelarTransacao(id, scope),
-    onSuccess: async () => { await invalidarTudo(); setCancelModal(null) },
+    onSuccess: async () => { await invalidarTudo(); setCancelModal(null); toast.success('Transação cancelada') },
     onError: (e: unknown) => {
-      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message
+      const msg = (e as { response?: { data?: { mensagem?: string } } })?.response?.data?.mensagem
       setCancelModal(prev => prev ? { ...prev, erro: msg ?? 'Erro ao cancelar.' } : prev)
     },
   })
 
   const excluirItemMutation = useMutation({
     mutationFn: (id: number) => excluirItemFatura(id),
-    onSuccess: invalidarTudo,
+    onSuccess: async () => { await invalidarTudo(); toast.success('Compra excluída') },
   })
 
   const cancelarItemMutation = useMutation({
     mutationFn: (id: number) => cancelarItemFatura(id),
-    onSuccess: invalidarTudo,
+    onSuccess: async () => { await invalidarTudo(); toast.success('Compra cancelada') },
   })
 
   // Com cartão selecionado: só compras em aberto + faturas fechadas daquele
@@ -331,7 +333,7 @@ export default function Transacoes() {
       {/* Lista de lançamentos */}
       {isLoading ? (
         <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-acento" />
+          <Spinner />
         </div>
       ) : agrupadas.length === 0 ? (
         <div className="card text-center py-12 text-conteudo-suave">
@@ -539,8 +541,9 @@ export default function Transacoes() {
                             className="p-1.5 rounded-lg hover:bg-superficie-2 text-conteudo-suave hover:text-conteudo transition-colors">
                             <Pencil size={14} />
                           </button>
-                          <button onClick={() => { if (confirm('Excluir esta compra?')) excluirItemMutation.mutate(lanc.item.id) }}
-                            className="p-1.5 rounded-lg hover:bg-red-900/40 text-conteudo-suave hover:text-red-500 transition-colors">
+                          <button onClick={() => excluirItemMutation.mutate(lanc.item.id)}
+                            disabled={excluirItemMutation.isPending}
+                            className="p-1.5 rounded-lg hover:bg-red-900/40 text-conteudo-suave hover:text-red-500 transition-colors disabled:opacity-50">
                             <Trash2 size={14} />
                           </button>
                         </>

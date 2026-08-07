@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { Pencil, Trash2, Ban, ArrowDownCircle, ArrowUpCircle, Target } from 'lucide-react'
 import { buscarMetas, criarMeta, atualizarMeta, excluirMeta, cancelarMeta, aportarMeta, resgatarMeta, impactoCancelamentoMeta, impactoExclusaoMeta } from '../api/metas'
@@ -42,22 +43,23 @@ export default function Metas() {
   const saveMutation = useMutation({
     mutationFn: (data: { nome: string; valorAlvo: number; prazo?: string; cor: string; icone: string; entidadeId?: number | null }) =>
       editing ? atualizarMeta(editing.id, data) : criarMeta(data),
-    onSuccess: async () => { await invalidar(); closeForm() },
+    onSuccess: async () => { await invalidar(); toast.success('Meta salva'); closeForm() },
   })
 
   const deleteMutation = useMutation({
     mutationFn: excluirMeta,
-    onSuccess: invalidar,
-    onError: (err: any) => alert(err?.response?.data?.mensagem || 'Não foi possível excluir'),
+    onSuccess: async () => { await invalidar(); setModalAcao(null); toast.success('Meta excluída') },
   })
 
-  const cancelarMutation = useMutation({ mutationFn: cancelarMeta, onSuccess: invalidar })
+  const cancelarMutation = useMutation({
+    mutationFn: cancelarMeta,
+    onSuccess: async () => { await invalidar(); setModalAcao(null); toast.success('Meta cancelada') },
+  })
 
   const movimentoMutation = useMutation({
     mutationFn: ({ id, tipo, dados }: { id: number; tipo: 'aportar' | 'resgatar'; dados: { valor: number; contaId: number; data?: string } }) =>
       tipo === 'aportar' ? aportarMeta(id, dados) : resgatarMeta(id, dados),
-    onSuccess: async () => { await invalidar(); closeMovimento() },
-    onError: (err: any) => alert(err?.response?.data?.mensagem || 'Não foi possível concluir a operação'),
+    onSuccess: async () => { await invalidar(); toast.success('Operação realizada'); closeMovimento() },
   })
 
   const openCreate = () => { setEditing(null); setForm(formPadrao); setShowForm(true) }
@@ -185,8 +187,8 @@ export default function Metas() {
         impacto={modalAcao?.impacto}
         botoes={modalAcao ? [
           modalAcao.tipo === 'cancelar'
-            ? { rotulo: 'Cancelar meta', variante: 'atencao' as const, aoClicar: () => { cancelarMutation.mutate(modalAcao.item.id); setModalAcao(null) } }
-            : { rotulo: 'Excluir meta', variante: 'perigo' as const, aoClicar: () => { deleteMutation.mutate(modalAcao.item.id); setModalAcao(null) } },
+            ? { rotulo: 'Cancelar meta', variante: 'atencao' as const, aoClicar: () => cancelarMutation.mutate(modalAcao.item.id), carregando: cancelarMutation.isPending }
+            : { rotulo: 'Excluir meta', variante: 'perigo' as const, aoClicar: () => deleteMutation.mutate(modalAcao.item.id), carregando: deleteMutation.isPending },
         ] : []}
       >
         {modalAcao?.tipo === 'cancelar'

@@ -6,6 +6,7 @@ import { AlertTriangle, CheckCircle2 } from 'lucide-react'
 import { buscarProjecao } from '../api/projecao'
 import { buscarContas } from '../api/contas'
 import { useLojaTema } from '../store/lojaTema'
+import Spinner from '../components/Spinner'
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
@@ -88,7 +89,7 @@ export default function Simulacao() {
         <h3 className="text-sm font-semibold text-conteudo mb-4">Evolução projetada</h3>
         {isLoading ? (
           <div className="flex justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-acento" />
+            <Spinner />
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={280}>

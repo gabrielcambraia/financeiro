@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { Pencil, Trash2 } from 'lucide-react'
 import { buscarCategorias, criarCategoria, atualizarCategoria, excluirCategoria } from '../api/categorias'
 import SobreposicaoModal from '../components/SobreposicaoModal'
+import ModalConfirmacao from '../components/ModalConfirmacao'
 import SeletorCor from '../components/SeletorCor'
 import AcaoNova from '../components/AcaoNova'
 import CampoEntidade from '../components/forms/CampoEntidade'
+import Spinner from '../components/Spinner'
 import type { Categoria, TipoTransacao } from '../types'
 
 const CORES = ['#ef4444','#f97316','#eab308','#22c55e','#10b981','#06b6d4','#3b82f6','#8b5cf6','#ec4899','#6b7280','#6366f1','#84cc16']
@@ -19,8 +22,9 @@ export default function Categorias() {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Categoria | null>(null)
   const [form, setForm] = useState(formPadrao)
+  const [confirmarExcluir, setConfirmarExcluir] = useState<Categoria | null>(null)
 
-  const { data: categorias = [] } = useQuery({
+  const { data: categorias = [], isLoading } = useQuery({
     queryKey: ['categorias', aba],
     queryFn: () => buscarCategorias(aba),
   })
@@ -28,12 +32,20 @@ export default function Categorias() {
   const saveMutation = useMutation({
     mutationFn: (data: Omit<Categoria, 'id'>) =>
       editing ? atualizarCategoria(editing.id, data) : criarCategoria(data),
-    onSuccess: async () => { await qc.invalidateQueries({ queryKey: ['categorias'] }); closeForm() },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['categorias'] })
+      toast.success('Categoria salva')
+      closeForm()
+    },
   })
 
   const deleteMutation = useMutation({
     mutationFn: excluirCategoria,
-    onSuccess: async () => { await qc.invalidateQueries({ queryKey: ['categorias'] }) },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['categorias'] })
+      setConfirmarExcluir(null)
+      toast.success('Categoria excluída')
+    },
   })
 
   const openCreate = () => { setEditing(null); setForm({ ...formPadrao, tipo: aba }); setShowForm(true) }
@@ -65,8 +77,12 @@ export default function Categorias() {
         ))}
       </div>
 
+      {isLoading ? (
+        <div className="flex justify-center py-12"><Spinner /></div>
+      ) : null}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-        {categorias.map(cat => (
+        {!isLoading && categorias.map(cat => (
           <div key={cat.id} className="card flex items-center gap-3 group hover:border-conteudo-suave transition-colors">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg shrink-0"
               style={{ background: `${cat.cor}20`, color: cat.cor }}>
@@ -79,19 +95,28 @@ export default function Categorias() {
               <button onClick={() => openEdit(cat)} className="p-1 rounded hover:bg-superficie-2 text-conteudo-suave hover:text-conteudo transition-colors">
                 <Pencil size={13} />
               </button>
-              <button onClick={() => { if (confirm('Excluir esta categoria?')) deleteMutation.mutate(cat.id) }}
+              <button onClick={() => setConfirmarExcluir(cat)}
                 className="p-1 rounded hover:bg-red-900/40 text-conteudo-suave hover:text-red-400 transition-colors">
                 <Trash2 size={13} />
               </button>
             </div>
           </div>
         ))}
-        {categorias.length === 0 && (
+        {!isLoading && categorias.length === 0 && (
           <div className="card col-span-full text-center py-10 text-conteudo-suave text-sm">
             Nenhuma categoria cadastrada.
           </div>
         )}
       </div>
+
+      <ModalConfirmacao
+        aberto={confirmarExcluir !== null}
+        titulo="Excluir categoria"
+        aoFechar={() => !deleteMutation.isPending && setConfirmarExcluir(null)}
+        botoes={[{ rotulo: 'Excluir', variante: 'perigo', aoClicar: () => deleteMutation.mutate(confirmarExcluir!.id), carregando: deleteMutation.isPending }]}
+      >
+        {`Deseja excluir a categoria "${confirmarExcluir?.nome}"? Esta ação não pode ser desfeita.`}
+      </ModalConfirmacao>
 
       {showForm && (
         <SobreposicaoModal aoFechar={closeForm}>

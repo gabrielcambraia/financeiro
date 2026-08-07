@@ -1,14 +1,17 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
+import { toast } from 'sonner'
 import { Pencil, Trash2, Search } from 'lucide-react'
 import { buscarCartoes, criarCartao, atualizarCartao, excluirCartao } from '../api/cartoes'
 import { buscarContas } from '../api/contas'
 import SobreposicaoModal from '../components/SobreposicaoModal'
+import ModalConfirmacao from '../components/ModalConfirmacao'
 import SeletorBanco from '../components/SeletorBanco'
 import LogoBanco from '../components/LogoBanco'
 import AcaoNova from '../components/AcaoNova'
 import CampoEntidade from '../components/forms/CampoEntidade'
+import Spinner from '../components/Spinner'
 import type { Cartao } from '../types'
 
 const fmt = (v: number) =>
@@ -26,19 +29,28 @@ export default function Cartoes() {
   const [editing, setEditing] = useState<Cartao | null>(null)
   const [form, setForm] = useState(formPadrao)
   const [busca, setBusca] = useState('')
+  const [confirmarExcluir, setConfirmarExcluir] = useState<Cartao | null>(null)
 
-  const { data: cartoes = [] } = useQuery({ queryKey: ['cartoes'], queryFn: buscarCartoes })
+  const { data: cartoes = [], isLoading } = useQuery({ queryKey: ['cartoes'], queryFn: buscarCartoes })
   const { data: contas = [] } = useQuery({ queryKey: ['contas'], queryFn: buscarContas })
 
   const saveMutation = useMutation({
     mutationFn: (data: Parameters<typeof criarCartao>[0]) =>
       editing ? atualizarCartao(editing.id, data) : criarCartao(data),
-    onSuccess: async () => { await qc.invalidateQueries({ queryKey: ['cartoes'] }); closeForm() },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['cartoes'] })
+      toast.success('Cartão salvo')
+      closeForm()
+    },
   })
 
   const deleteMutation = useMutation({
     mutationFn: excluirCartao,
-    onSuccess: async () => { await qc.invalidateQueries({ queryKey: ['cartoes'] }) },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['cartoes'] })
+      setConfirmarExcluir(null)
+      toast.success('Cartão excluído')
+    },
   })
 
   const openCreate = () => { setEditing(null); setForm(formPadrao); setShowForm(true) }
@@ -120,7 +132,7 @@ export default function Cartoes() {
                       <button onClick={() => openEdit(cartao)} className="p-1.5 rounded-lg hover:bg-superficie-2 text-conteudo-suave hover:text-conteudo transition-colors">
                         <Pencil size={14} />
                       </button>
-                      <button onClick={() => { if (confirm('Excluir este cartão?')) deleteMutation.mutate(cartao.id) }}
+                      <button onClick={() => setConfirmarExcluir(cartao)}
                         className="p-1.5 rounded-lg hover:bg-red-900/40 text-conteudo-suave hover:text-red-400 transition-colors">
                         <Trash2 size={14} />
                       </button>
@@ -130,7 +142,10 @@ export default function Cartoes() {
               ))}
             </tbody>
           </table>
-          {cartoesFiltrados.length === 0 && (
+          {isLoading && (
+            <div className="flex justify-center py-12"><Spinner /></div>
+          )}
+          {!isLoading && cartoesFiltrados.length === 0 && (
             <p className="text-center py-12 text-conteudo-suave text-sm">
               {cartoes.length === 0 ? 'Nenhum cartão cadastrado. Crie o primeiro!' : 'Nenhum cartão encontrado.'}
             </p>
@@ -140,6 +155,15 @@ export default function Cartoes() {
       {cartoesFiltrados.length > 0 && (
         <p className="text-xs text-conteudo-suave">{cartoesFiltrados.length} registro{cartoesFiltrados.length !== 1 ? 's' : ''}</p>
       )}
+
+      <ModalConfirmacao
+        aberto={confirmarExcluir !== null}
+        titulo="Excluir cartão"
+        aoFechar={() => !deleteMutation.isPending && setConfirmarExcluir(null)}
+        botoes={[{ rotulo: 'Excluir', variante: 'perigo', aoClicar: () => deleteMutation.mutate(confirmarExcluir!.id), carregando: deleteMutation.isPending }]}
+      >
+        {`Deseja excluir o cartão "${confirmarExcluir?.nome}"? Esta ação não pode ser desfeita.`}
+      </ModalConfirmacao>
 
       {showForm && (
         <SobreposicaoModal aoFechar={closeForm}>

@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { Copy, UserPlus, KeyRound, Palette, User, Image, Trash2, Upload, CreditCard, Users } from 'lucide-react'
 import { trocarSenha } from '../api/autenticacao'
 import { adicionarMembro, listarMembros, type RespostaMembroAdicionado } from '../api/membros'
@@ -51,13 +52,13 @@ function SecaoLogoPlataforma() {
 
   const uploadMutation = useMutation({
     mutationFn: enviarLogoPlataforma,
-    onSuccess: () => { invalidar(); setErro('') },
+    onSuccess: () => { invalidar(); setErro(''); toast.success('Logo enviada') },
     onError: () => setErro('Falha ao enviar imagem. Use PNG, JPEG ou WEBP de até 1MB.'),
   })
 
   const removerMutation = useMutation({
     mutationFn: removerLogoPlataforma,
-    onSuccess: invalidar,
+    onSuccess: () => { invalidar(); toast.success('Logo removida') },
   })
 
   const arquivoSelecionado = (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { format, parseISO } from 'date-fns'
 import { Ban, Trash2, ChevronDown, ChevronUp, HandCoins } from 'lucide-react'
 import { buscarDividas, buscarParcelasDivida, criarDivida, cancelarDivida, excluirDivida, impactoCancelamentoDivida, impactoExclusaoDivida } from '../api/dividas'
@@ -64,17 +65,24 @@ export default function Dividas() {
 
   const saveMutation = useMutation({
     mutationFn: criarDivida,
-    onSuccess: async () => { await invalidar(); closeForm() },
-    onError: (err: any) => alert(err?.response?.data?.mensagem || 'Não foi possível criar a dívida'),
+    onSuccess: async () => { await invalidar(); toast.success('Dívida criada'); closeForm() },
   })
-  const cancelarMutation = useMutation({ mutationFn: cancelarDivida, onSuccess: invalidar })
+  const cancelarMutation = useMutation({
+    mutationFn: cancelarDivida,
+    onSuccess: async () => { await invalidar(); setModalAcao(null); toast.success('Dívida cancelada') },
+  })
   const deleteMutation = useMutation({
     mutationFn: excluirDivida,
-    onSuccess: invalidar,
-    onError: (err: any) => alert(err?.response?.data?.mensagem || 'Não foi possível excluir'),
+    onSuccess: async () => { await invalidar(); setModalAcao(null); toast.success('Dívida excluída') },
   })
-  const pagarMutation = useMutation({ mutationFn: (id: number) => pagarTransacao(id), onSuccess: invalidar })
-  const estornarMutation = useMutation({ mutationFn: (id: number) => estornarTransacao(id), onSuccess: invalidar })
+  const pagarMutation = useMutation({
+    mutationFn: (id: number) => pagarTransacao(id),
+    onSuccess: async () => { await invalidar(); toast.success('Parcela paga') },
+  })
+  const estornarMutation = useMutation({
+    mutationFn: (id: number) => estornarTransacao(id),
+    onSuccess: async () => { await invalidar(); toast.success('Pagamento estornado') },
+  })
 
   const abrirModalAcao = async (divida: Divida, tipo: 'cancelar' | 'excluir') => {
     setModalAcao({ tipo, item: divida, impacto: null, carregando: true })
@@ -208,8 +216,8 @@ export default function Dividas() {
         impacto={modalAcao?.impacto}
         botoes={modalAcao ? [
           modalAcao.tipo === 'cancelar'
-            ? { rotulo: 'Cancelar dívida', variante: 'atencao' as const, aoClicar: () => { cancelarMutation.mutate(modalAcao.item.id); setModalAcao(null) } }
-            : { rotulo: 'Excluir dívida', variante: 'perigo' as const, aoClicar: () => { deleteMutation.mutate(modalAcao.item.id); setModalAcao(null) } },
+            ? { rotulo: 'Cancelar dívida', variante: 'atencao' as const, aoClicar: () => cancelarMutation.mutate(modalAcao.item.id), carregando: cancelarMutation.isPending }
+            : { rotulo: 'Excluir dívida', variante: 'perigo' as const, aoClicar: () => deleteMutation.mutate(modalAcao.item.id), carregando: deleteMutation.isPending },
         ] : []}
       >
         {modalAcao?.tipo === 'cancelar'

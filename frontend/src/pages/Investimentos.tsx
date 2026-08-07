@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { format } from 'date-fns'
 import { Pencil, Trash2, Ban, ArrowUpCircle, ArrowDownCircle, TrendingUp, Wallet } from 'lucide-react'
@@ -86,14 +87,16 @@ export default function Investimentos() {
       valorInicial?: number | null; dataInicial?: string | null; entidadeId?: number | null
     }) =>
       editing ? atualizarAtivo(editing.id, data) : criarAtivo(data),
-    onSuccess: async () => { await invalidar(); closeForm() },
+    onSuccess: async () => { await invalidar(); toast.success('Ativo salvo'); closeForm() },
   })
   const deleteMutation = useMutation({
     mutationFn: excluirAtivo,
-    onSuccess: invalidar,
-    onError: (err: any) => alert(err?.response?.data?.mensagem || 'Não foi possível excluir'),
+    onSuccess: async () => { await invalidar(); setModalAcao(null); toast.success('Ativo excluído') },
   })
-  const cancelarMutation = useMutation({ mutationFn: cancelarAtivo, onSuccess: invalidar })
+  const cancelarMutation = useMutation({
+    mutationFn: cancelarAtivo,
+    onSuccess: async () => { await invalidar(); setModalAcao(null); toast.success('Ativo cancelado') },
+  })
 
   const movimentoMutation = useMutation({
     mutationFn: ({ id, tipo, dados }: { id: number; tipo: 'aportar' | 'resgatar' | 'rendimento'; dados: { valor: number; contaId?: number; data?: string } }) => {
@@ -101,8 +104,7 @@ export default function Investimentos() {
       if (tipo === 'resgatar') return resgatarAtivo(id, dados)
       return registrarRendimentoAtivo(id, dados)
     },
-    onSuccess: async () => { await invalidar(); closeMovimento() },
-    onError: (err: any) => alert(err?.response?.data?.mensagem || 'Não foi possível concluir a operação'),
+    onSuccess: async () => { await invalidar(); toast.success('Operação realizada'); closeMovimento() },
   })
 
   const openCreate = () => { setEditing(null); setForm(formPadrao); setShowForm(true) }
@@ -290,13 +292,13 @@ export default function Investimentos() {
       <ModalConfirmacao
         aberto={modalAcao !== null}
         titulo={modalAcao?.tipo === 'cancelar' ? 'Cancelar ativo' : 'Excluir ativo'}
-        aoFechar={() => setModalAcao(null)}
+        aoFechar={() => !cancelarMutation.isPending && !deleteMutation.isPending && setModalAcao(null)}
         carregandoImpacto={modalAcao?.carregando}
         impacto={modalAcao?.impacto}
         botoes={modalAcao ? [
           modalAcao.tipo === 'cancelar'
-            ? { rotulo: 'Cancelar ativo', variante: 'atencao' as const, aoClicar: () => { cancelarMutation.mutate(modalAcao.item.id); setModalAcao(null) } }
-            : { rotulo: 'Excluir ativo', variante: 'perigo' as const, aoClicar: () => { deleteMutation.mutate(modalAcao.item.id); setModalAcao(null) } },
+            ? { rotulo: 'Cancelar ativo', variante: 'atencao' as const, aoClicar: () => cancelarMutation.mutate(modalAcao.item.id), carregando: cancelarMutation.isPending }
+            : { rotulo: 'Excluir ativo', variante: 'perigo' as const, aoClicar: () => deleteMutation.mutate(modalAcao.item.id), carregando: deleteMutation.isPending },
         ] : []}
       >
         {modalAcao?.tipo === 'cancelar'
