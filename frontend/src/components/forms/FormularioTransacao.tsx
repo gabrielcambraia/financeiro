@@ -5,7 +5,7 @@ import { format } from 'date-fns'
 import { buscarContas } from '../../api/contas'
 import { buscarCategorias } from '../../api/categorias'
 import { buscarCartoes } from '../../api/cartoes'
-import { criarTransacao, atualizarTransacao } from '../../api/transacoes'
+import { criarTransacao, atualizarTransacao, type EscopoAtualizacao } from '../../api/transacoes'
 import { criarItemFatura, atualizarItemFatura } from '../../api/itensFatura'
 import SobreposicaoModal from '../SobreposicaoModal'
 import CampoEntidade from './CampoEntidade'
@@ -142,15 +142,20 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
         totalParcelas: tipo === 'TRANSFERENCIA' ? undefined : (form.totalParcelas ? Number(form.totalParcelas) : undefined),
         entidadeId: form.entidadeId ?? null,
       }
-      if (editingTx) { await atualizarTransacao(editingTx.id, payload); return }
+      if (editingTx) { await atualizarTransacao(editingTx.id, payload, editingTx.fixa ? escopoEdicao : 'UNICA'); return }
       await criarTransacao(payload)
     },
     onSuccess: async () => {
       await invalidarTudo()
       onClose()
     },
+    onError: (e: unknown) => {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message
+      setErro(msg ?? 'Erro ao salvar. Tente novamente.')
+    },
   })
 
+  const [escopoEdicao, setEscopoEdicao] = useState<EscopoAtualizacao>('UNICA')
   const [erro, setErro] = useState('')
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -374,6 +379,27 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
                   )}
                 </div>
               )}
+            </div>
+          )}
+
+          {editingTx?.fixa && (
+            <div className="space-y-2 p-3 rounded-xl bg-superficie-2">
+              <label className="text-sm font-medium text-conteudo">Aplicar alteração em:</label>
+              <div className="flex gap-2">
+                {(['UNICA', 'FUTURAS'] as EscopoAtualizacao[]).map(s => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setEscopoEdicao(s)}
+                    className={`flex-1 py-2 text-sm rounded-lg border transition-colors
+                      ${escopoEdicao === s
+                        ? 'border-acento bg-acento/20 text-acento'
+                        : 'border-borda text-conteudo-suave hover:border-conteudo-suave'}`}
+                  >
+                    {s === 'UNICA' ? 'Só este mês' : 'Este e os próximos'}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 

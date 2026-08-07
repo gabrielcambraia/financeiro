@@ -178,6 +178,8 @@ Sempre incrementar — nunca editar uma migration já aplicada.
 | V19 | Entidades (CPF/CNPJ por espaço) |
 | V20 | Códigos de verificação / OTP |
 | V21 | `entidade_id` nas tabelas de domínio |
+| V22 | Multa por atraso em transações |
+| V23 | `origem_fixa_id` e `serie_ativa` em transações fixas |
 
 ## Dev mode (frontend separado)
 

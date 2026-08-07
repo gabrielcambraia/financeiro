@@ -33,10 +33,11 @@ export const buscarTransacoes = (filtros: FiltrosTransacao) =>
 export const criarTransacao = (data: PayloadCriarTransacao) =>
   cliente.post<Transacao[]>('/transacoes', data).then(r => r.data)
 
-export const atualizarTransacao = (id: number, data: PayloadCriarTransacao) =>
-  cliente.put<Transacao>(`/transacoes/${id}`, data).then(r => r.data)
-
+export type EscopoAtualizacao = 'UNICA' | 'FUTURAS'
 export type EscopoExclusao = 'UNICA' | 'GRUPO' | 'FUTURAS'
+
+export const atualizarTransacao = (id: number, data: PayloadCriarTransacao, scope: EscopoAtualizacao = 'UNICA') =>
+  cliente.put<Transacao>(`/transacoes/${id}`, data, { params: { scope } }).then(r => r.data)
 
 export const excluirTransacao = (id: number, scope: EscopoExclusao = 'UNICA') =>
   cliente.delete(`/transacoes/${id}`, { params: { scope } })

@@ -111,6 +111,19 @@ public class Transacao {
     @Column(name = "entidade_id")
     private Long entidadeId;
 
+    // Identificador da série de transações fixas: aponta para o id da linha
+    // mais antiga do grupo ("cabeça"). A própria cabeça aponta para si mesma.
+    // Nulo apenas para fixas criadas antes da V23 que não foram processadas
+    // pelo backfill (não deve ocorrer em produção após a migration).
+    @Column(name = "origem_fixa_id")
+    private Long origemFixaId;
+
+    // false quando o trilho foi encerrado por uma edição FUTURAS — o agendador
+    // ignora estas linhas ao estender a série para meses futuros.
+    @Builder.Default
+    @Column(name = "serie_ativa", nullable = false)
+    private boolean serieAtiva = true;
+
     @PrePersist
     public void prePersist() {
         if (this.criadoEm == null) {

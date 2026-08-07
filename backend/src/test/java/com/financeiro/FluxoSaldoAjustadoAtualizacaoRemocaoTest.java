@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
 
@@ -197,6 +198,129 @@ class FluxoSaldoAjustadoAtualizacaoRemocaoTest extends TesteIntegracaoBase {
         assertThat(saldoConta(token, contaId)).isEqualByComparingTo("100");
     }
 
+    // --- testes de série de fixas (origemFixaId / serieAtiva) ---
+
+    @Test
+    void delete_futuras_fixa_naoAfetaOutraSerie() {
+        // Regressão do bug: delete FUTURAS de uma série não pode tocar outras séries.
+        String token = registrar();
+        Long contaId = criarConta(token, BigDecimal.valueOf(200));
+
+        // Série A: Aluguel R$50
+        TransacaoDTO dtoA = transacao(contaId, TipoTransacao.DESPESA, BigDecimal.valueOf(50), LocalDate.now());
+        dtoA.setFixa(true);
+        List<TransacaoDTO> serieA = criarTransacao(token, dtoA);
+
+        // Série B: Netflix R$30
+        TransacaoDTO dtoB = transacao(contaId, TipoTransacao.DESPESA, BigDecimal.valueOf(30), LocalDate.now());
+        dtoB.setFixa(true);
+        criarTransacao(token, dtoB);
+
+        // Apaga série A (mês corrente e futuros)
+        deletarTransacao(token, serieA.get(0).getId(), "FUTURAS");
+
+        // Série B deve continuar íntegra: mês+1 deve ter exatamente 1 lançamento de R$30
+        String mesSeguinte = YearMonth.now().plusMonths(1).toString();
+        ResponseEntity<List<Map>> resp = get("/api/transacoes?month=" + mesSeguinte, token,
+                new ParameterizedTypeReference<List<Map>>() {});
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
+        List<Map> txsMesSeguinte = resp.getBody();
+        long contB = txsMesSeguinte.stream()
+                .filter(tx -> Double.parseDouble(tx.get("valor").toString()) == 30.0)
+                .count();
+        assertThat(contB).as("série Netflix deve ter 1 lançamento no mês seguinte").isEqualTo(1);
+        long contA = txsMesSeguinte.stream()
+                .filter(tx -> Double.parseDouble(tx.get("valor").toString()) == 50.0)
+                .count();
+        assertThat(contA).as("série Aluguel deve ter sido apagada do mês seguinte").isEqualTo(0);
+    }
+
+    @Test
+    void update_futuras_fixa_propagaValorEDeltaData() {
+        String token = registrar();
+        Long contaId = criarConta(token, BigDecimal.valueOf(100));
+
+        // Cria fixa no mês corrente
+        TransacaoDTO dto = transacao(contaId, TipoTransacao.RECEITA, BigDecimal.valueOf(1000), LocalDate.now());
+        dto.setTipoPagamento(TipoPagamento.DEBITO);
+        dto.setFixa(true);
+        criarTransacao(token, dto);
+
+        // Busca o lançamento do mês seguinte para editar com escopo FUTURAS
+        String mesSeguinte = YearMonth.now().plusMonths(1).toString();
+        ResponseEntity<List<Map>> resp = get("/api/transacoes?month=" + mesSeguinte, token,
+                new ParameterizedTypeReference<List<Map>>() {});
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
+        Map txMesSeguinte = resp.getBody().stream()
+                .filter(tx -> Double.parseDouble(tx.get("valor").toString()) == 1000.0)
+                .findFirst().orElseThrow();
+        int idMesSeguinte = (int) txMesSeguinte.get("id");
+        String dataOriginalStr = txMesSeguinte.get("data").toString();
+        LocalDate dataOriginal = LocalDate.parse(dataOriginalStr);
+
+        // Edita com escopo FUTURAS: novo valor 1100, data deslocada +5 dias
+        TransacaoDTO edicao = transacao(contaId, TipoTransacao.RECEITA, BigDecimal.valueOf(1100),
+                dataOriginal.plusDays(5));
+        edicao.setTipoPagamento(TipoPagamento.DEBITO);
+        edicao.setFixa(true);
+        atualizarTransacao(token, (long) idMesSeguinte, edicao, "FUTURAS");
+
+        // Mês seguinte: deve ter R$1100 e data = original+5
+        ResponseEntity<List<Map>> resp2 = get("/api/transacoes?month=" + mesSeguinte, token,
+                new ParameterizedTypeReference<List<Map>>() {});
+        Map txAtualizado = resp2.getBody().stream()
+                .filter(tx -> (int) tx.get("id") == idMesSeguinte)
+                .findFirst().orElseThrow();
+        assertThat(Double.parseDouble(txAtualizado.get("valor").toString())).isEqualTo(1100.0);
+        assertThat(LocalDate.parse(txAtualizado.get("data").toString()))
+                .isEqualTo(dataOriginal.plusDays(5));
+
+        // Mês +2: deve ter R$1100 e data = original+1mês+5dias (delta preservado)
+        String mesDoisMeses = YearMonth.now().plusMonths(2).toString();
+        ResponseEntity<List<Map>> resp3 = get("/api/transacoes?month=" + mesDoisMeses, token,
+                new ParameterizedTypeReference<List<Map>>() {});
+        List<Map> txsMes2 = resp3.getBody();
+        long count1100 = txsMes2.stream()
+                .filter(tx -> Double.parseDouble(tx.get("valor").toString()) == 1100.0)
+                .count();
+        assertThat(count1100).as("mês +2 deve ter R$1100").isEqualTo(1);
+
+        // Mês corrente (anterior ao ponto de edição): deve continuar R$1000
+        String mesAtual = YearMonth.now().toString();
+        ResponseEntity<List<Map>> resp4 = get("/api/transacoes?month=" + mesAtual, token,
+                new ParameterizedTypeReference<List<Map>>() {});
+        long count1000 = resp4.getBody().stream()
+                .filter(tx -> Double.parseDouble(tx.get("valor").toString()) == 1000.0)
+                .count();
+        assertThat(count1000).as("mês corrente deve permanecer R$1000").isEqualTo(1);
+    }
+
+    @Test
+    void delete_futuras_fixa_bloqueiaComPagaNoEscopo() {
+        String token = registrar();
+        Long contaId = criarConta(token, BigDecimal.valueOf(100));
+
+        // Cria fixa no mês corrente (paga automaticamente)
+        TransacaoDTO dto = transacao(contaId, TipoTransacao.DESPESA, BigDecimal.valueOf(20), LocalDate.now());
+        dto.setFixa(true);
+        List<TransacaoDTO> criadas = criarTransacao(token, dto);
+
+        // Paga o lançamento do mês seguinte manualmente
+        String mesSeguinte = YearMonth.now().plusMonths(1).toString();
+        ResponseEntity<List<Map>> resp = get("/api/transacoes?month=" + mesSeguinte, token,
+                new ParameterizedTypeReference<List<Map>>() {});
+        Map txFutura = resp.getBody().stream()
+                .filter(tx -> Double.parseDouble(tx.get("valor").toString()) == 20.0)
+                .findFirst().orElseThrow();
+        int idFutura = (int) txFutura.get("id");
+        patch("/api/transacoes/" + idFutura + "/pagar", null, token, Map.class);
+
+        // Tenta deletar FUTURAS a partir do mês corrente — deve ser bloqueado (400)
+        ResponseEntity<Map> erroResp = deleteComCorpo(
+                "/api/transacoes/" + criadas.get(0).getId() + "?scope=FUTURAS", token);
+        assertThat(erroResp.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
     private TransacaoDTO transacao(Long contaId, TipoTransacao tipo, BigDecimal valor, LocalDate data) {
         TransacaoDTO dto = new TransacaoDTO();
         dto.setContaId(contaId);
@@ -218,7 +342,11 @@ class FluxoSaldoAjustadoAtualizacaoRemocaoTest extends TesteIntegracaoBase {
     }
 
     private void atualizarTransacao(String token, Long id, TransacaoDTO dto) {
-        ResponseEntity<TransacaoDTO> resposta = put("/api/transacoes/" + id, dto, token, TransacaoDTO.class);
+        atualizarTransacao(token, id, dto, "UNICA");
+    }
+
+    private void atualizarTransacao(String token, Long id, TransacaoDTO dto, String scope) {
+        ResponseEntity<TransacaoDTO> resposta = put("/api/transacoes/" + id + "?scope=" + scope, dto, token, TransacaoDTO.class);
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
     }
 
