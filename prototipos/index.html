@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Nexo360 — Hub de Protótipos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="assets/tokens.css"/>
+  <link rel="stylesheet" href="assets/componentes.css"/>
+  <style>
+    body { min-height: 100vh; background: rgb(var(--fundo)); padding: 48px 24px; }
+    .hub-titulo { font-size: 28px; font-weight: 700; color: rgb(var(--conteudo)); margin-bottom: 8px; }
+    .hub-sub { font-size: 15px; color: rgb(var(--conteudo-suave)); margin-bottom: 40px; }
+    .grid-hub { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; max-width: 1000px; }
+    .hub-card {
+      background: rgb(var(--superficie));
+      border: 1px solid rgb(var(--borda));
+      border-radius: 16px;
+      padding: 24px;
+      text-decoration: none;
+      color: rgb(var(--conteudo));
+      transition: all 0.15s;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .hub-card:hover {
+      border-color: rgb(var(--acento));
+      box-shadow: 0 4px 16px rgb(var(--acento) / 0.1);
+      transform: translateY(-2px);
+    }
+    .hub-card-icon {
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .hub-card-nome { font-size: 16px; font-weight: 600; }
+    .hub-card-desc { font-size: 13px; color: rgb(var(--conteudo-suave)); line-height: 1.5; }
+    .hub-card-tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      background: rgb(var(--acento-fundo));
+      color: rgb(var(--acento));
+      width: fit-content;
+    }
+    .logo-hub { display: flex; align-items: center; gap: 12px; margin-bottom: 32px; }
+    .logo-hub img { width: 40px; height: 40px; }
+    .logo-hub-nome { font-size: 24px; font-weight: 700; color: rgb(var(--conteudo)); }
+    .logo-hub-badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      background: rgb(var(--superficie-2));
+      border: 1px solid rgb(var(--borda));
+      color: rgb(var(--conteudo-suave));
+      border-radius: 20px;
+      font-weight: 600;
+    }
+    .tema-btn {
+      display: flex; align-items: center; gap: 8px;
+      background: rgb(var(--superficie));
+      border: 1px solid rgb(var(--borda));
+      border-radius: 8px;
+      padding: 8px 14px;
+      color: rgb(var(--conteudo));
+      font-size: 13px;
+      cursor: pointer;
+      margin-bottom: 32px;
+    }
+    .nota {
+      max-width: 1000px;
+      background: rgb(var(--acento-fundo));
+      border: 1px solid rgb(var(--acento) / 0.3);
+      border-radius: 12px;
+      padding: 16px 20px;
+      font-size: 13px;
+      color: rgb(var(--acento));
+      margin-top: 32px;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <div style="max-width: 1000px;">
+    <div class="logo-hub">
+      <img src="assets/logo.svg" alt="Nexo360"/>
+      <span class="logo-hub-nome">Nexo360</span>
+      <span class="logo-hub-badge">Protótipos v1</span>
+    </div>
+
+    <p class="hub-titulo">Hub de Protótipos — Redesign Visual</p>
+    <p class="hub-sub">Selecione uma tela para visualizar. Use o botão de tema em cada tela para alternar claro/escuro.</p>
+
+    <button class="tema-btn" onclick="toggleTema()">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="tema-icon"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+      <span id="tema-texto">Alternar para modo escuro</span>
+    </button>
+
+    <div class="grid-hub">
+      <a href="painel-desktop.html" class="hub-card">
+        <div class="hub-card-icon" style="background: rgb(var(--pastel-azul-bg));">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgb(var(--pastel-azul-txt))" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+        </div>
+        <div>
+          <div class="hub-card-nome">Painel — Desktop</div>
+          <div class="hub-card-desc">Dashboard completo com KPIs, gráficos, fluxo de caixa, próximos lançamentos e metas. Sidebar recolhível.</div>
+        </div>
+        <span class="hub-card-tag">Desktop + Sidebar</span>
+      </a>
+
+      <a href="painel-mobile.html" class="hub-card">
+        <div class="hub-card-icon" style="background: rgb(var(--pastel-verde-bg));">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgb(var(--pastel-verde-txt))" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2"/><path d="M12 18h.01"/></svg>
+        </div>
+        <div>
+          <div class="hub-card-nome">Painel — Mobile</div>
+          <div class="hub-card-desc">Dashboard em viewport mobile com bottom-nav de 5 itens + drawer "Mais". Responsividade real.</div>
+        </div>
+        <span class="hub-card-tag">Mobile + Bottom Nav</span>
+      </a>
+
+      <a href="login.html" class="hub-card">
+        <div class="hub-card-icon" style="background: rgb(var(--pastel-roxo-bg));">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgb(var(--pastel-roxo-txt))" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" x2="3" y1="12" y2="12"/></svg>
+        </div>
+        <div>
+          <div class="hub-card-nome">Login / Registro</div>
+          <div class="hub-card-desc">Tela de autenticação split-screen desktop (azul-marinho + form) e full-screen mobile.</div>
+        </div>
+        <span class="hub-card-tag">Tela pública</span>
+      </a>
+
+      <a href="transacoes.html" class="hub-card">
+        <div class="hub-card-icon" style="background: rgb(var(--pastel-laranja-bg));">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgb(var(--pastel-laranja-txt))" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M3 21h18"/></svg>
+        </div>
+        <div>
+          <div class="hub-card-nome">Lançamentos / Transações</div>
+          <div class="hub-card-desc">Lista com filtros por tipo, período, categoria e conta. Tabela desktop, cards mobile. Paginação.</div>
+        </div>
+        <span class="hub-card-tag">Lista + Filtros</span>
+      </a>
+
+      <a href="cartao-detalhe.html" class="hub-card">
+        <div class="hub-card-icon" style="background: rgb(var(--pastel-bege-bg));">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgb(var(--pastel-bege-txt))" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+        </div>
+        <div>
+          <div class="hub-card-nome">Detalhe do Cartão</div>
+          <div class="hub-card-desc">Fatura com limite/uso, seletor de mês, resumo financeiro e itens agrupados por data.</div>
+        </div>
+        <span class="hub-card-tag">Detalhe / Drill-down</span>
+      </a>
+    </div>
+
+    <div class="nota">
+      <strong>Como revisar:</strong> Clique em cada card acima para abrir a tela. Em cada protótipo, use o botão sol/lua (canto superior direito) para alternar tema — note que a sidebar sempre permanece azul-marinho. No desktop, clique no chevron para recolher/expandir a sidebar. Para ver mobile, use F12 → modo responsivo ou abra <a href="painel-mobile.html" style="color: inherit; font-weight: 700;">painel-mobile.html</a> diretamente.
+    </div>
+  </div>
+
+  <script>
+    let escuro = false;
+    function toggleTema() {
+      escuro = !escuro;
+      document.documentElement.classList.toggle('dark', escuro);
+      document.getElementById('tema-texto').textContent = escuro ? 'Alternar para modo claro' : 'Alternar para modo escuro';
+      const icon = document.getElementById('tema-icon');
+      if (escuro) {
+        icon.innerHTML = '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/>';
+      } else {
+        icon.innerHTML = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>';
+      }
+    }
+  </script>
+</body>
+</html>
