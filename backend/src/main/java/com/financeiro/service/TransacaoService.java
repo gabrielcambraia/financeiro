@@ -40,7 +40,9 @@ import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -106,12 +108,14 @@ public class TransacaoService {
             }
         }
 
-        return raw.stream()
+        List<Transacao> filtradas = raw.stream()
                 .filter(t -> tipo == null || t.getTipo() == tipo)
                 .filter(t -> categoriaId == null
                         || (t.getCategoria() != null && t.getCategoria().getId().equals(categoriaId)))
-                .map(this::toDTO)
                 .toList();
+        List<TransacaoDTO> dtos = filtradas.stream().map(this::toDTO).toList();
+        enriquecerOrigemDerivadaLote(filtradas, dtos);
+        return dtos;
     }
 
     @Transactional
@@ -243,6 +247,8 @@ public class TransacaoService {
         Long espacoId = contextoEspaco.espacoAtual();
         Transacao existente = repository.findByIdAndEspacoId(id, espacoId)
                 .orElseThrow(() -> new ExcecaoRecursoNaoEncontrado("Transação não encontrada"));
+
+        verificarNaoDerivada(existente);
 
         if (dto.getDataPagamento() != null) {
             validarDataPagamento(dto.getDataPagamento());
@@ -823,5 +829,44 @@ public class TransacaoService {
 
         dto.setEntidadeId(t.getEntidadeId());
         return dto;
+    }
+
+    private void verificarNaoDerivada(Transacao t) {
+        if (t.getMeta() != null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Esta transação é derivada de uma meta e não pode ser editada. Para corrigir, exclua e crie uma nova.");
+        }
+        if (movimentacaoAtivoRepository.findByTransacaoId(t.getId()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Esta transação é derivada de um investimento e não pode ser editada. Para corrigir, exclua e crie uma nova.");
+        }
+        if (t.getGrupoParcelaId() != null &&
+                dividaRepository.findByEspacoIdAndGrupoParcelaId(t.getEspacoId(), t.getGrupoParcelaId()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Esta transação é derivada de uma dívida e não pode ser editada. Para corrigir, estorne, exclua e crie uma nova.");
+        }
+    }
+
+    private void enriquecerOrigemDerivadaLote(List<Transacao> transacoes, List<TransacaoDTO> dtos) {
+        if (transacoes.isEmpty()) return;
+        List<Long> ids = transacoes.stream().map(Transacao::getId).toList();
+        Set<Long> comAtivo = movimentacaoAtivoRepository.findTransacaoIdsDerivados(ids);
+        Set<String> grupoIds = transacoes.stream()
+                .filter(t -> t.getGrupoParcelaId() != null)
+                .map(Transacao::getGrupoParcelaId)
+                .collect(Collectors.toSet());
+        Set<String> gruposComDivida = grupoIds.isEmpty() ? Set.of()
+                : dividaRepository.findGrupoParcelaIdsComDivida(contextoEspaco.espacoAtual(), grupoIds);
+        for (int i = 0; i < transacoes.size(); i++) {
+            Transacao t = transacoes.get(i);
+            TransacaoDTO dto = dtos.get(i);
+            if (t.getMeta() != null) {
+                dto.setOrigemDerivada("META");
+            } else if (comAtivo.contains(t.getId())) {
+                dto.setOrigemDerivada("ATIVO");
+            } else if (t.getGrupoParcelaId() != null && gruposComDivida.contains(t.getGrupoParcelaId())) {
+                dto.setOrigemDerivada("DIVIDA");
+            }
+        }
     }
 }

@@ -142,35 +142,22 @@ public class AtivoService {
     @Transactional
     public AtivoDTO cancelar(Long id) {
         Ativo ativo = buscar(id);
-        movimentacaoRepository.findByAtivoIdOrderByDataAsc(ativo.getId()).stream()
-                .filter(m -> m.getTransacao() != null && m.getTransacao().getDataCancelamento() == null)
-                .map(MovimentacaoAtivo::getTransacao)
-                .forEach(t -> {
-                    if (t.isSaldoAjustado()) {
-                        BigDecimal delta = t.getTipo() == TipoTransacao.RECEITA
-                                ? t.getValor().negate() : t.getValor();
-                        contaService.adjustBalance(t.getConta(), delta);
-                        t.setSaldoAjustado(false);
-                    }
-                    t.setDataCancelamento(LocalDate.now());
-                    transacaoRepository.save(t);
-                });
-        ativo.setValorAtual(BigDecimal.ZERO);
+        if (ativo.getValorAtual().compareTo(BigDecimal.ZERO) > 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Resgate todo o valor investido antes de cancelar o investimento");
+        }
         ativo.setDataCancelamento(LocalDate.now());
         return toDTO(repository.save(ativo), null);
     }
 
     public RespostaImpacto calcularImpactoCancelamento(Long id) {
         Ativo ativo = buscar(id);
-        List<RespostaImpacto.ItemImpacto> itens = movimentacaoRepository
-                .findByAtivoIdOrderByDataAsc(ativo.getId()).stream()
-                .filter(m -> m.getTransacao() != null && m.getTransacao().getDataCancelamento() == null)
-                .map(m -> new RespostaImpacto.ItemImpacto(
-                        m.getTipo().name(),
-                        m.getTransacao().getDescricao() + " em " + m.getData(),
-                        m.getValor()))
-                .toList();
-        return new RespostaImpacto(false, null, itens, null);
+        if (ativo.getValorAtual().compareTo(BigDecimal.ZERO) > 0) {
+            return new RespostaImpacto(true,
+                    "Resgate todo o valor investido antes de cancelar o investimento",
+                    List.of(), null);
+        }
+        return new RespostaImpacto(false, null, List.of(), null);
     }
 
     public RespostaImpacto calcularImpactoExclusao(Long id) {
@@ -194,8 +181,7 @@ public class AtivoService {
         Ativo ativo = buscar(id);
         garantirAtivo(ativo);
         Long espacoId = contextoEspaco.espacoAtual();
-        Conta conta = contaRepository.findByIdAndEspacoId(exigirConta(dto), espacoId)
-                .orElseThrow(() -> new ExcecaoRecursoNaoEncontrado("Conta não encontrada"));
+        Conta conta = resolverConta(ativo, dto, espacoId);
         LocalDate data = validarData(dto.getData());
 
         Transacao t = Transacao.builder()
@@ -233,8 +219,7 @@ public class AtivoService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Valor maior que o investido no ativo");
         }
         Long espacoId = contextoEspaco.espacoAtual();
-        Conta conta = contaRepository.findByIdAndEspacoId(exigirConta(dto), espacoId)
-                .orElseThrow(() -> new ExcecaoRecursoNaoEncontrado("Conta não encontrada"));
+        Conta conta = resolverConta(ativo, dto, espacoId);
         LocalDate data = validarData(dto.getData());
 
         Transacao t = Transacao.builder()
@@ -362,11 +347,15 @@ public class AtivoService {
                 .build());
     }
 
-    private Long exigirConta(MovimentacaoAtivoDTO dto) {
+    private Conta resolverConta(Ativo ativo, MovimentacaoAtivoDTO dto, Long espacoId) {
+        if (ativo.getConta() != null) {
+            return ativo.getConta();
+        }
         if (dto.getContaId() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Conta é obrigatória");
         }
-        return dto.getContaId();
+        return contaRepository.findByIdAndEspacoId(dto.getContaId(), espacoId)
+                .orElseThrow(() -> new ExcecaoRecursoNaoEncontrado("Conta não encontrada"));
     }
 
     private Ativo buscar(Long id) {

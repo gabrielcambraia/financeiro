@@ -163,7 +163,7 @@ export default function Investimentos() {
       tipo: movimento.tipo,
       dados: {
         valor: Number(movForm.valor),
-        contaId: movimento.tipo !== 'rendimento' ? Number(movForm.contaId) : undefined,
+        contaId: movimento.tipo !== 'rendimento' && !movimento.ativo.contaId ? Number(movForm.contaId) : undefined,
         data: movForm.data,
       },
     })
@@ -418,11 +418,15 @@ export default function Investimentos() {
               {movimento.tipo !== 'rendimento' && (
                 <div>
                   <label className="label">{movimento.tipo === 'aportar' ? 'Conta de origem' : 'Conta de destino'}</label>
-                  <select className="select" required
-                    value={movForm.contaId} onChange={e => setMovForm(f => ({ ...f, contaId: e.target.value }))}>
-                    <option value="">Selecione...</option>
-                    {[...contas].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                  </select>
+                  {movimento.ativo.contaId ? (
+                    <p className="text-sm text-conteudo py-2 px-3 rounded-lg bg-superficie-2">{movimento.ativo.conta.nome}</p>
+                  ) : (
+                    <select className="select" required
+                      value={movForm.contaId} onChange={e => setMovForm(f => ({ ...f, contaId: e.target.value }))}>
+                      <option value="">Selecione...</option>
+                      {[...contas].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                    </select>
+                  )}
                 </div>
               )}
               <div>

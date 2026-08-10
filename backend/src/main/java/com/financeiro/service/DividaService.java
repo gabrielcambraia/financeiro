@@ -126,9 +126,13 @@ public class DividaService {
         Long espacoId = contextoEspaco.espacoAtual();
         Divida divida = buscar(id);
         List<Transacao> parcelas = transacaoRepository.findByEspacoIdAndGrupoParcelaId(espacoId, divida.getGrupoParcelaId());
+        boolean temParcelaPaga = parcelas.stream()
+                .anyMatch(t -> t.isSaldoAjustado() && t.getDataCancelamento() == null);
+        if (temParcelaPaga) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Estorne todas as parcelas pagas antes de cancelar a dívida");
+        }
         if (!parcelas.isEmpty()) {
-            // cancelar com escopo GRUPO propaga a todas as parcelas irmãs, revertendo
-            // saldo das que já estavam pagas — mesma lógica usada por transações comuns.
             transacaoService.cancelar(parcelas.get(0).getId(), "GRUPO");
         }
         divida.setDataCancelamento(LocalDate.now());
@@ -151,12 +155,19 @@ public class DividaService {
     public RespostaImpacto calcularImpactoCancelamento(Long id) {
         Long espacoId = contextoEspaco.espacoAtual();
         Divida divida = buscar(id);
-        List<RespostaImpacto.ItemImpacto> itens = transacaoRepository
-                .findByEspacoIdAndGrupoParcelaId(espacoId, divida.getGrupoParcelaId())
-                .stream()
+        List<Transacao> parcelas = transacaoRepository
+                .findByEspacoIdAndGrupoParcelaId(espacoId, divida.getGrupoParcelaId());
+        boolean temParcelaPaga = parcelas.stream()
+                .anyMatch(t -> t.isSaldoAjustado() && t.getDataCancelamento() == null);
+        if (temParcelaPaga) {
+            return new RespostaImpacto(true,
+                    "Estorne todas as parcelas pagas antes de cancelar a dívida",
+                    List.of(), null);
+        }
+        List<RespostaImpacto.ItemImpacto> itens = parcelas.stream()
                 .filter(t -> t.getDataCancelamento() == null)
                 .map(t -> new RespostaImpacto.ItemImpacto(
-                        t.isSaldoAjustado() ? "PAGA" : "PENDENTE",
+                        "PENDENTE",
                         "Parcela " + t.getNumeroParcela() + "/" + t.getTotalParcelas()
                                 + " — vence " + t.getDataVencimento(),
                         t.getValor()))

@@ -67,4 +67,8 @@ public class TransacaoDTO {
     private String transferenciaId;
     private DirecaoTransferencia direcaoTransferencia;
     private BigDecimal multa;
+
+    // "META", "ATIVO" ou "DIVIDA" quando a transação é derivada de um desses
+    // fluxos e não pode ser editada; null para transações comuns.
+    private String origemDerivada;
 }
