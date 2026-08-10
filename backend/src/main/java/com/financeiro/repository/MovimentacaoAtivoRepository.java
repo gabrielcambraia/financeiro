@@ -26,8 +26,8 @@ public interface MovimentacaoAtivoRepository extends JpaRepository<MovimentacaoA
 
     Optional<MovimentacaoAtivo> findByTransacaoId(Long transacaoId);
 
-    @Query("SELECT m.transacao.id FROM MovimentacaoAtivo m WHERE m.transacao.id IN :ids")
-    Set<Long> findTransacaoIdsDerivados(@Param("ids") Collection<Long> ids);
+    @Query("SELECT m.transacao.id FROM MovimentacaoAtivo m WHERE m.transacao.id IN :ids AND m.ativo.espacoId = :espacoId")
+    Set<Long> findTransacaoIdsDerivados(@Param("ids") Collection<Long> ids, @Param("espacoId") Long espacoId);
 
     @Modifying
     @org.springframework.transaction.annotation.Transactional

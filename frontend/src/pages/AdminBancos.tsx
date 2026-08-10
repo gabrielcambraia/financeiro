@@ -49,6 +49,7 @@ export default function AdminBancos() {
   const uploadMutation = useMutation({
     mutationFn: ({ id, arquivo }: { id: number; arquivo: File }) => enviarLogoBanco(id, arquivo),
     onSuccess: async () => { await invalidar(); toast.success('Logo enviada') },
+    onError: () => toast.error('Falha ao enviar imagem. Use PNG, JPEG ou WEBP de até 1MB.'),
   })
   const removerLogoMutation = useMutation({
     mutationFn: removerLogoBanco,

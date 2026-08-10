@@ -277,7 +277,8 @@ class CascataOrigemTransacaoTest extends TesteIntegracaoBase {
                 .filter(t -> t.getDataCancelamento() == null)
                 .findFirst().orElseThrow();
 
-        // Excluir a transação
+        // Cancelar e depois excluir a transação
+        patch("/api/transacoes/" + txAporte.getId() + "/cancelar?scope=UNICA", null, token, TransacaoDTO.class);
         ResponseEntity<Void> delResp = delete("/api/transacoes/" + txAporte.getId() + "?scope=UNICA", token);
         assertThat(delResp.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
 
