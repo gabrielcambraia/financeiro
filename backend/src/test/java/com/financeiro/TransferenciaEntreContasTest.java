@@ -108,6 +108,8 @@ class TransferenciaEntreContasTest extends TesteIntegracaoBase {
         List<TransacaoDTO> pernas = criarTransferencia(token, origem, destino, BigDecimal.valueOf(30), LocalDate.now().minusDays(1));
         TransacaoDTO saida = pernaPorDirecao(pernas, DirecaoTransferencia.SAIDA);
 
+        patch("/api/transacoes/" + saida.getId() + "/cancelar?scope=UNICA", null, token, TransacaoDTO.class);
+
         ResponseEntity<Void> resposta = delete("/api/transacoes/" + saida.getId() + "?scope=UNICA", token);
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
 

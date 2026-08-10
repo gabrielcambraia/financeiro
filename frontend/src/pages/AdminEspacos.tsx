@@ -7,6 +7,7 @@ import { listarEspacosAdmin, alterarTipoEspaco, alterarModulosEspaco, type Espac
 import { alterarPlanoEspaco } from '../api/planosAdmin'
 import SobreposicaoModal from '../components/SobreposicaoModal'
 import Paginacao from '../components/Paginacao'
+import Spinner from '../components/Spinner'
 import type { TipoEspaco, ModuloEspaco, CodigoPlano } from '../types'
 
 const rotuloTipo: Record<TipoEspaco, string> = {
@@ -37,7 +38,7 @@ export default function AdminEspacos() {
   const [editandoPlano, setEditandoPlano] = useState<EspacoAdmin | null>(null)
   const [planoSelecionado, setPlanoSelecionado] = useState<CodigoPlano>('INDIVIDUAL')
 
-  const { data } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['admin-espacos', pagina],
     queryFn: () => listarEspacosAdmin(pagina),
     placeholderData: keepPreviousData,
@@ -144,7 +145,9 @@ export default function AdminEspacos() {
               </tr>
             </thead>
             <tbody className="divide-y divide-borda">
-              {espacos.map(espaco => {
+              {isLoading ? (
+                <tr><td colSpan={7} className="text-center py-12"><Spinner className="mx-auto" /></td></tr>
+              ) : espacos.map(espaco => {
                 const expandido = expandidos.has(espaco.id)
                 const vinculosVisiveis = expandido ? espaco.vinculos : espaco.vinculos.slice(0, 3)
                 const restantes = espaco.vinculos.length - 3
@@ -235,7 +238,7 @@ export default function AdminEspacos() {
               })}
             </tbody>
           </table>
-          {espacos.length === 0 && (
+          {!isLoading && espacos.length === 0 && (
             <p className="text-center py-12 text-conteudo-suave text-sm">Nenhum espaço encontrado.</p>
           )}
         </div>

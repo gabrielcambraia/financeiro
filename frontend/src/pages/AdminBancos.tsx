@@ -9,6 +9,7 @@ import SobreposicaoModal from '../components/SobreposicaoModal'
 import ModalConfirmacao from '../components/ModalConfirmacao'
 import LogoBanco from '../components/LogoBanco'
 import AcaoNova from '../components/AcaoNova'
+import Spinner from '../components/Spinner'
 import type { Banco } from '../types'
 
 const formPadrao = { nome: '', corPrimaria: '#6366f1', sigla: '' }
@@ -23,7 +24,7 @@ export default function AdminBancos() {
   const [confirmarExcluir, setConfirmarExcluir] = useState<Banco | null>(null)
   const inputArquivoRef = useRef<HTMLInputElement>(null)
 
-  const { data: bancos = [] } = useQuery({ queryKey: ['bancos'], queryFn: buscarBancos })
+  const { data: bancos = [], isLoading } = useQuery({ queryKey: ['bancos'], queryFn: buscarBancos })
 
   const invalidar = () => qc.invalidateQueries({ queryKey: ['bancos'] })
 
@@ -48,6 +49,7 @@ export default function AdminBancos() {
   const uploadMutation = useMutation({
     mutationFn: ({ id, arquivo }: { id: number; arquivo: File }) => enviarLogoBanco(id, arquivo),
     onSuccess: async () => { await invalidar(); toast.success('Logo enviada') },
+    onError: () => toast.error('Falha ao enviar imagem. Use PNG, JPEG ou WEBP de até 1MB.'),
   })
   const removerLogoMutation = useMutation({
     mutationFn: removerLogoBanco,
@@ -114,7 +116,9 @@ export default function AdminBancos() {
               </tr>
             </thead>
             <tbody className="divide-y divide-borda">
-              {bancosFiltrados.map(banco => (
+              {isLoading ? (
+                <tr><td colSpan={4} className="text-center py-12"><Spinner className="mx-auto" /></td></tr>
+              ) : bancosFiltrados.map(banco => (
                 <tr key={banco.id} className="hover:bg-superficie-2 transition-colors group">
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
@@ -155,7 +159,7 @@ export default function AdminBancos() {
               ))}
             </tbody>
           </table>
-          {bancosFiltrados.length === 0 && (
+          {!isLoading && bancosFiltrados.length === 0 && (
             <p className="text-center py-12 text-conteudo-suave text-sm">
               {bancos.length === 0 ? 'Nenhum banco cadastrado.' : 'Nenhum banco encontrado.'}
             </p>

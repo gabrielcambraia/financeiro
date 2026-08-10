@@ -27,6 +27,7 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -76,7 +77,7 @@ public class MetaService {
     @Transactional
     public void delete(Long id) {
         Meta meta = buscar(id);
-        if (meta.getValorAtual().compareTo(BigDecimal.ZERO) > 0) {
+        if (Objects.requireNonNullElse(meta.getValorAtual(), BigDecimal.ZERO).compareTo(BigDecimal.ZERO) > 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Resgate o valor guardado antes de excluir a meta");
         }
@@ -87,38 +88,27 @@ public class MetaService {
     @Transactional
     public MetaDTO cancelar(Long id) {
         Meta meta = buscar(id);
-        transacaoRepository.findByEspacoIdAndMetaIdAndDataCancelamentoIsNull(
-                meta.getEspacoId(), meta.getId()).forEach(t -> {
-            if (t.isSaldoAjustado()) {
-                BigDecimal delta = t.getTipo() == TipoTransacao.RECEITA
-                        ? t.getValor().negate() : t.getValor();
-                contaService.adjustBalance(t.getConta(), delta);
-                t.setSaldoAjustado(false);
-            }
-            t.setDataCancelamento(LocalDate.now());
-            transacaoRepository.save(t);
-        });
-        meta.setValorAtual(BigDecimal.ZERO);
+        if (Objects.requireNonNullElse(meta.getValorAtual(), BigDecimal.ZERO).compareTo(BigDecimal.ZERO) > 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Resgate todo o valor guardado antes de cancelar a meta");
+        }
         meta.setDataCancelamento(LocalDate.now());
         return toDTO(repository.save(meta));
     }
 
     public RespostaImpacto calcularImpactoCancelamento(Long id) {
         Meta meta = buscar(id);
-        List<RespostaImpacto.ItemImpacto> itens = transacaoRepository
-                .findByEspacoIdAndMetaIdAndDataCancelamentoIsNull(meta.getEspacoId(), meta.getId())
-                .stream()
-                .map(t -> new RespostaImpacto.ItemImpacto(
-                        t.getTipo().name(),
-                        t.getDescricao() + " em " + t.getData(),
-                        t.getValor()))
-                .toList();
-        return new RespostaImpacto(false, null, itens, null);
+        if (Objects.requireNonNullElse(meta.getValorAtual(), BigDecimal.ZERO).compareTo(BigDecimal.ZERO) > 0) {
+            return new RespostaImpacto(true,
+                    "Resgate todo o valor guardado antes de cancelar a meta",
+                    List.of(), null);
+        }
+        return new RespostaImpacto(false, null, List.of(), null);
     }
 
     public RespostaImpacto calcularImpactoExclusao(Long id) {
         Meta meta = buscar(id);
-        boolean bloqueado = meta.getValorAtual().compareTo(BigDecimal.ZERO) > 0;
+        boolean bloqueado = Objects.requireNonNullElse(meta.getValorAtual(), BigDecimal.ZERO).compareTo(BigDecimal.ZERO) > 0;
         String motivo = bloqueado ? "Resgate o valor guardado antes de excluir a meta" : null;
         List<RespostaImpacto.ItemImpacto> itens = bloqueado ? List.of()
                 : transacaoRepository.findByEspacoIdAndMetaId(meta.getEspacoId(), meta.getId())

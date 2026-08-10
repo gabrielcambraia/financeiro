@@ -134,7 +134,7 @@ class DividaTest extends TesteIntegracaoBase {
     }
 
     @Test
-    void cancelar_reverteSaldoDasParcelasJaPagas_cancelaGrupoInteiro() {
+    void cancelar_comParcelaPaga_bloqueadoCom400() {
         String token = registrar();
         Long contaId = criarConta(token, BigDecimal.valueOf(1000));
 
@@ -143,9 +143,26 @@ class DividaTest extends TesteIntegracaoBase {
         pagar(token, parcelas.get(0).getId());
         assertThat(saldoConta(token, contaId)).isEqualByComparingTo("970"); // 1000 - 30
 
-        cancelar(token, divida.getId());
+        ResponseEntity<Map> resposta = patchComCorpoDeErro("/api/dividas/" + divida.getId() + "/cancelar", null, token);
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(resposta.getBody().get("mensagem")).isEqualTo("Estorne todas as parcelas pagas antes de cancelar a dívida");
+        assertThat(saldoConta(token, contaId)).isEqualByComparingTo("970"); // saldo intacto
+    }
 
-        assertThat(saldoConta(token, contaId)).isEqualByComparingTo("1000");
+    @Test
+    void cancelar_aposEstornoTotal_cancelaComSucesso() {
+        String token = registrar();
+        Long contaId = criarConta(token, BigDecimal.valueOf(1000));
+
+        DividaDTO divida = criarDivida(token, contaId, BigDecimal.valueOf(90), 3, LocalDate.now());
+        List<TransacaoDTO> parcelas = parcelas(token, divida.getId());
+        pagar(token, parcelas.get(0).getId());
+        assertThat(saldoConta(token, contaId)).isEqualByComparingTo("970");
+
+        estornar(token, parcelas.get(0).getId());
+        assertThat(saldoConta(token, contaId)).isEqualByComparingTo("1000"); // saldo devolvido
+
+        cancelar(token, divida.getId());
         assertThat(buscarDivida(token, divida.getId()).getStatus().name()).isEqualTo("CANCELADA");
     }
 
@@ -217,6 +234,11 @@ class DividaTest extends TesteIntegracaoBase {
 
     private void cancelar(String token, Long dividaId) {
         ResponseEntity<DividaDTO> resposta = patch("/api/dividas/" + dividaId + "/cancelar", null, token, DividaDTO.class);
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
+    private void estornar(String token, Long transacaoId) {
+        ResponseEntity<TransacaoDTO> resposta = patch("/api/transacoes/" + transacaoId + "/estornar", null, token, TransacaoDTO.class);
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
     }
 

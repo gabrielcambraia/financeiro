@@ -11,6 +11,7 @@ import SobreposicaoModal from '../components/SobreposicaoModal'
 import ModalConfirmacao from '../components/ModalConfirmacao'
 import AcaoNova from '../components/AcaoNova'
 import CampoEntidade from '../components/forms/CampoEntidade'
+import Spinner from '../components/Spinner'
 import type { Divida, StatusTransacao, StatusDivida, RespostaImpacto } from '../types'
 
 const fmt = (v: number) =>
@@ -46,7 +47,15 @@ export default function Dividas() {
     tipo: 'cancelar' | 'excluir'; item: Divida; impacto: RespostaImpacto | null; carregando: boolean
   } | null>(null)
 
-  const { data: dividas = [] } = useQuery({ queryKey: ['dividas'], queryFn: buscarDividas })
+  const [filtroStatus, setFiltroStatus] = useState<'EM_ABERTO' | 'QUITADAS' | 'CANCELADAS'>('EM_ABERTO')
+
+  const { data: dividas = [], isLoading } = useQuery({ queryKey: ['dividas'], queryFn: buscarDividas })
+
+  const dividasFiltradas = dividas.filter((d: Divida) => {
+    if (filtroStatus === 'EM_ABERTO') return d.status !== 'QUITADA' && d.status !== 'CANCELADA'
+    if (filtroStatus === 'QUITADAS') return d.status === 'QUITADA'
+    return d.status === 'CANCELADA'
+  })
   const { data: contas = [] } = useQuery({ queryKey: ['contas'], queryFn: buscarContas })
   const { data: categorias = [] } = useQuery({ queryKey: ['categorias', 'DESPESA'], queryFn: () => buscarCategorias('DESPESA') })
   const { data: parcelas = [] } = useQuery({
@@ -116,11 +125,21 @@ export default function Dividas() {
     <div className="p-6 space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-conteudo">Dívidas</h1>
-        <AcaoNova aoClicar={() => setShowForm(true)} rotulo="Nova dívida" />
+        <div className="flex items-center gap-3">
+          <select className="select w-36" value={filtroStatus} onChange={e => setFiltroStatus(e.target.value as any)}>
+            <option value="EM_ABERTO">Em aberto</option>
+            <option value="QUITADAS">Quitadas</option>
+            <option value="CANCELADAS">Canceladas</option>
+          </select>
+          <AcaoNova aoClicar={() => setShowForm(true)} rotulo="Nova dívida" />
+        </div>
       </div>
 
+      {isLoading ? (
+        <div className="flex justify-center py-16"><Spinner tamanho="lg" /></div>
+      ) : (
       <div className="space-y-3">
-        {dividas.map((d: Divida) => {
+        {dividasFiltradas.map((d: Divida) => {
           const expandido = expandida === d.id
           return (
             <div key={d.id} className="card p-0 overflow-hidden">
@@ -201,12 +220,13 @@ export default function Dividas() {
           )
         })}
 
-        {dividas.length === 0 && (
+        {dividasFiltradas.length === 0 && (
           <div className="card text-center py-12 text-conteudo-suave">
-            Nenhuma dívida cadastrada.
+            {filtroStatus === 'EM_ABERTO' ? 'Nenhuma dívida em aberto.' : filtroStatus === 'QUITADAS' ? 'Nenhuma dívida quitada.' : 'Nenhuma dívida cancelada.'}
           </div>
         )}
       </div>
+      )}
 
       <ModalConfirmacao
         aberto={modalAcao !== null}

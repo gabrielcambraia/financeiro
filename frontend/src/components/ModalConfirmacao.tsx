@@ -73,7 +73,7 @@ export default function ModalConfirmacao({
 
           <div className="space-y-2 pt-1">
             {!impacto?.bloqueado && botoes.map((b, i) => (
-              <Botao key={i} variante={b.variante} carregando={b.carregando} onClick={b.aoClicar}>
+              <Botao key={i} variante={b.variante} carregando={b.carregando} onClick={b.aoClicar} className="w-full">
                 {b.rotulo}
               </Botao>
             ))}

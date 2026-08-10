@@ -7,8 +7,10 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public interface MovimentacaoAtivoRepository extends JpaRepository<MovimentacaoAtivo, Long> {
 
@@ -23,6 +25,9 @@ public interface MovimentacaoAtivoRepository extends JpaRepository<MovimentacaoA
     List<MovimentacaoAtivo> findByAtivoIdOrderByDataAsc(Long ativoId);
 
     Optional<MovimentacaoAtivo> findByTransacaoId(Long transacaoId);
+
+    @Query("SELECT m.transacao.id FROM MovimentacaoAtivo m WHERE m.transacao.id IN :ids AND m.ativo.espacoId = :espacoId")
+    Set<Long> findTransacaoIdsDerivados(@Param("ids") Collection<Long> ids, @Param("espacoId") Long espacoId);
 
     @Modifying
     @org.springframework.transaction.annotation.Transactional
