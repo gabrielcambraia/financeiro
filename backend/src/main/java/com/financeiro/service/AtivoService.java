@@ -35,6 +35,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -131,7 +132,7 @@ public class AtivoService {
     @Transactional
     public void delete(Long id) {
         Ativo ativo = buscar(id);
-        if (ativo.getValorAtual().compareTo(BigDecimal.ZERO) > 0) {
+        if (Objects.requireNonNullElse(ativo.getValorAtual(), BigDecimal.ZERO).compareTo(BigDecimal.ZERO) > 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Resgate o valor investido antes de excluir o ativo");
         }
@@ -142,7 +143,7 @@ public class AtivoService {
     @Transactional
     public AtivoDTO cancelar(Long id) {
         Ativo ativo = buscar(id);
-        if (ativo.getValorAtual().compareTo(BigDecimal.ZERO) > 0) {
+        if (Objects.requireNonNullElse(ativo.getValorAtual(), BigDecimal.ZERO).compareTo(BigDecimal.ZERO) > 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Resgate todo o valor investido antes de cancelar o investimento");
         }
@@ -152,7 +153,7 @@ public class AtivoService {
 
     public RespostaImpacto calcularImpactoCancelamento(Long id) {
         Ativo ativo = buscar(id);
-        if (ativo.getValorAtual().compareTo(BigDecimal.ZERO) > 0) {
+        if (Objects.requireNonNullElse(ativo.getValorAtual(), BigDecimal.ZERO).compareTo(BigDecimal.ZERO) > 0) {
             return new RespostaImpacto(true,
                     "Resgate todo o valor investido antes de cancelar o investimento",
                     List.of(), null);
@@ -162,7 +163,7 @@ public class AtivoService {
 
     public RespostaImpacto calcularImpactoExclusao(Long id) {
         Ativo ativo = buscar(id);
-        boolean bloqueado = ativo.getValorAtual().compareTo(BigDecimal.ZERO) > 0;
+        boolean bloqueado = Objects.requireNonNullElse(ativo.getValorAtual(), BigDecimal.ZERO).compareTo(BigDecimal.ZERO) > 0;
         String motivo = bloqueado ? "Resgate o valor investido antes de excluir o ativo" : null;
         List<RespostaImpacto.ItemImpacto> itens = bloqueado ? List.of()
                 : movimentacaoRepository.findByAtivoIdOrderByDataAsc(ativo.getId()).stream()

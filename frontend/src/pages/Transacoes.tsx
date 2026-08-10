@@ -93,6 +93,7 @@ export default function Transacoes() {
   const [deleteModal, setDeleteModal] = useState<{ tx: Transacao; impacto: RespostaImpacto | null; carregando: boolean; erro?: string } | null>(null)
   const [cancelModal, setCancelModal] = useState<{ tx: Transacao; impacto: RespostaImpacto | null; carregando: boolean; erro?: string } | null>(null)
   const [pagarModal, setPagarModal] = useState<{ id: number; tipo: TipoTransacao; status: StatusTransacao } | null>(null)
+  const [confirmarExcluirItem, setConfirmarExcluirItem] = useState<number | null>(null)
 
   const abrirDeleteModal = async (tx: Transacao) => {
     setDeleteModal({ tx, impacto: null, carregando: true })
@@ -203,7 +204,7 @@ export default function Transacoes() {
 
   const excluirItemMutation = useMutation({
     mutationFn: (id: number) => excluirItemFatura(id),
-    onSuccess: async () => { await invalidarTudo(); toast.success('Compra excluída') },
+    onSuccess: async () => { await invalidarTudo(); setConfirmarExcluirItem(null); toast.success('Compra excluída') },
   })
 
   const cancelarItemMutation = useMutation({
@@ -489,10 +490,13 @@ export default function Transacoes() {
                         className="p-1.5 rounded-lg hover:bg-superficie-2 text-conteudo-suave hover:text-conteudo transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
                         <Pencil size={14} />
                       </button>
-                      <button onClick={() => abrirDeleteModal(lanc.tx)}
-                        className="p-1.5 rounded-lg hover:bg-red-900/40 text-conteudo-suave hover:text-red-500 transition-colors">
-                        <Trash2 size={14} />
-                      </button>
+                      {lanc.tx.status === 'CANCELADA' && (
+                        <button onClick={() => abrirDeleteModal(lanc.tx)}
+                          title="Excluir"
+                          className="p-1.5 rounded-lg hover:bg-red-900/40 text-conteudo-suave hover:text-red-500 transition-colors">
+                          <Trash2 size={14} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -547,9 +551,8 @@ export default function Transacoes() {
                             className="p-1.5 rounded-lg hover:bg-superficie-2 text-conteudo-suave hover:text-conteudo transition-colors">
                             <Pencil size={14} />
                           </button>
-                          <button onClick={() => excluirItemMutation.mutate(lanc.item.id)}
-                            disabled={excluirItemMutation.isPending}
-                            className="p-1.5 rounded-lg hover:bg-red-900/40 text-conteudo-suave hover:text-red-500 transition-colors disabled:opacity-50">
+                          <button onClick={() => setConfirmarExcluirItem(lanc.item.id)}
+                            className="p-1.5 rounded-lg hover:bg-red-900/40 text-conteudo-suave hover:text-red-500 transition-colors">
                             <Trash2 size={14} />
                           </button>
                         </>
@@ -579,6 +582,34 @@ export default function Transacoes() {
           aoConfirmar={(dataPagamento, multa) => pagarMutation.mutate({ id: pagarModal.id, dataPagamento, multa })}
           carregando={pagarMutation.isPending}
         />
+      )}
+
+      {/* Modal de confirmação de exclusão de item de fatura */}
+      {confirmarExcluirItem !== null && (
+        <SobreposicaoModal aoFechar={() => setConfirmarExcluirItem(null)}>
+          <div className="cartao-modal max-w-sm">
+            <div className="cartao-modal-cabecalho">
+              <h3 className="text-base font-semibold text-conteudo">Excluir compra</h3>
+            </div>
+            <div className="cartao-modal-corpo space-y-4">
+              <p className="text-sm text-conteudo-suave">Tem certeza que deseja excluir esta compra?</p>
+              <div className="space-y-2">
+                <button
+                  onClick={() => excluirItemMutation.mutate(confirmarExcluirItem)}
+                  disabled={excluirItemMutation.isPending}
+                  className="w-full py-2 px-4 rounded-lg border border-red-800 text-red-400 hover:bg-red-900/30 transition-colors text-sm font-medium disabled:opacity-60">
+                  {excluirItemMutation.isPending ? 'Excluindo...' : 'Excluir'}
+                </button>
+                <button
+                  onClick={() => setConfirmarExcluirItem(null)}
+                  disabled={excluirItemMutation.isPending}
+                  className="w-full py-2 px-4 rounded-lg border border-borda text-conteudo-suave hover:bg-superficie-2 transition-colors text-sm disabled:opacity-60">
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        </SobreposicaoModal>
       )}
 
       {/* Modal de exclusão */}

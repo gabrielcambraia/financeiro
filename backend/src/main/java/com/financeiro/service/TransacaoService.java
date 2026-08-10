@@ -40,6 +40,7 @@ import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -389,6 +390,7 @@ public class TransacaoService {
 
         if (t.getTipo() == TipoTransacao.TRANSFERENCIA) {
             List<Transacao> par = repository.findByEspacoIdAndTransferenciaId(espacoId, t.getTransferenciaId());
+            par.forEach(this::verificarCanceladaParaExclusao);
             par.stream().filter(Transacao::isSaldoAjustado).forEach(tx ->
                     contaService.adjustBalance(tx.getConta(), computeDelta(tx).negate()));
             repository.deleteAll(par);
@@ -397,6 +399,7 @@ public class TransacaoService {
 
         if ("GRUPO".equals(scope) && t.getGrupoParcelaId() != null) {
             List<Transacao> grupo = repository.findByEspacoIdAndGrupoParcelaId(espacoId, t.getGrupoParcelaId());
+            grupo.forEach(this::verificarCanceladaParaExclusao);
             grupo.forEach(this::propagarExclusaoParaOrigem);
             grupo.stream().filter(Transacao::isSaldoAjustado).forEach(tx ->
                     contaService.adjustBalance(tx.getConta(), computeDelta(tx).negate()));
@@ -405,6 +408,7 @@ public class TransacaoService {
             if (t.getGrupoParcelaId() != null) {
                 List<Transacao> futuras = repository.findByEspacoIdAndGrupoParcelaIdAndDataGreaterThanEqual(
                         espacoId, t.getGrupoParcelaId(), t.getData());
+                futuras.forEach(this::verificarCanceladaParaExclusao);
                 futuras.forEach(this::propagarExclusaoParaOrigem);
                 futuras.stream().filter(Transacao::isSaldoAjustado).forEach(tx ->
                         contaService.adjustBalance(tx.getConta(), computeDelta(tx).negate()));
@@ -419,13 +423,14 @@ public class TransacaoService {
                 }
                 List<Transacao> futuras = repository.findByEspacoIdAndOrigemFixaIdAndDataGreaterThanEqual(
                         espacoId, t.getOrigemFixaId(), t.getData());
-                bloquearSePagaOuCanceladaNoEscopo(futuras, t.getData());
+                futuras.forEach(this::verificarCanceladaParaExclusao);
                 futuras.forEach(this::propagarExclusaoParaOrigem);
                 futuras.stream().filter(Transacao::isSaldoAjustado).forEach(tx ->
                         contaService.adjustBalance(tx.getConta(), computeDelta(tx).negate()));
                 repository.deleteAll(futuras);
                 repository.encerrarTrilhoAntigo(espacoId, t.getOrigemFixaId(), t.getData());
             } else {
+                verificarCanceladaParaExclusao(t);
                 propagarExclusaoParaOrigem(t);
                 if (t.isSaldoAjustado()) {
                     contaService.adjustBalance(t.getConta(), computeDelta(t).negate());
@@ -433,6 +438,7 @@ public class TransacaoService {
                 repository.delete(t);
             }
         } else {
+            verificarCanceladaParaExclusao(t);
             propagarExclusaoParaOrigem(t);
             if (t.isSaldoAjustado()) {
                 contaService.adjustBalance(t.getConta(), computeDelta(t).negate());
@@ -700,6 +706,12 @@ public class TransacaoService {
                     List.of(), null);
         }
 
+        if (t.getDataCancelamento() == null) {
+            return new RespostaImpacto(true,
+                    "A transação precisa ser cancelada antes de ser excluída.",
+                    List.of(), null);
+        }
+
         RespostaImpacto.OrigemVinculada origem = null;
         if (t.getMeta() != null) {
             Meta meta = t.getMeta();
@@ -831,35 +843,45 @@ public class TransacaoService {
         return dto;
     }
 
+    private void verificarCanceladaParaExclusao(Transacao t) {
+        if (t.getDataCancelamento() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "A transação precisa ser cancelada antes de ser excluída.");
+        }
+    }
+
     private void verificarNaoDerivada(Transacao t) {
         if (t.getMeta() != null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Esta transação é derivada de uma meta e não pode ser editada. Para corrigir, exclua e crie uma nova.");
+                    "Esta transação é derivada de uma meta e não pode ser editada. Cancele-a primeiro, exclua e registre uma nova movimentação na meta.");
         }
         if (movimentacaoAtivoRepository.findByTransacaoId(t.getId()).isPresent()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Esta transação é derivada de um investimento e não pode ser editada. Para corrigir, exclua e crie uma nova.");
+                    "Esta transação é derivada de um investimento e não pode ser editada. Cancele-a primeiro, exclua e registre uma nova movimentação no investimento.");
         }
         if (t.getGrupoParcelaId() != null &&
                 dividaRepository.findByEspacoIdAndGrupoParcelaId(t.getEspacoId(), t.getGrupoParcelaId()).isPresent()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Esta transação é derivada de uma dívida e não pode ser editada. Para corrigir, estorne, exclua e crie uma nova.");
+                    "Esta transação é derivada de uma dívida e não pode ser editada. Cancele-a primeiro, exclua e gerencie o pagamento pela dívida.");
         }
     }
 
     private void enriquecerOrigemDerivadaLote(List<Transacao> transacoes, List<TransacaoDTO> dtos) {
         if (transacoes.isEmpty()) return;
+        Long espacoId = contextoEspaco.espacoAtual();
         List<Long> ids = transacoes.stream().map(Transacao::getId).toList();
-        Set<Long> comAtivo = movimentacaoAtivoRepository.findTransacaoIdsDerivados(ids);
+        Set<Long> comAtivo = movimentacaoAtivoRepository.findTransacaoIdsDerivados(ids, espacoId);
         Set<String> grupoIds = transacoes.stream()
                 .filter(t -> t.getGrupoParcelaId() != null)
                 .map(Transacao::getGrupoParcelaId)
                 .collect(Collectors.toSet());
         Set<String> gruposComDivida = grupoIds.isEmpty() ? Set.of()
-                : dividaRepository.findGrupoParcelaIdsComDivida(contextoEspaco.espacoAtual(), grupoIds);
-        for (int i = 0; i < transacoes.size(); i++) {
-            Transacao t = transacoes.get(i);
-            TransacaoDTO dto = dtos.get(i);
+                : dividaRepository.findGrupoParcelaIdsComDivida(espacoId, grupoIds);
+        Map<Long, TransacaoDTO> dtoPorId = dtos.stream()
+                .collect(Collectors.toMap(TransacaoDTO::getId, dto -> dto));
+        for (Transacao t : transacoes) {
+            TransacaoDTO dto = dtoPorId.get(t.getId());
+            if (dto == null) continue;
             if (t.getMeta() != null) {
                 dto.setOrigemDerivada("META");
             } else if (comAtivo.contains(t.getId())) {

@@ -31,8 +31,16 @@ export default function Metas() {
     tipo: 'cancelar' | 'excluir'; item: Meta; impacto: RespostaImpacto | null; carregando: boolean
   } | null>(null)
 
+  const [filtroStatus, setFiltroStatus] = useState<'EM_ABERTO' | 'CONCLUIDAS' | 'CANCELADAS'>('EM_ABERTO')
+
   const { data: metas = [], isLoading } = useQuery({ queryKey: ['metas'], queryFn: buscarMetas })
   const { data: contas = [] } = useQuery({ queryKey: ['contas'], queryFn: buscarContas })
+
+  const metasFiltradas = metas.filter(m => {
+    if (filtroStatus === 'EM_ABERTO') return !m.dataCancelamento && !m.concluida
+    if (filtroStatus === 'CONCLUIDAS') return m.concluida
+    return !!m.dataCancelamento
+  })
 
   const invalidar = () => Promise.all([
     qc.invalidateQueries({ queryKey: ['metas'] }),
@@ -112,14 +120,21 @@ export default function Metas() {
     <div className="p-6 space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-conteudo">Metas</h1>
-        <AcaoNova aoClicar={openCreate} rotulo="Nova meta" />
+        <div className="flex items-center gap-3">
+          <select className="select w-36" value={filtroStatus} onChange={e => setFiltroStatus(e.target.value as any)}>
+            <option value="EM_ABERTO">Em aberto</option>
+            <option value="CONCLUIDAS">Concluídas</option>
+            <option value="CANCELADAS">Canceladas</option>
+          </select>
+          <AcaoNova aoClicar={openCreate} rotulo="Nova meta" />
+        </div>
       </div>
 
       {isLoading ? (
         <div className="flex justify-center py-16"><Spinner tamanho="lg" /></div>
       ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {metas.map(meta => (
+        {metasFiltradas.map(meta => (
           <div key={meta.id} className="card group">
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-3 min-w-0">
@@ -176,9 +191,9 @@ export default function Metas() {
           </div>
         ))}
 
-        {metas.length === 0 && (
+        {metasFiltradas.length === 0 && (
           <div className="card col-span-full text-center py-12 text-conteudo-suave">
-            Nenhuma meta cadastrada. Crie a primeira!
+            {filtroStatus === 'EM_ABERTO' ? 'Nenhuma meta em aberto. Crie a primeira!' : filtroStatus === 'CONCLUIDAS' ? 'Nenhuma meta concluída.' : 'Nenhuma meta cancelada.'}
           </div>
         )}
       </div>

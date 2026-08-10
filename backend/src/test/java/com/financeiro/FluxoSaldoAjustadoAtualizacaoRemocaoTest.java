@@ -120,6 +120,7 @@ class FluxoSaldoAjustadoAtualizacaoRemocaoTest extends TesteIntegracaoBase {
                 transacao(contaId, TipoTransacao.DESPESA, BigDecimal.valueOf(40), LocalDate.now().minusDays(1))).get(0);
         assertThat(saldoConta(token, contaId)).isEqualByComparingTo("60");
 
+        cancelarTransacao(token, criada.getId(), "UNICA");
         deletarTransacao(token, criada.getId(), "UNICA");
 
         assertThat(saldoConta(token, contaId)).isEqualByComparingTo("100");
@@ -134,6 +135,7 @@ class FluxoSaldoAjustadoAtualizacaoRemocaoTest extends TesteIntegracaoBase {
                 transacao(contaId, TipoTransacao.DESPESA, BigDecimal.valueOf(40), LocalDate.now().plusMonths(1))).get(0);
         assertThat(saldoConta(token, contaId)).isEqualByComparingTo("100");
 
+        cancelarTransacao(token, criada.getId(), "UNICA");
         deletarTransacao(token, criada.getId(), "UNICA");
 
         assertThat(saldoConta(token, contaId)).isEqualByComparingTo("100");
@@ -152,6 +154,7 @@ class FluxoSaldoAjustadoAtualizacaoRemocaoTest extends TesteIntegracaoBase {
         // do mês -1 e a do mês atual já venceram (dataBase = -1 mês) = 3.33 + 3.33
         assertThat(saldoConta(token, contaId)).isEqualByComparingTo("93.34");
 
+        cancelarTransacao(token, parcelas.get(0).getId(), "GRUPO");
         deletarTransacao(token, parcelas.get(0).getId(), "GRUPO");
 
         assertThat(saldoConta(token, contaId)).isEqualByComparingTo("100");
@@ -172,6 +175,7 @@ class FluxoSaldoAjustadoAtualizacaoRemocaoTest extends TesteIntegracaoBase {
 
         // apaga a partir da 2ª parcela (mês atual) em diante
         TransacaoDTO segunda = parcelas.stream().filter(p -> p.getNumeroParcela() == 2).findFirst().orElseThrow();
+        cancelarTransacao(token, segunda.getId(), "FUTURAS");
         deletarTransacao(token, segunda.getId(), "FUTURAS");
 
         // reverte só a parcela vencida (mês atual, 3.33); a do mês -1 permanece
@@ -192,6 +196,7 @@ class FluxoSaldoAjustadoAtualizacaoRemocaoTest extends TesteIntegracaoBase {
         assertThat(criadas).hasSize(1);
         assertThat(saldoConta(token, contaId)).isEqualByComparingTo("85");
 
+        cancelarTransacao(token, criadas.get(0).getId(), "FUTURAS");
         deletarTransacao(token, criadas.get(0).getId(), "FUTURAS");
 
         // única entrada ajustada era a do mês atual, que também foi apagada
@@ -216,7 +221,8 @@ class FluxoSaldoAjustadoAtualizacaoRemocaoTest extends TesteIntegracaoBase {
         dtoB.setFixa(true);
         criarTransacao(token, dtoB);
 
-        // Apaga série A (mês corrente e futuros)
+        // Cancela e apaga série A (mês corrente e futuros)
+        cancelarTransacao(token, serieA.get(0).getId(), "FUTURAS");
         deletarTransacao(token, serieA.get(0).getId(), "FUTURAS");
 
         // Série B deve continuar íntegra: mês+1 deve ter exatamente 1 lançamento de R$30
@@ -347,6 +353,11 @@ class FluxoSaldoAjustadoAtualizacaoRemocaoTest extends TesteIntegracaoBase {
 
     private void atualizarTransacao(String token, Long id, TransacaoDTO dto, String scope) {
         ResponseEntity<TransacaoDTO> resposta = put("/api/transacoes/" + id + "?scope=" + scope, dto, token, TransacaoDTO.class);
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
+    private void cancelarTransacao(String token, Long id, String scope) {
+        ResponseEntity<TransacaoDTO> resposta = patch("/api/transacoes/" + id + "/cancelar?scope=" + scope, null, token, TransacaoDTO.class);
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
     }
 

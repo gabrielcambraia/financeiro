@@ -11,8 +11,8 @@ interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
 const classes: Record<Variante, string> = {
   primario: 'btn-primary',
   secundario: 'py-2 px-4 rounded-lg border border-borda text-conteudo-suave hover:text-conteudo transition-colors text-sm font-medium',
-  perigo: 'w-full py-2 px-4 rounded-lg border border-red-800 text-red-400 hover:bg-red-900/30 transition-colors text-sm font-medium',
-  atencao: 'w-full py-2 px-4 rounded-lg border border-orange-800 text-orange-500 hover:bg-orange-900/30 transition-colors text-sm font-medium',
+  perigo: 'py-2 px-4 rounded-lg border border-red-800 text-red-400 hover:bg-red-900/30 transition-colors text-sm font-medium',
+  atencao: 'py-2 px-4 rounded-lg border border-orange-800 text-orange-500 hover:bg-orange-900/30 transition-colors text-sm font-medium',
   neutro: 'w-full py-2 px-4 rounded-lg border border-borda text-conteudo-suave hover:bg-superficie-2 transition-colors text-sm',
 }
 

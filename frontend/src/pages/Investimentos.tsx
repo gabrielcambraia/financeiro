@@ -69,9 +69,15 @@ export default function Investimentos() {
     tipo: 'cancelar' | 'excluir'; item: Ativo; impacto: RespostaImpacto | null; carregando: boolean
   } | null>(null)
 
+  const [filtroStatus, setFiltroStatus] = useState<'ATIVOS' | 'CANCELADOS'>('ATIVOS')
+
   const { data: ativos = [], isLoading } = useQuery({ queryKey: ['ativos'], queryFn: buscarAtivos })
   const { data: patrimonio } = useQuery({ queryKey: ['patrimonio'], queryFn: () => buscarPatrimonio(6) })
   const { data: contas = [] } = useQuery({ queryKey: ['contas'], queryFn: buscarContas })
+
+  const ativosFiltrados = ativos.filter(a =>
+    filtroStatus === 'ATIVOS' ? !a.dataCancelamento : !!a.dataCancelamento
+  )
 
   const invalidar = () => Promise.all([
     qc.invalidateQueries({ queryKey: ['ativos'] }),
@@ -176,7 +182,13 @@ export default function Investimentos() {
     <div className="p-6 space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-conteudo">Investimentos</h1>
-        <AcaoNova aoClicar={openCreate} rotulo="Novo ativo" />
+        <div className="flex items-center gap-3">
+          <select className="select w-36" value={filtroStatus} onChange={e => setFiltroStatus(e.target.value as any)}>
+            <option value="ATIVOS">Ativos</option>
+            <option value="CANCELADOS">Cancelados</option>
+          </select>
+          <AcaoNova aoClicar={openCreate} rotulo="Novo ativo" />
+        </div>
       </div>
 
       {patrimonio && (
@@ -222,7 +234,7 @@ export default function Investimentos() {
         <div className="flex justify-center py-16"><Spinner tamanho="lg" /></div>
       ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {ativos.map(ativo => (
+        {ativosFiltrados.map(ativo => (
           <div key={ativo.id} className="card group">
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-3 min-w-0">
@@ -286,9 +298,9 @@ export default function Investimentos() {
           </div>
         ))}
 
-        {ativos.length === 0 && (
+        {ativosFiltrados.length === 0 && (
           <div className="card col-span-full text-center py-12 text-conteudo-suave">
-            Nenhum ativo cadastrado. Crie o primeiro!
+            {filtroStatus === 'ATIVOS' ? 'Nenhum ativo cadastrado. Crie o primeiro!' : 'Nenhum ativo cancelado.'}
           </div>
         )}
       </div>
@@ -419,7 +431,7 @@ export default function Investimentos() {
                 <div>
                   <label className="label">{movimento.tipo === 'aportar' ? 'Conta de origem' : 'Conta de destino'}</label>
                   {movimento.ativo.contaId ? (
-                    <p className="text-sm text-conteudo py-2 px-3 rounded-lg bg-superficie-2">{movimento.ativo.conta.nome}</p>
+                    <p className="text-sm text-conteudo py-2 px-3 rounded-lg bg-superficie-2">{movimento.ativo.conta?.nome ?? '—'}</p>
                   ) : (
                     <select className="select" required
                       value={movForm.contaId} onChange={e => setMovForm(f => ({ ...f, contaId: e.target.value }))}>
