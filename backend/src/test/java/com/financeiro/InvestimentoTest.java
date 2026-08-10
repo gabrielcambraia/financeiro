@@ -82,25 +82,28 @@ class InvestimentoTest extends TesteIntegracaoBase {
     }
 
     @Test
-    void aportarOuResgatar_semContaId_400() {
+    void aportarOuResgatar_semContaId_usaContaVinculadaDoAtivo() {
+        // contaId não é mais exigido no payload: o serviço usa sempre a conta
+        // vinculada no cadastro do ativo (Ativo.conta, obrigatória e não-nula).
         String token = registrar();
         Long contaId = criarConta(token, BigDecimal.valueOf(1000));
         AtivoDTO ativo = criarAtivo(token, contaId, TipoAtivo.RESERVA);
-        // resgatar() valida "valor > investido" antes de exigir a conta — precisa
-        // ter saldo investido suficiente pra alcançar a validação de conta obrigatória.
-        aportar(token, ativo.getId(), contaId, BigDecimal.valueOf(50));
 
         MovimentacaoAtivoDTO semConta = new MovimentacaoAtivoDTO();
         semConta.setValor(BigDecimal.valueOf(50));
         semConta.setData(LocalDate.now());
 
-        ResponseEntity<Map> respostaAporte = patchComCorpoDeErro("/api/ativos/" + ativo.getId() + "/aportar", semConta, token);
-        assertThat(respostaAporte.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(respostaAporte.getBody().get("mensagem")).isEqualTo("Conta é obrigatória");
+        // aportar sem contaId — usa a conta vinculada do ativo
+        ResponseEntity<AtivoDTO> respostaAporte = patch("/api/ativos/" + ativo.getId() + "/aportar", semConta, token, AtivoDTO.class);
+        assertThat(respostaAporte.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(respostaAporte.getBody().getValorAtual()).isEqualByComparingTo("50");
+        assertThat(saldoConta(token, contaId)).isEqualByComparingTo("950");
 
-        ResponseEntity<Map> respostaResgate = patchComCorpoDeErro("/api/ativos/" + ativo.getId() + "/resgatar", semConta, token);
-        assertThat(respostaResgate.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(respostaResgate.getBody().get("mensagem")).isEqualTo("Conta é obrigatória");
+        // resgatar sem contaId — usa a conta vinculada do ativo
+        ResponseEntity<AtivoDTO> respostaResgate = patch("/api/ativos/" + ativo.getId() + "/resgatar", semConta, token, AtivoDTO.class);
+        assertThat(respostaResgate.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(respostaResgate.getBody().getValorAtual()).isEqualByComparingTo("0");
+        assertThat(saldoConta(token, contaId)).isEqualByComparingTo("1000");
     }
 
     @Test

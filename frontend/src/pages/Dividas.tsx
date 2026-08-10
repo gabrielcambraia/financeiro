@@ -11,6 +11,7 @@ import SobreposicaoModal from '../components/SobreposicaoModal'
 import ModalConfirmacao from '../components/ModalConfirmacao'
 import AcaoNova from '../components/AcaoNova'
 import CampoEntidade from '../components/forms/CampoEntidade'
+import Spinner from '../components/Spinner'
 import type { Divida, StatusTransacao, StatusDivida, RespostaImpacto } from '../types'
 
 const fmt = (v: number) =>
@@ -46,7 +47,7 @@ export default function Dividas() {
     tipo: 'cancelar' | 'excluir'; item: Divida; impacto: RespostaImpacto | null; carregando: boolean
   } | null>(null)
 
-  const { data: dividas = [] } = useQuery({ queryKey: ['dividas'], queryFn: buscarDividas })
+  const { data: dividas = [], isLoading } = useQuery({ queryKey: ['dividas'], queryFn: buscarDividas })
   const { data: contas = [] } = useQuery({ queryKey: ['contas'], queryFn: buscarContas })
   const { data: categorias = [] } = useQuery({ queryKey: ['categorias', 'DESPESA'], queryFn: () => buscarCategorias('DESPESA') })
   const { data: parcelas = [] } = useQuery({
@@ -119,6 +120,9 @@ export default function Dividas() {
         <AcaoNova aoClicar={() => setShowForm(true)} rotulo="Nova dívida" />
       </div>
 
+      {isLoading ? (
+        <div className="flex justify-center py-16"><Spinner tamanho="lg" /></div>
+      ) : (
       <div className="space-y-3">
         {dividas.map((d: Divida) => {
           const expandido = expandida === d.id
@@ -207,6 +211,7 @@ export default function Dividas() {
           </div>
         )}
       </div>
+      )}
 
       <ModalConfirmacao
         aberto={modalAcao !== null}

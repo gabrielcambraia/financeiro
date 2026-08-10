@@ -299,7 +299,7 @@ export default function Transacoes() {
 
       {/* Filtros */}
       <div className="flex flex-col gap-3 md:flex-row md:flex-wrap">
-        <select className="select w-full md:w-40" value={filtroTipo} onChange={e => setFiltroTipo(e.target.value as any)}>
+        <select className="select w-full md:w-40" value={filtroTipo} onChange={e => { setFiltroTipo(e.target.value as any); setFiltroCategoria('') }}>
           <option value="">Todos</option>
           <option value="RECEITA">Receitas</option>
           <option value="DESPESA">Despesas</option>
@@ -307,7 +307,10 @@ export default function Transacoes() {
         </select>
         <select className="select w-full md:w-48" value={filtroCategoria} onChange={e => setFiltroCategoria(e.target.value ? Number(e.target.value) : '')}>
           <option value="">Todas categorias</option>
-          {categorias.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+          {categorias
+            .filter(c => !filtroTipo || filtroTipo === 'TRANSFERENCIA' || c.tipo === filtroTipo)
+            .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+            .map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
         </select>
         <select className="select w-full md:w-40" value={filtroStatus} onChange={e => setFiltroStatus(e.target.value as StatusTransacao | '')}>
           <option value="">Todos status</option>
@@ -479,8 +482,11 @@ export default function Transacoes() {
                           <Ban size={14} />
                         </button>
                       )}
-                      <button onClick={() => { setEditing({ origem: 'TRANSACAO', tx: lanc.tx }); setShowForm(true) }}
-                        className="p-1.5 rounded-lg hover:bg-superficie-2 text-conteudo-suave hover:text-conteudo transition-colors">
+                      <button
+                        onClick={() => { if (!lanc.tx.origemDerivada) { setEditing({ origem: 'TRANSACAO', tx: lanc.tx }); setShowForm(true) } }}
+                        disabled={!!lanc.tx.origemDerivada}
+                        title={lanc.tx.origemDerivada ? 'Transação derivada — exclua e crie uma nova para corrigir' : undefined}
+                        className="p-1.5 rounded-lg hover:bg-superficie-2 text-conteudo-suave hover:text-conteudo transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
                         <Pencil size={14} />
                       </button>
                       <button onClick={() => abrirDeleteModal(lanc.tx)}

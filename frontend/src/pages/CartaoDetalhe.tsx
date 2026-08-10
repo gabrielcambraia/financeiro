@@ -13,6 +13,7 @@ import FormularioCompraCartao from '../components/forms/FormularioCompraCartao'
 import ModalConfirmacao from '../components/ModalConfirmacao'
 import AcaoNova from '../components/AcaoNova'
 import LogoBanco from '../components/LogoBanco'
+import Spinner from '../components/Spinner'
 import type { ItemFatura, StatusTransacao } from '../types'
 
 const fmt = (v: number) =>
@@ -98,7 +99,7 @@ export default function CartaoDetalhe() {
   // garantidas para entrar em cada fatura seguinte.
   const [mesCiclo, setMesCiclo] = useState(format(new Date(), 'yyyy-MM'))
 
-  const { data: cartoes = [] } = useQuery({ queryKey: ['cartoes'], queryFn: buscarCartoes })
+  const { data: cartoes = [], isLoading: carregandoCartoes } = useQuery({ queryKey: ['cartoes'], queryFn: buscarCartoes })
   const cartao = cartoes.find(c => c.id === cartaoId)
 
   const { data: itensAbertos = [] } = useQuery({
@@ -149,8 +150,8 @@ export default function CartaoDetalhe() {
     onSuccess: async () => { await invalidarTudo(); toast.success('Pagamento estornado') },
   })
 
-  if (!cartao) {
-    return <div className="p-6 text-conteudo-suave">Carregando...</div>
+  if (carregandoCartoes || !cartao) {
+    return <div className="flex justify-center items-center h-64"><Spinner tamanho="lg" /></div>
   }
 
   return (

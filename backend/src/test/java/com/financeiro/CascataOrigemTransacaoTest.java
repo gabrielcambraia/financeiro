@@ -30,7 +30,7 @@ class CascataOrigemTransacaoTest extends TesteIntegracaoBase {
     // ─── Ativo ───────────────────────────────────────────────────────────────
 
     @Test
-    void cancelarAtivo_comAportes_cancelaTransacoesEReverteSaldo() {
+    void cancelarAtivo_comValorPositivo_bloqueadoCom400() {
         String token = registrar();
         Long contaId = criarConta(token, BigDecimal.valueOf(1000));
         AtivoDTO ativo = criarAtivo(token, contaId);
@@ -38,39 +38,54 @@ class CascataOrigemTransacaoTest extends TesteIntegracaoBase {
 
         assertThat(saldoConta(token, contaId)).isEqualByComparingTo("700");
 
-        ResponseEntity<AtivoDTO> resp = patch("/api/ativos/" + ativo.getId() + "/cancelar", null, token, AtivoDTO.class);
-        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
+        // cancelar com valorAtual > 0 é bloqueado — deve resgatar primeiro
+        ResponseEntity<Map> bloqueado = patchComCorpoDeErro("/api/ativos/" + ativo.getId() + "/cancelar", null, token);
+        assertThat(bloqueado.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
 
-        // saldo deve voltar ao estado original
-        assertThat(saldoConta(token, contaId)).isEqualByComparingTo("1000");
-
-        // valorAtual do ativo zerado
-        List<AtivoDTO> ativos = listarAtivos(token);
-        AtivoDTO cancelado = ativos.stream().filter(a -> a.getId().equals(ativo.getId())).findFirst().orElseThrow();
-        assertThat(cancelado.getValorAtual()).isEqualByComparingTo("0");
-        assertThat(cancelado.getDataCancelamento()).isNotNull();
+        // saldo permanece inalterado após tentativa bloqueada
+        assertThat(saldoConta(token, contaId)).isEqualByComparingTo("700");
     }
 
     @Test
-    void cancelarAtivo_comAporteEResgate_reverteSaldoCorreto() {
+    void cancelarAtivo_aposResgateTotal_cancelaComSucesso() {
+        String token = registrar();
+        Long contaId = criarConta(token, BigDecimal.valueOf(1000));
+        AtivoDTO ativo = criarAtivo(token, contaId);
+        aportar(token, ativo.getId(), contaId, BigDecimal.valueOf(300));
+        resgatar(token, ativo.getId(), contaId, BigDecimal.valueOf(300));
+
+        // após resgatar tudo: saldo de volta e valorAtual = 0
+        assertThat(saldoConta(token, contaId)).isEqualByComparingTo("1000");
+
+        ResponseEntity<AtivoDTO> resp = patch("/api/ativos/" + ativo.getId() + "/cancelar", null, token, AtivoDTO.class);
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resp.getBody().getDataCancelamento()).isNotNull();
+        assertThat(resp.getBody().getValorAtual()).isEqualByComparingTo("0");
+
+        // saldo permanece o mesmo após cancelamento sem saldo
+        assertThat(saldoConta(token, contaId)).isEqualByComparingTo("1000");
+    }
+
+    @Test
+    void cancelarAtivo_comAporteEResgate_resgataRestanteDepoisCancela() {
         String token = registrar();
         Long contaId = criarConta(token, BigDecimal.valueOf(1000));
         AtivoDTO ativo = criarAtivo(token, contaId);
         aportar(token, ativo.getId(), contaId, BigDecimal.valueOf(300));
         resgatar(token, ativo.getId(), contaId, BigDecimal.valueOf(100));
 
-        // saldo deve ser 800 (1000 - 300 + 100)
+        // saldo = 800, valorAtual = 200 — cancelar bloqueado
         assertThat(saldoConta(token, contaId)).isEqualByComparingTo("800");
+        ResponseEntity<Map> bloqueado = patchComCorpoDeErro("/api/ativos/" + ativo.getId() + "/cancelar", null, token);
+        assertThat(bloqueado.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
 
-        patch("/api/ativos/" + ativo.getId() + "/cancelar", null, token, AtivoDTO.class);
+        // resgatar o restante
+        resgatar(token, ativo.getId(), contaId, BigDecimal.valueOf(200));
+        assertThat(saldoConta(token, contaId)).isEqualByComparingTo("1000");
 
-        // ao cancelar, o aporte não-cancelado (200 restantes como valorAtual) gera revert
-        // mas a transação de resgate já havia creditado a conta — ao cancelar a tx de resgate,
-        // desconta novamente. Resultado: 800 - 200 (reverso do aporte líquido) = 1000? Não,
-        // a lógica cancela CADA transação individualmente:
-        // - tx aporte (DESPESA, saldoAjustado=true): reverte → +300 na conta
-        // - tx resgate (RECEITA, saldoAjustado=true): reverte → -100 na conta
-        // saldo final: 800 + 300 - 100 = 1000
+        // agora pode cancelar
+        ResponseEntity<AtivoDTO> resp = patch("/api/ativos/" + ativo.getId() + "/cancelar", null, token, AtivoDTO.class);
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(saldoConta(token, contaId)).isEqualByComparingTo("1000");
     }
 
@@ -103,7 +118,7 @@ class CascataOrigemTransacaoTest extends TesteIntegracaoBase {
     // ─── Meta ─────────────────────────────────────────────────────────────────
 
     @Test
-    void cancelarMeta_comAportes_cancelaTransacoesComMetaId_revertendoSaldo() {
+    void cancelarMeta_comValorPositivo_bloqueadoCom400() {
         String token = registrar();
         Long contaId = criarConta(token, BigDecimal.valueOf(1000));
         MetaDTO meta = criarMeta(token, BigDecimal.valueOf(500));
@@ -111,10 +126,24 @@ class CascataOrigemTransacaoTest extends TesteIntegracaoBase {
         aportarMeta(token, meta.getId(), contaId, BigDecimal.valueOf(200));
         assertThat(saldoConta(token, contaId)).isEqualByComparingTo("800");
 
+        // cancelar com valorAtual > 0 é bloqueado
+        ResponseEntity<Map> bloqueado = patchComCorpoDeErro("/api/metas/" + meta.getId() + "/cancelar", null, token);
+        assertThat(bloqueado.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(saldoConta(token, contaId)).isEqualByComparingTo("800");
+    }
+
+    @Test
+    void cancelarMeta_aposResgateTotal_cancelaComSucesso() {
+        String token = registrar();
+        Long contaId = criarConta(token, BigDecimal.valueOf(1000));
+        MetaDTO meta = criarMeta(token, BigDecimal.valueOf(500));
+
+        aportarMeta(token, meta.getId(), contaId, BigDecimal.valueOf(200));
+        resgatarMeta(token, meta.getId(), contaId, BigDecimal.valueOf(200));
+        assertThat(saldoConta(token, contaId)).isEqualByComparingTo("1000");
+
         ResponseEntity<MetaDTO> resp = patch("/api/metas/" + meta.getId() + "/cancelar", null, token, MetaDTO.class);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
-
-        assertThat(saldoConta(token, contaId)).isEqualByComparingTo("1000");
 
         ResponseEntity<List<MetaDTO>> metas = get("/api/metas", token, new ParameterizedTypeReference<>() {});
         MetaDTO cancelada = metas.getBody().stream().filter(m -> m.getId().equals(meta.getId())).findFirst().orElseThrow();
@@ -151,22 +180,37 @@ class CascataOrigemTransacaoTest extends TesteIntegracaoBase {
     // ─── Dívida (regressão do fluxo já existente) ────────────────────────────
 
     @Test
-    void cancelarDivida_continuaCancelandoParcelas() {
+    void cancelarDivida_comParcelaPaga_bloqueadoCom400() {
         String token = registrar();
         Long contaId = criarConta(token, BigDecimal.valueOf(1000));
         DividaDTO divida = criarDivida(token, contaId, BigDecimal.valueOf(300), 3, LocalDate.now());
 
-        // Pagar a primeira parcela para que saldoAjustado=true
         List<TransacaoDTO> parcelas = parcelas(token, divida.getId());
         patch("/api/transacoes/" + parcelas.get(0).getId() + "/pagar", null, token, TransacaoDTO.class);
 
+        // cancelar com parcela paga é bloqueado — deve estornar primeiro
+        ResponseEntity<Map> bloqueado = patchComCorpoDeErro("/api/dividas/" + divida.getId() + "/cancelar", null, token);
+        assertThat(bloqueado.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void cancelarDivida_aposEstornoTotal_cancelaComSucesso() {
+        String token = registrar();
+        Long contaId = criarConta(token, BigDecimal.valueOf(1000));
+        DividaDTO divida = criarDivida(token, contaId, BigDecimal.valueOf(300), 3, LocalDate.now());
+
+        List<TransacaoDTO> parcelas = parcelas(token, divida.getId());
+        patch("/api/transacoes/" + parcelas.get(0).getId() + "/pagar", null, token, TransacaoDTO.class);
         BigDecimal saldoAposPagamento = saldoConta(token, contaId);
+
+        // estornar a parcela paga para que valorPago = 0
+        patch("/api/transacoes/" + parcelas.get(0).getId() + "/estornar", null, token, TransacaoDTO.class);
 
         ResponseEntity<DividaDTO> resp = patch("/api/dividas/" + divida.getId() + "/cancelar", null, token, DividaDTO.class);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(resp.getBody().getStatus().name()).isEqualTo("CANCELADA");
 
-        // Saldo deve ser revertido pela parcela paga
+        // saldo deve ser o mesmo que antes de pagar (estorno reverteu o débito)
         assertThat(saldoConta(token, contaId)).isEqualByComparingTo(saldoAposPagamento.add(parcelas.get(0).getValor()));
     }
 
@@ -272,7 +316,7 @@ class CascataOrigemTransacaoTest extends TesteIntegracaoBase {
     // ─── Endpoints de impacto ─────────────────────────────────────────────────
 
     @Test
-    void getImpactoCancelamentoAtivo_listaAportesAtivos() {
+    void getImpactoCancelamentoAtivo_comValorPositivo_retornaBloqueado() {
         String token = registrar();
         Long contaId = criarConta(token, BigDecimal.valueOf(1000));
         AtivoDTO ativo = criarAtivo(token, contaId);
@@ -281,9 +325,20 @@ class CascataOrigemTransacaoTest extends TesteIntegracaoBase {
         ResponseEntity<RespostaImpacto> resp = get(
                 "/api/ativos/" + ativo.getId() + "/impacto-cancelamento", token, RespostaImpacto.class);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resp.getBody().bloqueado()).isTrue();
+        assertThat(resp.getBody().motivoBloqueio()).isNotBlank();
+    }
+
+    @Test
+    void getImpactoCancelamentoAtivo_semValor_naoBloqueia() {
+        String token = registrar();
+        Long contaId = criarConta(token, BigDecimal.valueOf(1000));
+        AtivoDTO ativo = criarAtivo(token, contaId);
+
+        ResponseEntity<RespostaImpacto> resp = get(
+                "/api/ativos/" + ativo.getId() + "/impacto-cancelamento", token, RespostaImpacto.class);
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(resp.getBody().bloqueado()).isFalse();
-        assertThat(resp.getBody().itensAfetados()).hasSize(1);
-        assertThat(resp.getBody().itensAfetados().get(0).valor()).isEqualByComparingTo("300");
     }
 
     @Test
@@ -301,7 +356,7 @@ class CascataOrigemTransacaoTest extends TesteIntegracaoBase {
     }
 
     @Test
-    void getImpactoCancelamentoMeta_listaTxsVinculadas() {
+    void getImpactoCancelamentoMeta_comValorPositivo_retornaBloqueado() {
         String token = registrar();
         Long contaId = criarConta(token, BigDecimal.valueOf(1000));
         MetaDTO meta = criarMeta(token, BigDecimal.valueOf(500));
@@ -310,8 +365,8 @@ class CascataOrigemTransacaoTest extends TesteIntegracaoBase {
         ResponseEntity<RespostaImpacto> resp = get(
                 "/api/metas/" + meta.getId() + "/impacto-cancelamento", token, RespostaImpacto.class);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(resp.getBody().bloqueado()).isFalse();
-        assertThat(resp.getBody().itensAfetados()).hasSize(1);
+        assertThat(resp.getBody().bloqueado()).isTrue();
+        assertThat(resp.getBody().motivoBloqueio()).isNotBlank();
     }
 
     @Test
@@ -372,20 +427,33 @@ class CascataOrigemTransacaoTest extends TesteIntegracaoBase {
     }
 
     @Test
-    void getImpactoCancelamentoDivida_listaParcelas() {
+    void getImpactoCancelamentoDivida_comParcelaPaga_retornaBloqueado() {
         String token = registrar();
         Long contaId = criarConta(token, BigDecimal.valueOf(1000));
         DividaDTO divida = criarDivida(token, contaId, BigDecimal.valueOf(300), 3, LocalDate.now());
 
-        // Pagar uma parcela para que apareça nos itens afetados
+        // Pagar uma parcela — agora o impacto deve ser bloqueado
         List<TransacaoDTO> parcelas = parcelas(token, divida.getId());
         patch("/api/transacoes/" + parcelas.get(0).getId() + "/pagar", null, token, TransacaoDTO.class);
 
         ResponseEntity<RespostaImpacto> resp = get(
                 "/api/dividas/" + divida.getId() + "/impacto-cancelamento", token, RespostaImpacto.class);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resp.getBody().bloqueado()).isTrue();
+        assertThat(resp.getBody().motivoBloqueio()).isNotBlank();
+    }
+
+    @Test
+    void getImpactoCancelamentoDivida_semParcelaPaga_naoBloqueia() {
+        String token = registrar();
+        Long contaId = criarConta(token, BigDecimal.valueOf(1000));
+        DividaDTO divida = criarDivida(token, contaId, BigDecimal.valueOf(300), 3, LocalDate.now());
+
+        ResponseEntity<RespostaImpacto> resp = get(
+                "/api/dividas/" + divida.getId() + "/impacto-cancelamento", token, RespostaImpacto.class);
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(resp.getBody().bloqueado()).isFalse();
-        assertThat(resp.getBody().itensAfetados()).isNotEmpty();
+        assertThat(resp.getBody().itensAfetados()).hasSize(3);
     }
 
     // ─── helpers ──────────────────────────────────────────────────────────────

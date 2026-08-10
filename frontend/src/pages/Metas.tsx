@@ -10,6 +10,7 @@ import ModalConfirmacao from '../components/ModalConfirmacao'
 import SeletorCor from '../components/SeletorCor'
 import AcaoNova from '../components/AcaoNova'
 import CampoEntidade from '../components/forms/CampoEntidade'
+import Spinner from '../components/Spinner'
 import type { Meta, RespostaImpacto } from '../types'
 
 const fmt = (v: number) =>
@@ -30,7 +31,7 @@ export default function Metas() {
     tipo: 'cancelar' | 'excluir'; item: Meta; impacto: RespostaImpacto | null; carregando: boolean
   } | null>(null)
 
-  const { data: metas = [] } = useQuery({ queryKey: ['metas'], queryFn: buscarMetas })
+  const { data: metas = [], isLoading } = useQuery({ queryKey: ['metas'], queryFn: buscarMetas })
   const { data: contas = [] } = useQuery({ queryKey: ['contas'], queryFn: buscarContas })
 
   const invalidar = () => Promise.all([
@@ -114,6 +115,9 @@ export default function Metas() {
         <AcaoNova aoClicar={openCreate} rotulo="Nova meta" />
       </div>
 
+      {isLoading ? (
+        <div className="flex justify-center py-16"><Spinner tamanho="lg" /></div>
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {metas.map(meta => (
           <div key={meta.id} className="card group">
@@ -178,6 +182,7 @@ export default function Metas() {
           </div>
         )}
       </div>
+      )}
 
       <ModalConfirmacao
         aberto={modalAcao !== null}

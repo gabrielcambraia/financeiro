@@ -124,6 +124,7 @@ export interface Transacao {
   direcaoTransferencia?: DirecaoTransferencia
   multa?: number
   entidadeId?: number | null
+  origemDerivada?: 'META' | 'ATIVO' | 'DIVIDA'
 }
 
 export interface ResumoFluxo {
