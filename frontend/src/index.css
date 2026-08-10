@@ -2,46 +2,63 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --fundo: 226 232 240;
-  --superficie: 255 255 255;
-  --superficie-2: 236 238 244;
-  --conteudo: 15 23 42;
-  --conteudo-suave: 100 116 139;
-  --borda: 226 232 240;
-  --acento: 18 58 117;
-
-  /* campo: área onde a barra lateral se funde, cobrindo o fundo do app */
-  --campo: 176 194 219;
-  --campo-texto: 22 50 79;
-  --campo-texto-suave: 92 127 163;
-
-  /* pastel: theme-aware — os cartões-resumo usam esses pares (bg/texto) */
-  --pastel-lilas: 237 233 254;        --pastel-lilas-texto: 109 40 217;
-  --pastel-verde: 209 250 229;        --pastel-verde-texto: 4 120 87;
-  --pastel-bege: 254 243 199;         --pastel-bege-texto: 180 83 9;
-  --pastel-azul: 219 234 254;         --pastel-azul-texto: 29 78 216;
-  --pastel-vermelho: 251 231 231;     --pastel-vermelho-texto: 180 35 24;
+/* ── Sidebar — NUNCA muda com o tema ─────────────────────── */
+:root, .dark {
+  --sb-fundo:        17  32  60;
+  --sb-hover:        27  47  82;
+  --sb-ativo:        30  65 110;
+  --sb-ativo-barra:  46 180 100;
+  --sb-texto:       226 232 240;
+  --sb-suave:       148 163 184;
+  --sb-borda:        30  51  87;
 }
 
+/* ── Conteúdo — tema CLARO ────────────────────────────────── */
+:root {
+  --fundo:          250 247 240;
+  --superficie:     255 255 255;
+  --superficie-2:   246 243 236;
+  --conteudo:        20  24  33;
+  --conteudo-suave:  92 100 115;
+  --borda:          226 222 213;
+  --acento:          40 100 220;
+
+  --sucesso:         46 160  90;
+  --sucesso-fundo:  220 245 231;
+  --perigo:         210  55  55;
+  --perigo-fundo:   254 226 226;
+  --aviso:          214 143  20;
+  --aviso-fundo:    254 243 199;
+
+  --pastel-lilas:       237 228 255;  --pastel-lilas-texto:    110  60 200;
+  --pastel-verde:       220 245 231;  --pastel-verde-texto:     30 110  60;
+  --pastel-bege:        254 243 199;  --pastel-bege-texto:     180  83   9;
+  --pastel-azul:        220 234 255;  --pastel-azul-texto:      30  80 180;
+  --pastel-vermelho:    254 226 226;  --pastel-vermelho-texto: 160  40  40;
+}
+
+/* ── Conteúdo — tema ESCURO ───────────────────────────────── */
 .dark {
-  --fundo: 2 6 23;
-  --superficie: 29 30 40;
-  --superficie-2: 38 40 53;
-  --conteudo: 241 245 249;
-  --conteudo-suave: 148 163 184;
-  --borda: 44 46 59;
-  --acento: 68 114 212;
+  --fundo:            8  10  14;
+  --superficie:      18  21  28;
+  --superficie-2:    26  30  40;
+  --conteudo:       235 238 245;
+  --conteudo-suave: 148 156 170;
+  --borda:           38  44  56;
+  --acento:          88 138 240;
 
-  --campo: 11 11 16;
-  --campo-texto: 238 240 246;
-  --campo-texto-suave: 148 152 171;
+  --sucesso:         70 195 120;
+  --sucesso-fundo:   20  55  38;
+  --perigo:         240  90  90;
+  --perigo-fundo:    70  20  20;
+  --aviso:          240 185  50;
+  --aviso-fundo:     65  45  10;
 
-  --pastel-lilas: 44 38 80;           --pastel-lilas-texto: 182 168 255;
-  --pastel-verde: 18 53 39;           --pastel-verde-texto: 79 219 157;
-  --pastel-bege: 58 44 16;            --pastel-bege-texto: 240 181 89;
-  --pastel-azul: 20 44 72;            --pastel-azul-texto: 123 182 245;
-  --pastel-vermelho: 58 32 32;        --pastel-vermelho-texto: 240 113 111;
+  --pastel-lilas:        45  25  80;  --pastel-lilas-texto:   190 140 255;
+  --pastel-verde:        20  55  38;  --pastel-verde-texto:    70 195 120;
+  --pastel-bege:         65  45  10;  --pastel-bege-texto:    240 185  50;
+  --pastel-azul:         25  40  80;  --pastel-azul-texto:     88 138 240;
+  --pastel-vermelho:     70  20  20;  --pastel-vermelho-texto: 240  90  90;
 }
 
 @layer base {
@@ -51,20 +68,20 @@
   }
   ::-webkit-scrollbar { @apply w-1.5 h-1.5; }
   ::-webkit-scrollbar-track { @apply bg-transparent; }
-  ::-webkit-scrollbar-thumb { @apply bg-acento rounded-full; }
+  ::-webkit-scrollbar-thumb { @apply bg-borda rounded-full; }
 }
 
 @layer components {
-  .card { @apply bg-superficie border border-borda rounded-2xl p-5; }
-  .btn-primary { @apply bg-acento hover:opacity-90 text-white px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50; }
-  .btn-ghost { @apply hover:bg-superficie-2 text-conteudo-suave hover:text-conteudo px-3 py-2 rounded-lg transition-colors; }
-  .btn-danger { @apply bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors; }
-  .input { @apply bg-superficie-2 border border-borda text-conteudo rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-acento focus:border-transparent placeholder:text-conteudo-suave; }
-  .select { @apply bg-superficie-2 border border-borda text-conteudo rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-acento focus:border-transparent; }
-  .label { @apply block text-sm font-medium text-conteudo-suave mb-1; }
-  .badge-income { @apply inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full text-xs font-medium; }
-  .badge-expense { @apply inline-flex items-center gap-1 text-red-600 dark:text-red-400 bg-red-400/10 px-2 py-0.5 rounded-full text-xs font-medium; }
-  .cartao-modal { @apply bg-superficie border border-borda w-full rounded-t-2xl rounded-b-none md:rounded-2xl max-h-[90dvh] flex flex-col overflow-hidden; }
-  .cartao-modal-cabecalho { @apply flex items-center justify-between px-5 pt-5 pb-4 shrink-0; }
-  .cartao-modal-corpo { @apply flex-1 min-h-0 overflow-y-auto px-5 pb-5 space-y-4; }
+  .card { @apply bg-superficie border border-borda rounded-2xl p-5 shadow-sm dark:shadow-none; }
+  .btn-primary   { @apply bg-acento hover:opacity-90 text-white px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50; }
+  .btn-ghost     { @apply hover:bg-superficie-2 text-conteudo-suave hover:text-conteudo px-3 py-2 rounded-lg transition-colors; }
+  .btn-danger    { @apply bg-perigo hover:opacity-90 text-white px-4 py-2 rounded-lg font-medium transition-colors; }
+  .input  { @apply bg-superficie border border-borda text-conteudo rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-acento/40 focus:border-acento placeholder:text-conteudo-suave; }
+  .select { @apply bg-superficie border border-borda text-conteudo rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-acento/40 focus:border-acento; }
+  .label  { @apply block text-sm font-medium text-conteudo-suave mb-1; }
+  .badge-income  { @apply inline-flex items-center gap-1 text-sucesso bg-sucesso-fundo px-2 py-0.5 rounded-full text-xs font-medium; }
+  .badge-expense { @apply inline-flex items-center gap-1 text-perigo  bg-perigo-fundo  px-2 py-0.5 rounded-full text-xs font-medium; }
+  .cartao-modal          { @apply bg-superficie border border-borda w-full rounded-t-2xl rounded-b-none md:rounded-2xl max-h-[90dvh] flex flex-col overflow-hidden; }
+  .cartao-modal-cabecalho{ @apply flex items-center justify-between px-5 pt-5 pb-4 shrink-0; }
+  .cartao-modal-corpo    { @apply flex-1 min-h-0 overflow-y-auto px-5 pb-5 space-y-4; }
 }

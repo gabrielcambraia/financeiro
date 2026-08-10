@@ -136,14 +136,14 @@ public class PainelService {
     }
 
     private List<PainelDTO.TendenciaMensal> buildTendenciaMensal(Long espacoId, YearMonth atual, Long contaId) {
-        LocalDate dataInicio = atual.minusMonths(5).atDay(1);
+        LocalDate dataInicio = atual.minusMonths(11).atDay(1);
         LocalDate dataFim = atual.atEndOfMonth();
 
         List<Transacao> todas = fetch(espacoId, contaId, dataInicio, dataFim, true).stream()
                 .filter(t -> t.getDataCancelamento() == null).toList();
 
         List<PainelDTO.TendenciaMensal> tendencia = new ArrayList<>();
-        for (int i = 5; i >= 0; i--) {
+        for (int i = 11; i >= 0; i--) {
             YearMonth m = atual.minusMonths(i);
             LocalDate ms = m.atDay(1);
             LocalDate me = m.atEndOfMonth();

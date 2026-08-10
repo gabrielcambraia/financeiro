@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
+import { useLojaTema } from './store/lojaTema'
 import Estrutura from './components/Estrutura'
 import RotaProtegida from './components/RotaProtegida'
 import FaviconPlataforma from './components/FaviconPlataforma'
@@ -33,9 +34,10 @@ const queryClient = new QueryClient({
 })
 
 export default function App() {
+  const tema = useLojaTema(s => s.tema)
   return (
     <QueryClientProvider client={queryClient}>
-      <Toaster position="top-right" richColors closeButton duration={4000} theme="dark" />
+      <Toaster position="top-right" richColors closeButton duration={4000} theme={tema === 'escuro' ? 'dark' : 'light'} />
       <FaviconPlataforma />
       <BrowserRouter>
         <Routes>

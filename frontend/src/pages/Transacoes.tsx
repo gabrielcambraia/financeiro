@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Trash2, Pencil, CreditCard, Banknote, Repeat, Layers, CheckCircle2, Ban, Undo2, ArrowRightLeft } from 'lucide-react'
+import { Trash2, Pencil, CreditCard, Banknote, Repeat, Layers, CheckCircle2, Ban, Undo2, ArrowRightLeft, TrendingUp, TrendingDown, CalendarDays, Upload, Download, Plus, ChevronLeft, ChevronRight } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import {
@@ -19,7 +19,6 @@ import { useLojaFiltro } from '../store/lojaFiltro'
 import SeletorMes from '../components/SeletorMes'
 import FormularioTransacao, { type EdicaoLancamento } from '../components/forms/FormularioTransacao'
 import SobreposicaoModal from '../components/SobreposicaoModal'
-import AcaoNova from '../components/AcaoNova'
 import Spinner from '../components/Spinner'
 import type { Transacao, ItemFatura, Fatura, TipoTransacao, StatusTransacao, RespostaImpacto } from '../types'
 
@@ -73,6 +72,8 @@ interface EstadoNavegacaoTransacoes {
   dataVencimentoFim?: string
 }
 
+const ITENS_POR_PAGINA = 15
+
 export default function Transacoes() {
   const qc = useQueryClient()
   const { mes, contaId, definirContaId } = useLojaFiltro()
@@ -85,8 +86,16 @@ export default function Transacoes() {
   const [filtroTipo, setFiltroTipo] = useState<TipoTransacao | ''>(estadoNavegacao.tipo ?? '')
   const dataVencimentoInicio = estadoNavegacao.dataVencimentoInicio
   const dataVencimentoFim = estadoNavegacao.dataVencimentoFim
+
+  // Filtros de data: estado local para edição, aplicados ao pressionar "Aplicar"
+  const [localDataInicio, setLocalDataInicio] = useState(dataVencimentoInicio ?? '')
+  const [localDataFim, setLocalDataFim] = useState(dataVencimentoFim ?? '')
+  const [filtroDataInicio, setFiltroDataInicio] = useState(dataVencimentoInicio)
+  const [filtroDataFim, setFiltroDataFim] = useState(dataVencimentoFim)
+  const [vencimentoAberto, setVencimentoAberto] = useState(!!dataVencimentoInicio)
+
   const [filtroCategoria, setFiltroCategoria] = useState<number | ''>('')
-  const [filtroStatus, setFiltroStatus] = useState<StatusTransacao | ''>('')
+  const [filtroStatus] = useState<StatusTransacao | ''>('')
   const [filtroCartao, setFiltroCartao] = useState<number | ''>('')
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<EdicaoLancamento | undefined>()
@@ -94,6 +103,10 @@ export default function Transacoes() {
   const [cancelModal, setCancelModal] = useState<{ tx: Transacao; impacto: RespostaImpacto | null; carregando: boolean; erro?: string } | null>(null)
   const [pagarModal, setPagarModal] = useState<{ id: number; tipo: TipoTransacao; status: StatusTransacao } | null>(null)
   const [confirmarExcluirItem, setConfirmarExcluirItem] = useState<number | null>(null)
+
+  // Paginação
+  const [pagina, setPagina] = useState(1)
+  useEffect(() => { setPagina(1) }, [mes, contaId, filtroTipo, filtroCategoria, filtroCartao, filtroDataInicio, filtroDataFim, filtroStatus])
 
   const abrirDeleteModal = async (tx: Transacao) => {
     setDeleteModal({ tx, impacto: null, carregando: true })
@@ -119,14 +132,14 @@ export default function Transacoes() {
   // cartão (compras em aberto + faturas fechadas) — nada de lançamentos de
   // débito da conta, mesmo que a conta de pagamento do cartão seja a mesma.
   const { data: transacoes = [], isLoading } = useQuery({
-    queryKey: ['transacoes', mes, contaId, filtroTipo, filtroCategoria, dataVencimentoInicio, dataVencimentoFim],
+    queryKey: ['transacoes', mes, contaId, filtroTipo, filtroCategoria, filtroDataInicio, filtroDataFim],
     queryFn: () => buscarTransacoes({
       month: mes,
       contaId,
       tipo: filtroTipo || undefined,
       categoriaId: filtroCategoria || undefined,
-      dataVencimentoInicio,
-      dataVencimentoFim,
+      dataVencimentoInicio: filtroDataInicio,
+      dataVencimentoFim: filtroDataFim,
     }),
     enabled: !filtroCartao,
   })
@@ -134,7 +147,7 @@ export default function Transacoes() {
   // Itens de fatura em aberto não têm vencimento nem "tipo" formal — sempre
   // são despesa. Não busca quando o filtro de tipo exclui despesas, nem
   // quando a navegação veio filtrada por vencimento (não se aplica a eles).
-  const buscaItensHabilitada = (filtroTipo === '' || filtroTipo === 'DESPESA') && !dataVencimentoFim
+  const buscaItensHabilitada = (filtroTipo === '' || filtroTipo === 'DESPESA') && !filtroDataFim
   const { data: itensFaturaRaw = [] } = useQuery({
     queryKey: ['itensFatura', 'lancamentos', mes, contaId, filtroCartao],
     queryFn: () => buscarItensFatura({ month: mes, contaId, cartaoId: filtroCartao || undefined }),
@@ -231,7 +244,11 @@ export default function Transacoes() {
         (l.origem === 'TRANSACAO' && l.tx.status === filtroStatus) ||
         (l.origem === 'FATURA' && l.fatura.status === filtroStatus))
     : lancamentos
-  const agrupadas = agruparPorData(visiveis)
+
+  // Paginação sobre a lista filtrada
+  const totalPaginas = Math.max(1, Math.ceil(visiveis.length / ITENS_POR_PAGINA))
+  const visivelsPaginados = visiveis.slice((pagina - 1) * ITENS_POR_PAGINA, pagina * ITENS_POR_PAGINA)
+  const agrupadas = agruparPorData(visivelsPaginados)
 
   // Totais refletem o mês/conta/cartão selecionados, sem os filtros de status
   // (mesmo comportamento de antes) — cancelada/cancelado nunca conta, pois a
@@ -245,19 +262,14 @@ export default function Transacoes() {
   const totalDespesas = ativas.filter(t => t.tipo === 'DESPESA').reduce((s, t) => s + t.valor, 0)
     + totalDespesasItens + totalDespesasFaturas
 
-  const realizadas = ativas.filter(t => t.status === 'PAGA')
-  const pendentes = ativas.filter(t => t.status === 'PENDENTE' || t.status === 'ATRASADA')
-  const faturasPagas = faturasCartao.filter(f => f.status === 'PAGA')
-  const faturasPendentes = faturasCartao.filter(f => f.status === 'PENDENTE' || f.status === 'ATRASADA')
+  const resultado = totalReceitas - totalDespesas
+  const countReceitas = ativas.filter(t => t.tipo === 'RECEITA').length
+  const countDespesas = ativas.filter(t => t.tipo === 'DESPESA').length + itensAtivos.length
 
-  const receitasRealizadas = realizadas.filter(t => t.tipo === 'RECEITA').reduce((s, t) => s + t.valor, 0)
-  const despesasRealizadas = realizadas.filter(t => t.tipo === 'DESPESA').reduce((s, t) => s + t.valor, 0)
-    + faturasPagas.reduce((s, f) => s + f.valor, 0)
-  const receitasPendentes = pendentes.filter(t => t.tipo === 'RECEITA').reduce((s, t) => s + t.valor, 0)
-  // Itens de fatura em aberto nunca "realizam" (não tocam saldo) até a fatura
-  // fechar — entram sempre como pendentes.
-  const despesasPendentes = pendentes.filter(t => t.tipo === 'DESPESA').reduce((s, t) => s + t.valor, 0)
-    + totalDespesasItens + faturasPendentes.reduce((s, f) => s + f.valor, 0)
+  // Chip de tipo: classe base e classe ativa
+  const chipBase = 'text-xs px-3 py-1.5 rounded-full font-medium transition-colors flex items-center gap-1'
+  const chipAtivo = 'bg-acento text-white border border-acento'
+  const chipInativo = 'border border-borda text-conteudo-suave hover:border-acento hover:text-acento bg-superficie'
 
   return (
     <div className="p-6 space-y-5">
@@ -265,73 +277,159 @@ export default function Transacoes() {
         <h1 className="text-2xl font-bold text-conteudo">Lançamentos</h1>
         <div className="flex items-center gap-3 md:w-auto">
           <SeletorMes />
-          <AcaoNova aoClicar={() => { setEditing(undefined); setShowForm(true) }} rotulo="Novo lançamento" />
         </div>
       </div>
 
-      {/* Barra de resumo: receitas em cima, despesas embaixo */}
-      <div className="grid grid-cols-3 gap-2 md:gap-4">
-        <div className="card text-center p-3 md:p-5">
+      {/* Cards de resumo: Receitas | Despesas | Resultado */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="card p-4">
           <p className="text-xs text-conteudo-suave mb-1">Receitas</p>
-          <p className="text-sm md:text-lg font-bold text-emerald-500">{fmt(totalReceitas)}</p>
+          <p className="text-lg font-bold text-sucesso">+{fmt(totalReceitas)}</p>
+          <p className="text-xs text-conteudo-suave mt-1">{countReceitas} lançamentos</p>
         </div>
-        <div className="card text-center p-3 md:p-5 border border-emerald-400/20">
-          <p className="text-xs text-conteudo-suave mb-1">Receitas recebidas</p>
-          <p className="text-sm md:text-base font-bold text-emerald-500">{fmt(receitasRealizadas)}</p>
-        </div>
-        <div className="card text-center p-3 md:p-5 border border-amber-400/20">
-          <p className="text-xs text-conteudo-suave mb-1">Receitas a receber</p>
-          <p className="text-sm md:text-base font-bold text-emerald-500">{fmt(receitasPendentes)}</p>
-        </div>
-
-        <div className="card text-center p-3 md:p-5">
+        <div className="card p-4">
           <p className="text-xs text-conteudo-suave mb-1">Despesas</p>
-          <p className="text-sm md:text-lg font-bold text-red-500">{fmt(totalDespesas)}</p>
+          <p className="text-lg font-bold text-perigo">-{fmt(totalDespesas)}</p>
+          <p className="text-xs text-conteudo-suave mt-1">{countDespesas} lançamentos</p>
         </div>
-        <div className="card text-center p-3 md:p-5 border border-emerald-400/20">
-          <p className="text-xs text-conteudo-suave mb-1">Despesas pagas</p>
-          <p className="text-sm md:text-base font-bold text-red-500">{fmt(despesasRealizadas)}</p>
-        </div>
-        <div className="card text-center p-3 md:p-5 border border-amber-400/20">
-          <p className="text-xs text-conteudo-suave mb-1">Despesas a pagar</p>
-          <p className="text-sm md:text-base font-bold text-red-500">{fmt(despesasPendentes)}</p>
+        <div className="card p-4">
+          <p className="text-xs text-conteudo-suave mb-1">Resultado</p>
+          <p className={`text-lg font-bold ${resultado >= 0 ? 'text-sucesso' : 'text-perigo'}`}>{fmt(resultado)}</p>
+          <p className="text-xs text-conteudo-suave mt-1">{countReceitas + countDespesas} transações total</p>
         </div>
       </div>
 
-      {/* Filtros */}
-      <div className="flex flex-col gap-3 md:flex-row md:flex-wrap">
-        <select className="select w-full md:w-40" value={filtroTipo} onChange={e => { setFiltroTipo(e.target.value as any); setFiltroCategoria('') }}>
-          <option value="">Todos</option>
-          <option value="RECEITA">Receitas</option>
-          <option value="DESPESA">Despesas</option>
-          <option value="TRANSFERENCIA">Transferências</option>
-        </select>
-        <select className="select w-full md:w-48" value={filtroCategoria} onChange={e => setFiltroCategoria(e.target.value ? Number(e.target.value) : '')}>
-          <option value="">Todas categorias</option>
-          {categorias
-            .filter(c => !filtroTipo || filtroTipo === 'TRANSFERENCIA' || c.tipo === filtroTipo)
-            .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
-            .map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-        </select>
-        <select className="select w-full md:w-40" value={filtroStatus} onChange={e => setFiltroStatus(e.target.value as StatusTransacao | '')}>
-          <option value="">Todos status</option>
-          <option value="PENDENTE">Pendente</option>
-          <option value="ATRASADA">Atrasada</option>
-          <option value="PAGA">Paga</option>
-          <option value="CANCELADA">Cancelada</option>
-        </select>
-        <select className="select w-full md:w-44" value={contaId ?? ''} onChange={e => definirContaId(e.target.value ? Number(e.target.value) : undefined)}>
-          <option value="">Todas as contas</option>
-          {[...contas].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-        </select>
-        <select
-          className="select w-full md:w-44" value={filtroCartao}
-          disabled={filtroTipo === 'TRANSFERENCIA' || filtroTipo === 'RECEITA'}
-          onChange={e => setFiltroCartao(e.target.value ? Number(e.target.value) : '')}
-        >
-          <option value="">Todos os cartões</option>
-          {[...cartoes].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-        </select>
+      {/* Barra de filtros em chips */}
+      <div className="card p-3">
+        {/* Linha 1: chips de filtro + ações */}
+        <div className="flex flex-wrap gap-2 items-center">
+          {/* Chips de tipo */}
+          <button
+            className={`${chipBase} ${filtroTipo === '' ? chipAtivo : chipInativo}`}
+            onClick={() => { setFiltroTipo(''); setFiltroCategoria('') }}>
+            Todos
+          </button>
+          <button
+            className={`${chipBase} ${filtroTipo === 'RECEITA' ? chipAtivo : chipInativo}`}
+            onClick={() => { setFiltroTipo('RECEITA'); setFiltroCategoria('') }}>
+            <TrendingUp size={11} />
+            Receita
+          </button>
+          <button
+            className={`${chipBase} ${filtroTipo === 'DESPESA' ? chipAtivo : chipInativo}`}
+            onClick={() => { setFiltroTipo('DESPESA'); setFiltroCategoria('') }}>
+            <TrendingDown size={11} />
+            Despesa
+          </button>
+          <button
+            className={`${chipBase} ${filtroTipo === 'TRANSFERENCIA' ? chipAtivo : chipInativo}`}
+            onClick={() => { setFiltroTipo('TRANSFERENCIA'); setFiltroCategoria('') }}>
+            <ArrowRightLeft size={11} />
+            Transferência
+          </button>
+
+          {/* Divisor */}
+          <div className="w-px h-5 bg-borda shrink-0" />
+
+          {/* Select de conta estilizado como chip */}
+          <select
+            className="text-xs px-3 py-1.5 rounded-full font-medium border border-borda bg-superficie text-conteudo-suave focus:border-acento focus:outline-none cursor-pointer"
+            value={contaId ?? ''}
+            onChange={e => definirContaId(e.target.value ? Number(e.target.value) : undefined)}>
+            <option value="">Conta</option>
+            {[...contas].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(c => (
+              <option key={c.id} value={c.id}>{c.nome}</option>
+            ))}
+          </select>
+
+          {/* Select de categoria estilizado como chip */}
+          <select
+            className="text-xs px-3 py-1.5 rounded-full font-medium border border-borda bg-superficie text-conteudo-suave focus:border-acento focus:outline-none cursor-pointer"
+            value={filtroCategoria}
+            onChange={e => setFiltroCategoria(e.target.value ? Number(e.target.value) : '')}>
+            <option value="">Categoria</option>
+            {categorias
+              .filter(c => !filtroTipo || filtroTipo === 'TRANSFERENCIA' || c.tipo === filtroTipo)
+              .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+              .map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+          </select>
+
+          {/* Select de cartão estilizado como chip */}
+          <select
+            className="text-xs px-3 py-1.5 rounded-full font-medium border border-borda bg-superficie text-conteudo-suave focus:border-acento focus:outline-none cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            value={filtroCartao}
+            disabled={filtroTipo === 'RECEITA' || filtroTipo === 'TRANSFERENCIA'}
+            onChange={e => setFiltroCartao(e.target.value ? Number(e.target.value) : '')}>
+            <option value="">Cartão</option>
+            {[...cartoes].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(c => (
+              <option key={c.id} value={c.id}>{c.nome}</option>
+            ))}
+          </select>
+
+          {/* Chip de vencimento */}
+          <button
+            className={`${chipBase} ${(filtroDataInicio || filtroDataFim) ? chipAtivo : chipInativo}`}
+            onClick={() => setVencimentoAberto(!vencimentoAberto)}>
+            <CalendarDays size={12} />
+            Vencimento
+          </button>
+
+          {/* Ações à direita */}
+          <div className="ml-auto flex gap-2">
+            <button className="btn-ghost text-xs py-1.5 px-3 flex items-center gap-1">
+              <Upload size={13} />
+              Importar
+            </button>
+            <button className="btn-ghost text-xs py-1.5 px-3 flex items-center gap-1">
+              <Download size={13} />
+              Exportar
+            </button>
+            <button
+              className="btn-primary text-xs py-1.5 px-3 flex items-center gap-1"
+              onClick={() => { setEditing(undefined); setShowForm(true) }}>
+              <Plus size={14} />
+              Novo lançamento
+            </button>
+          </div>
+        </div>
+
+        {/* Linha 2: painel de período de vencimento (condicional) */}
+        {vencimentoAberto && (
+          <div className="flex flex-wrap gap-3 items-center pt-3 mt-2 border-t border-borda">
+            <span className="text-xs text-conteudo-suave font-medium">Período de vencimento:</span>
+            <input
+              type="date"
+              className="input text-sm py-1.5"
+              style={{ width: 'auto' }}
+              value={localDataInicio}
+              onChange={e => setLocalDataInicio(e.target.value)}
+            />
+            <span className="text-xs text-conteudo-suave">até</span>
+            <input
+              type="date"
+              className="input text-sm py-1.5"
+              style={{ width: 'auto' }}
+              value={localDataFim}
+              onChange={e => setLocalDataFim(e.target.value)}
+            />
+            <button
+              className="btn-primary text-xs px-3 py-1.5"
+              onClick={() => { setFiltroDataInicio(localDataInicio || undefined); setFiltroDataFim(localDataFim || undefined) }}>
+              Aplicar
+            </button>
+            <button
+              className="btn-ghost text-xs px-3 py-1.5"
+              onClick={() => {
+                setLocalDataInicio('')
+                setLocalDataFim('')
+                setFiltroDataInicio(undefined)
+                setFiltroDataFim(undefined)
+                setVencimentoAberto(false)
+              }}>
+              Limpar
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Lista de lançamentos */}
@@ -563,6 +661,43 @@ export default function Transacoes() {
               </div>
             </div>
           ))}
+
+          {/* Paginação */}
+          {totalPaginas > 1 && (
+            <div className="card p-3 flex items-center justify-between">
+              <span className="text-xs text-conteudo-suave">
+                {visiveis.length} transações · Página {pagina} de {totalPaginas}
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setPagina(p => Math.max(1, p - 1))}
+                  disabled={pagina === 1}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg border border-borda text-conteudo-suave hover:border-acento hover:text-acento disabled:opacity-40 transition-colors text-sm">
+                  <ChevronLeft size={14} />
+                </button>
+                {Array.from({ length: totalPaginas }, (_, i) => i + 1)
+                  .filter(p => p === 1 || p === totalPaginas || Math.abs(p - pagina) <= 1)
+                  .map((p, idx, arr) => (
+                    <>
+                      {idx > 0 && arr[idx - 1] !== p - 1 && (
+                        <span key={`dots-${p}`} className="text-xs text-conteudo-suave px-1">...</span>
+                      )}
+                      <button key={p} onClick={() => setPagina(p)}
+                        className={`w-8 h-8 flex items-center justify-center rounded-lg border text-sm transition-colors
+                          ${p === pagina ? 'bg-acento text-white border-acento' : 'border-borda text-conteudo-suave hover:border-acento hover:text-acento'}`}>
+                        {p}
+                      </button>
+                    </>
+                  ))}
+                <button
+                  onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))}
+                  disabled={pagina === totalPaginas}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg border border-borda text-conteudo-suave hover:border-acento hover:text-acento disabled:opacity-40 transition-colors text-sm">
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

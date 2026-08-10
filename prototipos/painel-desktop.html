@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Nexo360 — Painel (Desktop)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="assets/tokens.css"/>
+  <link rel="stylesheet" href="assets/componentes.css"/>
+  <style>
+    /* SVG chart placeholders */
+    .chart-area { width: 100%; height: 180px; display: block; }
+    .chart-bar  { width: 100%; height: 180px; display: block; }
+    .tooltip-hint { font-size: 11px; color: rgb(var(--conteudo-suave)); text-align: center; margin-top: 6px; }
+
+    /* Donut */
+    .cat-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid rgb(var(--borda) / 0.5); font-size: 13px; }
+    .cat-row:last-child { border-bottom: none; }
+    .cat-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .cat-nome { flex: 1; color: rgb(var(--conteudo)); }
+    .cat-pct { color: rgb(var(--conteudo-suave)); font-size: 12px; width: 32px; text-align: right; }
+    .cat-val { font-weight: 600; color: rgb(var(--conteudo)); width: 90px; text-align: right; font-size: 12.5px; }
+
+    /* Próximos lançamentos */
+    .lanc-row { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid rgb(var(--borda) / 0.5); }
+    .lanc-row:last-child { border-bottom: none; }
+    .lanc-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .lanc-desc { flex: 1; }
+    .lanc-nome { font-size: 13px; font-weight: 500; color: rgb(var(--conteudo)); }
+    .lanc-data { font-size: 11px; color: rgb(var(--conteudo-suave)); }
+    .lanc-val { font-size: 13.5px; font-weight: 600; }
+
+    /* Metas */
+    .meta-row { padding: 10px 0; border-bottom: 1px solid rgb(var(--borda) / 0.5); }
+    .meta-row:last-child { border-bottom: none; }
+    .meta-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+    .meta-nome { font-size: 13px; font-weight: 500; color: rgb(var(--conteudo)); }
+    .meta-pct { font-size: 12px; color: rgb(var(--conteudo-suave)); }
+    .meta-vals { display: flex; align-items: center; justify-content: space-between; margin-top: 5px; font-size: 11.5px; color: rgb(var(--conteudo-suave)); }
+
+    /* Alertas */
+    .alerta-row { display: flex; align-items: center; gap: 10px; padding: 9px; border-radius: 10px; border: 1px solid rgb(var(--borda)); background: rgb(var(--superficie)); margin-bottom: 8px; cursor: pointer; transition: background 0.15s; }
+    .alerta-row:hover { background: rgb(var(--superficie-2)); }
+    .alerta-row:last-child { margin-bottom: 0; }
+    .alerta-badge { padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+
+    /* X-axis */
+    .chart-xaxis { display: flex; justify-content: space-between; padding: 0 4px; margin-top: 4px; }
+    .chart-xaxis span { font-size: 10px; color: rgb(var(--conteudo-suave)); }
+
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .conteudo-area { margin-left: 0 !important; }
+      .grid-painel-2 { grid-template-columns: 1fr !important; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- ========== SIDEBAR ========== -->
+  <aside class="sidebar" id="sidebar">
+    <button class="sidebar-toggle" id="toggle-btn" onclick="toggleSidebar()" title="Recolher/expandir">
+      <svg id="toggle-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+    </button>
+
+    <!-- Logo + nome -->
+    <div class="sidebar-topo">
+      <img src="assets/logo.svg" alt="Logo" class="sidebar-logo"/>
+      <span class="sidebar-nome">Nexo360</span>
+    </div>
+
+    <!-- Seletor de entidade -->
+    <div class="sidebar-entity">
+      <button class="entity-btn">
+        <span class="entity-avatar">JS</span>
+        <span class="entity-label" style="flex:1;text-align:left;">João Silva</span>
+        <svg class="entity-chevron" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+    </div>
+
+    <!-- Navegação -->
+    <nav class="sidebar-nav">
+      <a class="nav-item ativo" href="#">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+        <span class="nav-label">Painel</span>
+      </a>
+      <a class="nav-item" href="#">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        <span class="nav-label">Lançamentos</span>
+      </a>
+      <a class="nav-item" href="#">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+        <span class="nav-label">Cartões</span>
+      </a>
+      <a class="nav-item" href="#">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
+        <span class="nav-label">Contas</span>
+      </a>
+
+      <div class="nav-section">Planejamento</div>
+      <a class="nav-item" href="#">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        <span class="nav-label">Contas a Pagar</span>
+      </a>
+      <a class="nav-item" href="#">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        <span class="nav-label">Orçamento</span>
+      </a>
+      <a class="nav-item" href="#">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        <span class="nav-label">Metas</span>
+      </a>
+      <a class="nav-item" href="#">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+        <span class="nav-label">Investimentos</span>
+      </a>
+
+      <div class="nav-section">Cadastros</div>
+      <a class="nav-item" href="#">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+        <span class="nav-label">Categorias</span>
+      </a>
+      <a class="nav-item" href="#">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span class="nav-label">Entidades</span>
+      </a>
+
+      <div class="nav-section">Sistema</div>
+      <a class="nav-item" href="#">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+        <span class="nav-label">Configurações</span>
+      </a>
+    </nav>
+
+    <!-- Rodapé -->
+    <div class="sidebar-rodape">
+      <a class="user-row" href="#">
+        <div class="user-avatar">JS</div>
+        <div class="user-info">
+          <div class="user-nome">João Silva</div>
+          <div class="user-email">joao@email.com</div>
+        </div>
+      </a>
+      <button class="btn-sair">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+        <span>Sair</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ========== ÁREA DE CONTEÚDO ========== -->
+  <div class="conteudo-area" id="conteudo">
+
+    <!-- Topbar -->
+    <header class="topbar">
+      <div>
+        <div class="topbar-titulo">Painel</div>
+        <div class="topbar-sub">Aqui está o resumo da sua vida financeira</div>
+      </div>
+      <div class="topbar-acoes">
+        <!-- Seletor de mês -->
+        <div class="seletor-mes">
+          <button>
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <span>Agosto 2026</span>
+          <button>
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
+        </div>
+
+        <!-- Notificações -->
+        <button class="btn-tema" style="position:relative;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+          <span style="position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;background:rgb(var(--perigo));border:2px solid rgb(var(--superficie));"></span>
+        </button>
+
+        <!-- Toggle tema -->
+        <button class="btn-tema" onclick="toggleTema()" id="tema-btn">
+          <svg id="tema-icon" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+        </button>
+
+        <!-- Avatar -->
+        <a href="#" class="avatar">JS</a>
+      </div>
+    </header>
+
+    <!-- Conteúdo principal -->
+    <main class="main-content">
+
+      <!-- Saudação -->
+      <div style="margin-bottom:20px;">
+        <h1 style="font-size:20px;font-weight:700;color:rgb(var(--conteudo));">Olá, João! 👋</h1>
+        <p style="font-size:13.5px;color:rgb(var(--conteudo-suave));margin-top:2px;">Aqui está o resumo financeiro de agosto de 2026.</p>
+      </div>
+
+      <!-- KPIs -->
+      <div class="grid-4" style="margin-bottom:20px;">
+        <div class="card" style="padding:18px;">
+          <div class="kpi-label" style="color:rgb(var(--conteudo-suave));">Saldo Total</div>
+          <div class="kpi-valor" style="color:rgb(var(--conteudo));">R$ 24.580,00</div>
+          <div class="kpi-delta positivo">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+            <span>8,4%</span><span style="color:rgb(var(--conteudo-suave));font-weight:400;"> vs. mês anterior</span>
+          </div>
+        </div>
+        <div class="card" style="padding:18px;">
+          <div class="kpi-label" style="color:rgb(var(--conteudo-suave));">Receitas</div>
+          <div class="kpi-valor" style="color:rgb(var(--conteudo));">R$ 12.450,00</div>
+          <div class="kpi-delta positivo">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+            <span>12,9%</span><span style="color:rgb(var(--conteudo-suave));font-weight:400;"> vs. mês anterior</span>
+          </div>
+        </div>
+        <div class="card" style="padding:18px;">
+          <div class="kpi-label" style="color:rgb(var(--conteudo-suave));">Despesas</div>
+          <div class="kpi-valor" style="color:rgb(var(--conteudo));">R$ 7.820,00</div>
+          <div class="kpi-delta negativo">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            <span>2,3%</span><span style="color:rgb(var(--conteudo-suave));font-weight:400;"> vs. mês anterior</span>
+          </div>
+        </div>
+        <div class="card" style="padding:18px;">
+          <div class="kpi-label" style="color:rgb(var(--conteudo-suave));">Resultado</div>
+          <div class="kpi-valor" style="color:rgb(var(--conteudo));">R$ 4.630,00</div>
+          <div class="kpi-delta positivo">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+            <span>18,7%</span><span style="color:rgb(var(--conteudo-suave));font-weight:400;"> vs. mês anterior</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Linha 2: Fluxo de Caixa + Contas e Compromissos -->
+      <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:16px;margin-bottom:16px;" class="grid-painel-2">
+
+        <!-- Fluxo de caixa -->
+        <div class="card">
+          <div class="section-header">
+            <div>
+              <div class="section-titulo">Fluxo de Caixa</div>
+              <div style="font-size:11.5px;color:rgb(var(--conteudo-suave));margin-top:2px;">12 meses</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;">
+              <span style="display:flex;align-items:center;gap:4px;font-size:11.5px;color:rgb(var(--conteudo-suave));"><span style="width:10px;height:3px;background:rgb(var(--acento));border-radius:2px;display:inline-block;"></span>Previsto</span>
+              <span style="display:flex;align-items:center;gap:4px;font-size:11.5px;color:rgb(var(--conteudo-suave));"><span style="width:10px;height:3px;background:rgb(var(--sucesso));border-radius:2px;display:inline-block;"></span>Realizado</span>
+            </div>
+          </div>
+          <!-- Chart SVG -->
+          <svg class="chart-area" viewBox="0 0 600 180" preserveAspectRatio="none">
+            <!-- Grid lines -->
+            <line x1="0" y1="30" x2="600" y2="30" stroke="rgb(var(--borda))" stroke-width="1" stroke-dasharray="4"/>
+            <line x1="0" y1="70" x2="600" y2="70" stroke="rgb(var(--borda))" stroke-width="1" stroke-dasharray="4"/>
+            <line x1="0" y1="110" x2="600" y2="110" stroke="rgb(var(--borda))" stroke-width="1" stroke-dasharray="4"/>
+            <line x1="0" y1="150" x2="600" y2="150" stroke="rgb(var(--borda))" stroke-width="1" stroke-dasharray="4"/>
+            <!-- Y axis labels -->
+            <text x="0" y="28" font-size="11" fill="rgb(var(--conteudo-suave))">30k</text>
+            <text x="0" y="68" font-size="11" fill="rgb(var(--conteudo-suave))">20k</text>
+            <text x="0" y="108" font-size="11" fill="rgb(var(--conteudo-suave))">10k</text>
+            <text x="0" y="148" font-size="11" fill="rgb(var(--conteudo-suave))">0</text>
+            <!-- Area (previsto) - azul -->
+            <defs>
+              <linearGradient id="gradAzul" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="rgb(40,100,220)" stop-opacity="0.2"/>
+                <stop offset="100%" stop-color="rgb(40,100,220)" stop-opacity="0"/>
+              </linearGradient>
+              <linearGradient id="gradVerde" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="rgb(46,160,90)" stop-opacity="0.2"/>
+                <stop offset="100%" stop-color="rgb(46,160,90)" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <path d="M30,120 C80,110 130,90 180,95 C230,100 280,70 330,65 C380,60 430,75 480,70 C520,66 560,60 590,55 L590,160 L30,160 Z" fill="url(#gradAzul)"/>
+            <path d="M30,120 C80,110 130,90 180,95 C230,100 280,70 330,65 C380,60 430,75 480,70 C520,66 560,60 590,55" fill="none" stroke="rgb(40,100,220)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <!-- Area (realizado) - verde -->
+            <path d="M30,130 C80,120 130,100 180,108 C230,116 280,85 330,78 C380,72 430,90 480,82 C520,76 560,68 590,62 L590,160 L30,160 Z" fill="url(#gradVerde)"/>
+            <path d="M30,130 C80,120 130,100 180,108 C230,116 280,85 330,78 C380,72 430,90 480,82 C520,76 560,68 590,62" fill="none" stroke="rgb(46,160,90)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <!-- Dot atual -->
+            <circle cx="590" cy="55" r="4" fill="rgb(40,100,220)"/>
+            <circle cx="590" cy="62" r="4" fill="rgb(46,160,90)"/>
+          </svg>
+          <div class="chart-xaxis">
+            <span>Set</span><span>Out</span><span>Nov</span><span>Dez</span><span>Jan</span><span>Fev</span><span>Mar</span><span>Abr</span><span>Mai</span><span>Jun</span><span>Jul</span><span>Ago</span>
+          </div>
+        </div>
+
+        <!-- Contas -->
+        <div class="card">
+          <div class="section-header">
+            <div class="section-titulo">Contas</div>
+            <a class="section-link" href="#">Gerenciar</a>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <!-- Conta 1 -->
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid rgb(var(--borda));background:rgb(var(--superficie));cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background='rgb(var(--superficie-2))'" onmouseout="this.style.background='rgb(var(--superficie))'">
+              <div style="width:36px;height:36px;border-radius:9px;background:rgb(var(--acento-fundo));display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgb(var(--acento))" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
+              </div>
+              <div style="flex:1;">
+                <div style="font-size:13px;font-weight:500;color:rgb(var(--conteudo));">Banco do Brasil</div>
+                <div style="font-size:11px;color:rgb(var(--conteudo-suave));">Conta corrente</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:14px;font-weight:700;color:rgb(var(--conteudo));">R$ 18.320,00</div>
+                <div style="font-size:10.5px;color:rgb(var(--sucesso));">● ativo</div>
+              </div>
+            </div>
+            <!-- Conta 2 -->
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid rgb(var(--borda));background:rgb(var(--superficie));cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background='rgb(var(--superficie-2))'" onmouseout="this.style.background='rgb(var(--superficie))'">
+              <div style="width:36px;height:36px;border-radius:9px;background:rgb(var(--pastel-roxo-bg));display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgb(var(--pastel-roxo-txt))" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+              </div>
+              <div style="flex:1;">
+                <div style="font-size:13px;font-weight:500;color:rgb(var(--conteudo));">Nubank</div>
+                <div style="font-size:11px;color:rgb(var(--conteudo-suave));">Conta digital</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:14px;font-weight:700;color:rgb(var(--conteudo));">R$ 4.860,00</div>
+                <div style="font-size:10.5px;color:rgb(var(--sucesso));">● ativo</div>
+              </div>
+            </div>
+            <!-- Conta 3 -->
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid rgb(var(--borda));background:rgb(var(--superficie));cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background='rgb(var(--superficie-2))'" onmouseout="this.style.background='rgb(var(--superficie))'">
+              <div style="width:36px;height:36px;border-radius:9px;background:rgb(var(--pastel-verde-bg));display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgb(var(--pastel-verde-txt))" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+              </div>
+              <div style="flex:1;">
+                <div style="font-size:13px;font-weight:500;color:rgb(var(--conteudo));">Inter Invest.</div>
+                <div style="font-size:11px;color:rgb(var(--conteudo-suave));">Poupança / CDB</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:14px;font-weight:700;color:rgb(var(--conteudo));">R$ 1.400,00</div>
+                <div style="font-size:10.5px;color:rgb(var(--sucesso));">● ativo</div>
+              </div>
+            </div>
+            <!-- Total -->
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:10px;background:rgb(var(--superficie-2));border:1px solid rgb(var(--borda));margin-top:2px;">
+              <span style="font-size:12px;font-weight:600;color:rgb(var(--conteudo-suave));text-transform:uppercase;letter-spacing:0.05em;">Total consolidado</span>
+              <span style="font-size:15px;font-weight:700;color:rgb(var(--conteudo));">R$ 24.580,00</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Vencimentos: A vencer / Vencidas -->
+      <div class="card" style="margin-bottom:16px;">
+        <div class="section-header" style="margin-bottom:12px;">
+          <div class="section-titulo">Vencimentos</div>
+          <div style="display:flex;gap:4px;">
+            <button class="chip ativo" onclick="filtrarVencimento('todos',this)" id="venc-todos">Todos</button>
+            <button class="chip" onclick="filtrarVencimento('vencer',this)" id="venc-avencer">A vencer</button>
+            <button class="chip" onclick="filtrarVencimento('vencidas',this)" id="venc-vencidas">Vencidas</button>
+          </div>
+          <a class="section-link" href="transacoes.html">Ver todos</a>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px;" id="venc-lista">
+          <div class="alerta-row venc-item vencida" style="border-color:rgb(var(--perigo)/0.4);background:rgb(var(--perigo-fundo));">
+            <span class="alerta-badge" style="background:rgb(var(--perigo));color:#fff;white-space:nowrap;">Vencida</span>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13px;font-weight:500;color:rgb(var(--conteudo));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Cartão Nubank</div>
+              <div style="font-size:11px;color:rgb(var(--conteudo-suave));">Venceu em 05/08</div>
+            </div>
+            <div style="font-size:13px;font-weight:700;color:rgb(var(--perigo));white-space:nowrap;">R$ 1.650,00</div>
+          </div>
+          <div class="alerta-row venc-item avencer" style="border-color:rgb(var(--aviso)/0.4);background:rgb(var(--aviso-fundo));">
+            <span class="alerta-badge" style="background:rgb(var(--aviso));color:#fff;white-space:nowrap;">Hoje</span>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13px;font-weight:500;color:rgb(var(--conteudo));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Aluguel</div>
+              <div style="font-size:11px;color:rgb(var(--conteudo-suave));">Vence hoje, 10/08</div>
+            </div>
+            <div style="font-size:13px;font-weight:700;color:rgb(var(--aviso));white-space:nowrap;">R$ 2.100,00</div>
+          </div>
+          <div class="alerta-row venc-item avencer">
+            <span class="alerta-badge" style="background:rgb(var(--superficie-2));color:rgb(var(--conteudo-suave));border:1px solid rgb(var(--borda));white-space:nowrap;">3 dias</span>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13px;font-weight:500;color:rgb(var(--conteudo));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Internet Fibra</div>
+              <div style="font-size:11px;color:rgb(var(--conteudo-suave));">Vence em 13/08</div>
+            </div>
+            <div style="font-size:13px;font-weight:700;color:rgb(var(--conteudo));white-space:nowrap;">R$ 149,90</div>
+          </div>
+          <div class="alerta-row venc-item avencer">
+            <span class="alerta-badge" style="background:rgb(var(--superficie-2));color:rgb(var(--conteudo-suave));border:1px solid rgb(var(--borda));white-space:nowrap;">7 dias</span>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13px;font-weight:500;color:rgb(var(--conteudo));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Conta de Luz</div>
+              <div style="font-size:11px;color:rgb(var(--conteudo-suave));">Vence em 17/08</div>
+            </div>
+            <div style="font-size:13px;font-weight:700;color:rgb(var(--conteudo));white-space:nowrap;">R$ 280,00</div>
+          </div>
+          <div class="alerta-row venc-item avencer">
+            <span class="alerta-badge" style="background:rgb(var(--sucesso-fundo));color:rgb(var(--sucesso));white-space:nowrap;">a receber</span>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13px;font-weight:500;color:rgb(var(--conteudo));">Salário</div>
+              <div style="font-size:11px;color:rgb(var(--conteudo-suave));">Previsto em 15/08</div>
+            </div>
+            <div style="font-size:13px;font-weight:700;color:rgb(var(--sucesso));white-space:nowrap;">R$ 8.000,00</div>
+          </div>
+          <div class="alerta-row venc-item vencida" style="border-color:rgb(var(--perigo)/0.4);background:rgb(var(--perigo-fundo));">
+            <span class="alerta-badge" style="background:rgb(var(--perigo));color:#fff;white-space:nowrap;">Vencida</span>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13px;font-weight:500;color:rgb(var(--conteudo));">Conta de Água</div>
+              <div style="font-size:11px;color:rgb(var(--conteudo-suave));">Venceu em 01/08</div>
+            </div>
+            <div style="font-size:13px;font-weight:700;color:rgb(var(--perigo));white-space:nowrap;">R$ 95,00</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Linha 3: Receitas x Despesas + Despesas por Categoria -->
+      <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:16px;margin-bottom:16px;" class="grid-painel-2">
+
+        <!-- Receitas x Despesas -->
+        <div class="card">
+          <div class="section-header">
+            <div>
+              <div class="section-titulo">Receitas × Despesas</div>
+              <div style="font-size:11.5px;color:rgb(var(--conteudo-suave));margin-top:2px;">12 meses</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;">
+              <span style="display:flex;align-items:center;gap:4px;font-size:11.5px;color:rgb(var(--conteudo-suave));"><span style="width:10px;height:10px;background:rgb(var(--sucesso));border-radius:2px;display:inline-block;"></span>Receitas</span>
+              <span style="display:flex;align-items:center;gap:4px;font-size:11.5px;color:rgb(var(--conteudo-suave));"><span style="width:10px;height:10px;background:rgb(var(--perigo));border-radius:2px;display:inline-block;opacity:0.7;"></span>Despesas</span>
+            </div>
+          </div>
+          <!-- Bar chart SVG -->
+          <svg class="chart-bar" viewBox="0 0 600 180" preserveAspectRatio="none">
+            <line x1="0" y1="30" x2="600" y2="30" stroke="rgb(var(--borda))" stroke-width="1" stroke-dasharray="4"/>
+            <line x1="0" y1="80" x2="600" y2="80" stroke="rgb(var(--borda))" stroke-width="1" stroke-dasharray="4"/>
+            <line x1="0" y1="130" x2="600" y2="130" stroke="rgb(var(--borda))" stroke-width="1" stroke-dasharray="4"/>
+            <!-- Bars grouped -->
+            <!-- Sep -->
+            <rect x="20" y="60" width="18" height="90" rx="3" fill="rgb(46,160,90)" opacity="0.85"/>
+            <rect x="40" y="90" width="18" height="60" rx="3" fill="rgb(210,55,55)" opacity="0.7"/>
+            <!-- Out -->
+            <rect x="72" y="50" width="18" height="100" rx="3" fill="rgb(46,160,90)" opacity="0.85"/>
+            <rect x="92" y="95" width="18" height="55" rx="3" fill="rgb(210,55,55)" opacity="0.7"/>
+            <!-- Nov -->
+            <rect x="124" y="55" width="18" height="95" rx="3" fill="rgb(46,160,90)" opacity="0.85"/>
+            <rect x="144" y="100" width="18" height="50" rx="3" fill="rgb(210,55,55)" opacity="0.7"/>
+            <!-- Dez -->
+            <rect x="176" y="45" width="18" height="105" rx="3" fill="rgb(46,160,90)" opacity="0.85"/>
+            <rect x="196" y="85" width="18" height="65" rx="3" fill="rgb(210,55,55)" opacity="0.7"/>
+            <!-- Jan -->
+            <rect x="228" y="52" width="18" height="98" rx="3" fill="rgb(46,160,90)" opacity="0.85"/>
+            <rect x="248" y="92" width="18" height="58" rx="3" fill="rgb(210,55,55)" opacity="0.7"/>
+            <!-- Fev -->
+            <rect x="280" y="60" width="18" height="90" rx="3" fill="rgb(46,160,90)" opacity="0.85"/>
+            <rect x="300" y="98" width="18" height="52" rx="3" fill="rgb(210,55,55)" opacity="0.7"/>
+            <!-- Mar -->
+            <rect x="332" y="48" width="18" height="102" rx="3" fill="rgb(46,160,90)" opacity="0.85"/>
+            <rect x="352" y="88" width="18" height="62" rx="3" fill="rgb(210,55,55)" opacity="0.7"/>
+            <!-- Abr -->
+            <rect x="384" y="55" width="18" height="95" rx="3" fill="rgb(46,160,90)" opacity="0.85"/>
+            <rect x="404" y="95" width="18" height="55" rx="3" fill="rgb(210,55,55)" opacity="0.7"/>
+            <!-- Mai -->
+            <rect x="436" y="42" width="18" height="108" rx="3" fill="rgb(46,160,90)" opacity="0.85"/>
+            <rect x="456" y="85" width="18" height="65" rx="3" fill="rgb(210,55,55)" opacity="0.7"/>
+            <!-- Jun -->
+            <rect x="488" y="50" width="18" height="100" rx="3" fill="rgb(46,160,90)" opacity="0.85"/>
+            <rect x="508" y="90" width="18" height="60" rx="3" fill="rgb(210,55,55)" opacity="0.7"/>
+            <!-- Jul -->
+            <rect x="536" y="38" width="18" height="112" rx="3" fill="rgb(46,160,90)" opacity="0.85"/>
+            <rect x="556" y="82" width="18" height="68" rx="3" fill="rgb(210,55,55)" opacity="0.7"/>
+            <!-- Ago (atual) -->
+            <rect x="570" y="32" width="18" height="118" rx="3" fill="rgb(46,160,90)"/>
+            <rect x="570" y="88" width="18" height="60" rx="3" fill="rgb(210,55,55)" opacity="0.9"/>
+          </svg>
+          <div class="chart-xaxis">
+            <span>Set</span><span>Out</span><span>Nov</span><span>Dez</span><span>Jan</span><span>Fev</span><span>Mar</span><span>Abr</span><span>Mai</span><span>Jun</span><span>Jul</span><span>Ago</span>
+          </div>
+        </div>
+
+        <!-- Despesas por Categoria -->
+        <div class="card">
+          <div class="section-header">
+            <div class="section-titulo">Despesas por Categoria</div>
+            <span style="font-size:12px;color:rgb(var(--conteudo-suave));">Agosto</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:16px;">
+            <!-- Donut -->
+            <svg width="120" height="120" viewBox="0 0 120 120" style="flex-shrink:0;">
+              <circle cx="60" cy="60" r="44" fill="none" stroke="rgb(var(--superficie-2))" stroke-width="18"/>
+              <!-- Alimentação 28% -->
+              <circle cx="60" cy="60" r="44" fill="none" stroke="#6366f1" stroke-width="18"
+                stroke-dasharray="77.6 198.4" stroke-dashoffset="0" transform="rotate(-90 60 60)"/>
+              <!-- Transporte 15% -->
+              <circle cx="60" cy="60" r="44" fill="none" stroke="#22c55e" stroke-width="18"
+                stroke-dasharray="41.6 234.4" stroke-dashoffset="-77.6" transform="rotate(-90 60 60)"/>
+              <!-- Saúde 13% -->
+              <circle cx="60" cy="60" r="44" fill="none" stroke="#f59e0b" stroke-width="18"
+                stroke-dasharray="36 240" stroke-dashoffset="-119.2" transform="rotate(-90 60 60)"/>
+              <!-- Lazer 11% -->
+              <circle cx="60" cy="60" r="44" fill="none" stroke="#3b82f6" stroke-width="18"
+                stroke-dasharray="30.5 245.5" stroke-dashoffset="-155.2" transform="rotate(-90 60 60)"/>
+              <!-- Outros 33% -->
+              <circle cx="60" cy="60" r="44" fill="none" stroke="rgb(var(--borda))" stroke-width="18"
+                stroke-dasharray="91.4 184.6" stroke-dashoffset="-185.7" transform="rotate(-90 60 60)"/>
+              <!-- Centro -->
+              <text x="60" y="55" text-anchor="middle" font-size="11" fill="rgb(var(--conteudo-suave))">Total</text>
+              <text x="60" y="70" text-anchor="middle" font-size="13" font-weight="700" fill="rgb(var(--conteudo))">R$7.820</text>
+            </svg>
+            <!-- Legenda -->
+            <div style="flex:1;">
+              <div class="cat-row">
+                <span class="cat-dot" style="background:#6366f1;"></span>
+                <span class="cat-nome">Moradia</span>
+                <span class="cat-pct">28%</span>
+                <span class="cat-val">R$ 2.190</span>
+              </div>
+              <div class="cat-row">
+                <span class="cat-dot" style="background:#22c55e;"></span>
+                <span class="cat-nome">Alimentação</span>
+                <span class="cat-pct">15%</span>
+                <span class="cat-val">R$ 1.173</span>
+              </div>
+              <div class="cat-row">
+                <span class="cat-dot" style="background:#f59e0b;"></span>
+                <span class="cat-nome">Transporte</span>
+                <span class="cat-pct">13%</span>
+                <span class="cat-val">R$ 1.017</span>
+              </div>
+              <div class="cat-row">
+                <span class="cat-dot" style="background:#3b82f6;"></span>
+                <span class="cat-nome">Saúde</span>
+                <span class="cat-pct">11%</span>
+                <span class="cat-val">R$ 860</span>
+              </div>
+              <div class="cat-row">
+                <span class="cat-dot" style="background:rgb(var(--borda-forte));"></span>
+                <span class="cat-nome">Outros</span>
+                <span class="cat-pct">33%</span>
+                <span class="cat-val">R$ 2.580</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Linha 4: Próximos Lançamentos + Metas -->
+      <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:16px;" class="grid-painel-2">
+
+        <!-- Próximos Lançamentos -->
+        <div class="card">
+          <div class="section-header">
+            <div class="section-titulo">Próximos Lançamentos</div>
+            <a class="section-link" href="transacoes.html">Ver todos os lançamentos</a>
+          </div>
+          <div>
+            <div class="lanc-row">
+              <div class="lanc-icon" style="background:rgb(var(--perigo-fundo));"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgb(var(--perigo))" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg></div>
+              <div class="lanc-desc">
+                <div class="lanc-nome">Fatura Nubank</div>
+                <div class="lanc-data">10/08/2026 · Cartão · Fixo</div>
+              </div>
+              <span class="badge badge-despesa">Despesa</span>
+              <div class="lanc-val text-perigo">-R$ 1.650,00</div>
+            </div>
+            <div class="lanc-row">
+              <div class="lanc-icon" style="background:rgb(var(--sucesso-fundo));"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgb(var(--sucesso))" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+              <div class="lanc-desc">
+                <div class="lanc-nome">Salário</div>
+                <div class="lanc-data">15/08/2026 · Banco do Brasil · Fixo</div>
+              </div>
+              <span class="badge badge-receita">Receita</span>
+              <div class="lanc-val text-sucesso">+R$ 8.000,00</div>
+            </div>
+            <div class="lanc-row">
+              <div class="lanc-icon" style="background:rgb(var(--perigo-fundo));"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgb(var(--perigo))" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></div>
+              <div class="lanc-desc">
+                <div class="lanc-nome">Aluguel</div>
+                <div class="lanc-data">15/08/2026 · Nubank · Fixo</div>
+              </div>
+              <span class="badge badge-despesa">Despesa</span>
+              <div class="lanc-val text-perigo">-R$ 2.100,00</div>
+            </div>
+            <div class="lanc-row">
+              <div class="lanc-icon" style="background:rgb(var(--perigo-fundo));"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgb(var(--perigo))" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/></svg></div>
+              <div class="lanc-desc">
+                <div class="lanc-nome">Academia</div>
+                <div class="lanc-data">20/08/2026 · Saúde · Nubank</div>
+              </div>
+              <span class="badge badge-despesa">Despesa</span>
+              <div class="lanc-val text-perigo">-R$ 89,90</div>
+            </div>
+            <div class="lanc-row">
+              <div class="lanc-icon" style="background:rgb(var(--perigo-fundo));"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgb(var(--perigo))" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" x2="12.01" y1="20" y2="20"/></svg></div>
+              <div class="lanc-desc">
+                <div class="lanc-nome">Internet</div>
+                <div class="lanc-data">25/08/2026 · Tecnologia · BB</div>
+              </div>
+              <span class="badge badge-despesa">Despesa</span>
+              <div class="lanc-val text-perigo">-R$ 149,90</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Metas -->
+        <div class="card">
+          <div class="section-header">
+            <div class="section-titulo">Metas</div>
+            <a class="section-link" href="#">Ver relatórios</a>
+          </div>
+          <div>
+            <div class="meta-row">
+              <div class="meta-header">
+                <span class="meta-nome">🏠 Viagem Europa</span>
+                <span class="meta-pct">62%</span>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-fill acento" style="width:62%;"></div>
+              </div>
+              <div class="meta-vals">
+                <span>R$ 6.200 / R$ 10.000</span>
+                <span>Prazo: Dez 2026</span>
+              </div>
+            </div>
+            <div class="meta-row">
+              <div class="meta-header">
+                <span class="meta-nome">💰 Reserva de Emergência</span>
+                <span class="meta-pct">47%</span>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-fill" style="width:47%;"></div>
+              </div>
+              <div class="meta-vals">
+                <span>R$ 14.100 / R$ 30.000</span>
+                <span>Prazo: Jun 2027</span>
+              </div>
+            </div>
+            <div class="meta-row">
+              <div class="meta-header">
+                <span class="meta-nome">🚗 Carro novo</span>
+                <span class="meta-pct">29%</span>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-fill aviso" style="width:29%;"></div>
+              </div>
+              <div class="meta-vals">
+                <span>R$ 14.500 / R$ 50.000</span>
+                <span>Prazo: Mar 2028</span>
+              </div>
+            </div>
+            <div class="meta-row">
+              <div class="meta-header">
+                <span class="meta-nome">📱 Smartphone</span>
+                <span class="meta-pct">88%</span>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-fill" style="width:88%;background:rgb(var(--sucesso));"></div>
+              </div>
+              <div class="meta-vals">
+                <span>R$ 4.400 / R$ 5.000</span>
+                <span>Prazo: Set 2026</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script>
+  let recolhida = false;
+  let escuro = false;
+
+  function toggleSidebar() {
+    recolhida = !recolhida;
+    const sidebar = document.getElementById('sidebar');
+    const conteudo = document.getElementById('conteudo');
+    const icon = document.getElementById('toggle-icon');
+    sidebar.classList.toggle('recolhida', recolhida);
+    conteudo.classList.toggle('expandida', recolhida);
+    if (recolhida) {
+      icon.innerHTML = '<path d="m9 18 6-6-6-6"/>';
+    } else {
+      icon.innerHTML = '<path d="m15 18-6-6 6-6"/>';
+    }
+  }
+
+  function toggleTema() {
+    escuro = !escuro;
+    document.documentElement.classList.toggle('dark', escuro);
+    const icon = document.getElementById('tema-icon');
+    if (escuro) {
+      icon.innerHTML = '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/>';
+    } else {
+      icon.innerHTML = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>';
+    }
+  }
+
+  function filtrarVencimento(tipo, btn) {
+    document.querySelectorAll('#venc-todos, #venc-avencer, #venc-vencidas').forEach(b => b.classList.remove('ativo'));
+    btn.classList.add('ativo');
+    document.querySelectorAll('.venc-item').forEach(el => {
+      if (tipo === 'todos') { el.style.display = ''; }
+      else if (tipo === 'vencer') { el.style.display = el.classList.contains('avencer') ? '' : 'none'; }
+      else if (tipo === 'vencidas') { el.style.display = el.classList.contains('vencida') ? '' : 'none'; }
+    });
+  }
+</script>
+</body>
+</html>

@@ -5,9 +5,10 @@ import { useLojaEntidadeAtual } from '../store/lojaEntidadeAtual'
 
 interface Props {
   recolhido?: boolean
+  nasSidebar?: boolean
 }
 
-export default function SeletorEntidade({ recolhido = false }: Props) {
+export default function SeletorEntidade({ recolhido = false, nasSidebar = false }: Props) {
   const queryClient = useQueryClient()
   const { entidadeAtualId, definirEntidadeAtual } = useLojaEntidadeAtual()
   const { data: entidades } = useQuery({ queryKey: ['entidades'], queryFn: listarEntidades })
@@ -24,7 +25,7 @@ export default function SeletorEntidade({ recolhido = false }: Props) {
       <div className="flex justify-center px-2 py-2">
         <button
           title={entidadeAtualId ? (entidades.find(e => e.id === entidadeAtualId)?.nome ?? 'Entidade') : 'Todas'}
-          className="p-1.5 rounded-lg text-campo-texto-suave hover:text-campo-texto hover:bg-campo-texto/5 transition-colors"
+          className="p-1.5 rounded-lg text-sb-suave hover:text-sb-texto hover:bg-sb-hover transition-colors"
         >
           <Building2 size={18} />
         </button>
@@ -37,7 +38,11 @@ export default function SeletorEntidade({ recolhido = false }: Props) {
       <select
         value={entidadeAtualId ?? ''}
         onChange={e => trocar(e.target.value === '' ? null : Number(e.target.value))}
-        className="w-full text-xs rounded-lg px-2 py-1.5 border border-borda bg-campo text-campo-texto focus:outline-none focus:ring-1 focus:ring-acento"
+        className={
+          nasSidebar
+            ? 'w-full text-xs rounded-lg px-2 py-1.5 border border-sb-borda bg-sb-hover text-sb-texto focus:outline-none focus:ring-1 focus:ring-sb-ativo-barra'
+            : 'select text-xs py-1.5'
+        }
       >
         <option value="">Todas as entidades</option>
         {entidades.map(e => (
