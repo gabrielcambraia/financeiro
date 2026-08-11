@@ -2,6 +2,8 @@ package com.financeiro.controller;
 
 import com.financeiro.dto.RespostaImpacto;
 import com.financeiro.dto.TransacaoDTO;
+import com.financeiro.entity.enums.EscopoAtualizacao;
+import com.financeiro.entity.enums.EscopoExclusao;
 import com.financeiro.entity.enums.TipoTransacao;
 import com.financeiro.service.TransacaoService;
 import jakarta.validation.Valid;
@@ -9,7 +11,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -41,7 +42,7 @@ public class TransacaoController {
     @PutMapping("/{id}")
     public TransacaoDTO update(
             @PathVariable Long id,
-            @RequestParam(defaultValue = "UNICA") String scope,
+            @RequestParam(defaultValue = "UNICA") EscopoAtualizacao scope,
             @Valid @RequestBody TransacaoDTO dto) {
         return service.update(id, dto, scope);
     }
@@ -50,29 +51,15 @@ public class TransacaoController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(
             @PathVariable Long id,
-            @RequestParam(defaultValue = "UNICA") String scope) {
+            @RequestParam(defaultValue = "UNICA") EscopoExclusao scope) {
         service.delete(id, scope);
     }
 
     @PatchMapping("/{id}/pagar")
     public TransacaoDTO pagar(@PathVariable Long id, @RequestBody(required = false) Map<String, String> body) {
-        LocalDate dataPagamento = body != null && body.get("dataPagamento") != null
-                ? LocalDate.parse(body.get("dataPagamento"))
-                : null;
-        BigDecimal multa = null;
-        if (body != null && body.get("multa") != null) {
-            try {
-                multa = new BigDecimal(body.get("multa"));
-            } catch (NumberFormatException e) {
-                throw new org.springframework.web.server.ResponseStatusException(
-                        org.springframework.http.HttpStatus.BAD_REQUEST, "Multa inválida");
-            }
-            if (multa.compareTo(BigDecimal.ZERO) < 0) {
-                throw new org.springframework.web.server.ResponseStatusException(
-                        org.springframework.http.HttpStatus.BAD_REQUEST, "Multa não pode ser negativa");
-            }
-        }
-        return service.pagar(id, dataPagamento, multa);
+        String dataPagamentoStr = body != null ? body.get("dataPagamento") : null;
+        String multaStr = body != null ? body.get("multa") : null;
+        return service.pagar(id, dataPagamentoStr, multaStr);
     }
 
     @PatchMapping("/{id}/estornar")
@@ -83,7 +70,7 @@ public class TransacaoController {
     @PatchMapping("/{id}/cancelar")
     public TransacaoDTO cancelar(
             @PathVariable Long id,
-            @RequestParam(defaultValue = "UNICA") String scope) {
+            @RequestParam(defaultValue = "UNICA") EscopoExclusao scope) {
         return service.cancelar(id, scope);
     }
 

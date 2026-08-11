@@ -652,7 +652,7 @@ export default function Transacoes() {
               </table>
             </div>
             {/* Paginação da tabela */}
-            <div className="border-t border-borda px-4 py-3 flex items-center justify-between">
+            {totalPaginas > 1 && <div className="border-t border-borda px-4 py-3 flex items-center justify-between">
               <span className="text-xs text-conteudo-suave">
                 {visiveis.length} transações · Página {pagina} de {totalPaginas}
               </span>
@@ -679,7 +679,7 @@ export default function Transacoes() {
                   <ChevronRight size={13} />
                 </button>
               </div>
-            </div>
+            </div>}
           </div>
 
           {/* Mobile: cards */}

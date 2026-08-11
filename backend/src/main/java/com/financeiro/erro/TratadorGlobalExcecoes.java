@@ -12,6 +12,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
@@ -50,6 +51,21 @@ public class TratadorGlobalExcecoes {
                                                                HttpServletRequest request) {
         log.warn("Corpo da requisição inválido: {} [{}]", ex.getMessage(), contextoRequisicao(request));
         return construirResposta(HttpStatus.BAD_REQUEST, "Corpo da requisição inválido");
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<RespostaErro> tratarParametroInvalido(MethodArgumentTypeMismatchException ex,
+                                                                  HttpServletRequest request) {
+        String mensagem = "Parâmetro inválido: " + ex.getName();
+        if (ex.getRequiredType() != null && ex.getRequiredType().isEnum()) {
+            Object[] constantes = ex.getRequiredType().getEnumConstants();
+            String valores = java.util.Arrays.stream(constantes)
+                    .map(Object::toString)
+                    .collect(java.util.stream.Collectors.joining(", "));
+            mensagem = "Valor inválido para '" + ex.getName() + "'. Valores aceitos: " + valores;
+        }
+        log.warn("Parâmetro inválido: {} [{}]", ex.getMessage(), contextoRequisicao(request));
+        return construirResposta(HttpStatus.BAD_REQUEST, mensagem);
     }
 
     @ExceptionHandler(ResponseStatusException.class)
