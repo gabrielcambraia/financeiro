@@ -63,18 +63,32 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
     // data (pode remontar a anos de histórico), então em vez de trazer a
     // lista inteira pra cortar em memória: contagem/soma agregadas (baratas,
     // sem materializar linhas) + só os N mais antigos via Pageable pra exibição.
-    long countByEspacoIdAndTipoAndDataVencimentoBeforeAndDataPagamentoIsNullAndDataCancelamentoIsNull(
-            Long espacoId, TipoTransacao tipo, LocalDate hoje);
+    // contaId é opcional (null = todas as contas do espaço).
+    @Query("select count(t) from Transacao t where t.espacoId = :espacoId and t.tipo = :tipo "
+            + "and (:contaId is null or t.conta.id = :contaId) "
+            + "and t.dataVencimento < :hoje and t.dataPagamento is null and t.dataCancelamento is null")
+    long countVencidas(@Param("espacoId") Long espacoId, @Param("contaId") Long contaId,
+                        @Param("tipo") TipoTransacao tipo, @Param("hoje") LocalDate hoje);
 
     @Query("select coalesce(sum(t.valor), 0) from Transacao t where t.espacoId = :espacoId and t.tipo = :tipo "
+            + "and (:contaId is null or t.conta.id = :contaId) "
             + "and t.dataVencimento < :hoje and t.dataPagamento is null and t.dataCancelamento is null")
-    BigDecimal somaVencidas(@Param("espacoId") Long espacoId, @Param("tipo") TipoTransacao tipo, @Param("hoje") LocalDate hoje);
+    BigDecimal somaVencidas(@Param("espacoId") Long espacoId, @Param("contaId") Long contaId,
+                             @Param("tipo") TipoTransacao tipo, @Param("hoje") LocalDate hoje);
 
-    List<Transacao> findByEspacoIdAndTipoAndDataVencimentoBeforeAndDataPagamentoIsNullAndDataCancelamentoIsNullOrderByDataVencimentoAsc(
-            Long espacoId, TipoTransacao tipo, LocalDate hoje, Pageable pageable);
+    @Query("select t from Transacao t where t.espacoId = :espacoId and t.tipo = :tipo "
+            + "and (:contaId is null or t.conta.id = :contaId) "
+            + "and t.dataVencimento < :hoje and t.dataPagamento is null and t.dataCancelamento is null "
+            + "order by t.dataVencimento asc")
+    List<Transacao> findVencidas(@Param("espacoId") Long espacoId, @Param("contaId") Long contaId,
+                                  @Param("tipo") TipoTransacao tipo, @Param("hoje") LocalDate hoje, Pageable pageable);
 
-    List<Transacao> findByEspacoIdAndTipoAndDataVencimentoBetweenAndDataPagamentoIsNullAndDataCancelamentoIsNullOrderByDataVencimentoAsc(
-            Long espacoId, TipoTransacao tipo, LocalDate inicio, LocalDate fim);
+    @Query("select t from Transacao t where t.espacoId = :espacoId and t.tipo = :tipo "
+            + "and (:contaId is null or t.conta.id = :contaId) "
+            + "and t.dataVencimento between :inicio and :fim and t.dataPagamento is null and t.dataCancelamento is null "
+            + "order by t.dataVencimento asc")
+    List<Transacao> findAVencer(@Param("espacoId") Long espacoId, @Param("contaId") Long contaId,
+                                 @Param("tipo") TipoTransacao tipo, @Param("inicio") LocalDate inicio, @Param("fim") LocalDate fim);
 
     // "Ver todas" do bloco de vencimentos: filtra por período de vencimento
     // (em vez de competência), sempre excluindo canceladas e já pagas — mesmo

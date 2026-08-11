@@ -1,0 +1,108 @@
+/* ===================================================
+   NEXO360 — Sistema de design: tokens de cor
+   RGB triplets para usar com rgb(var(--token))
+   =================================================== */
+
+/* ---------- Sidebar (NUNCA muda com tema) ---------- */
+:root, .dark {
+  --sb-fundo:        17  32  60;   /* azul-marinho profundo */
+  --sb-hover:        27  47  82;
+  --sb-ativo-fundo:  30  65 110;
+  --sb-ativo-barra:  46 180 100;   /* verde-esmeralda — indicador ativo */
+  --sb-texto:       226 232 240;
+  --sb-suave:       148 163 184;
+  --sb-borda:        30  51  87;
+  --sb-separador:    26  44  76;
+}
+
+/* ---------- Conteúdo — tema CLARO (default) ---------- */
+:root {
+  --fundo:           250 247 240;  /* off-white cremoso */
+  --superficie:      255 255 255;
+  --superficie-2:    246 243 236;
+  --conteudo:         20  24  33;
+  --conteudo-suave:   92 100 115;
+  --borda:           226 222 213;
+  --borda-forte:     200 194 183;
+
+  --acento:           40 100 220;
+  --acento-suave:     40 100 220;
+  --acento-fundo:    220 234 255;
+
+  --sucesso:          46 160  90;
+  --sucesso-fundo:   220 245 231;
+  --perigo:          210  55  55;
+  --perigo-fundo:    254 226 226;
+  --aviso:           214 143  20;
+  --aviso-fundo:     254 243 199;
+  --info:             40 100 220;
+  --info-fundo:      220 234 255;
+
+  /* pastéis para KPI cards */
+  --pastel-azul-bg:  220 234 255;
+  --pastel-azul-txt:  30  80 180;
+  --pastel-verde-bg: 220 245 231;
+  --pastel-verde-txt: 30 110  60;
+  --pastel-laranja-bg: 255 237 213;
+  --pastel-laranja-txt: 180  80  20;
+  --pastel-roxo-bg:  237 228 255;
+  --pastel-roxo-txt: 110  60 200;
+  --pastel-bege-bg:  246 240 220;
+  --pastel-bege-txt: 120 100  50;
+  --pastel-rosa-bg:  254 226 226;
+  --pastel-rosa-txt: 160  40  40;
+}
+
+/* ---------- Conteúdo — tema ESCURO ---------- */
+.dark {
+  --fundo:             8  10  14;  /* quase preto */
+  --superficie:       18  21  28;
+  --superficie-2:     26  30  40;
+  --conteudo:        235 238 245;
+  --conteudo-suave:  148 156 170;
+  --borda:            38  44  56;
+  --borda-forte:      55  63  80;
+
+  --acento:           88 138 240;
+  --acento-suave:     88 138 240;
+  --acento-fundo:     25  40  80;
+
+  --sucesso:          70 195 120;
+  --sucesso-fundo:    20  55  38;
+  --perigo:          240  90  90;
+  --perigo-fundo:     70  20  20;
+  --aviso:           240 185  50;
+  --aviso-fundo:      65  45  10;
+  --info:             88 138 240;
+  --info-fundo:       25  40  80;
+
+  --pastel-azul-bg:   25  40  80;
+  --pastel-azul-txt:  88 138 240;
+  --pastel-verde-bg:  20  55  38;
+  --pastel-verde-txt: 70 195 120;
+  --pastel-laranja-bg: 65 35  10;
+  --pastel-laranja-txt: 240 160  70;
+  --pastel-roxo-bg:   45  25  80;
+  --pastel-roxo-txt: 190 140 255;
+  --pastel-bege-bg:   45  40  25;
+  --pastel-bege-txt: 200 185 140;
+  --pastel-rosa-bg:   70  20  20;
+  --pastel-rosa-txt: 240  90  90;
+}
+
+/* ---------- Tipografia ---------- */
+:root {
+  --fonte: 'Inter', system-ui, -apple-system, sans-serif;
+  --fonte-mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+/* ---------- Scrollbar ---------- */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--borda)) transparent;
+}
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--borda));
+  border-radius: 3px;
+}

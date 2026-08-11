@@ -1,12 +1,15 @@
 import { LayoutDashboard, ArrowLeftRight, Wallet, Tags, CreditCard, Landmark, PiggyBank, Target, Calendar, HandCoins, TrendingUp, LineChart, Building2, Users } from 'lucide-react'
 
-const itensBase = [
+export const itensPrincipais = [
   { to: '/', icon: LayoutDashboard, label: 'Painel' },
   { to: '/transacoes', icon: ArrowLeftRight, label: 'Lançamentos' },
-  { to: '/calendario', icon: Calendar, label: 'Calendário' },
-  { to: '/simulacao', icon: LineChart, label: 'Previsão' },
   { to: '/contas', icon: Wallet, label: 'Contas' },
   { to: '/cartoes', icon: CreditCard, label: 'Cartões' },
+]
+
+export const itensSecundarios = [
+  { to: '/calendario', icon: Calendar, label: 'Calendário' },
+  { to: '/simulacao', icon: LineChart, label: 'Previsão' },
   { to: '/orcamentos', icon: PiggyBank, label: 'Orçamento' },
   { to: '/metas', icon: Target, label: 'Metas' },
   { to: '/dividas', icon: HandCoins, label: 'Dívidas' },
@@ -21,8 +24,8 @@ const itensAdmin = [
 ]
 
 export const itensNavegacao = (admin: boolean) =>
-  admin ? [...itensBase, ...itensAdmin] : itensBase
+  admin
+    ? [...itensPrincipais, ...itensSecundarios, ...itensAdmin]
+    : [...itensPrincipais, ...itensSecundarios]
 
-// Bottom nav mobile: itens admin ficam de fora — a barra é flex-1 e já
-// está no limite (11 itens); admin continua acessível pela sidebar/URL.
-export const itensNavegacaoInferior = () => itensBase
+export const itensNavegacaoInferior = () => itensPrincipais
