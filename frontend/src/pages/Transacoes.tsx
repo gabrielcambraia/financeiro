@@ -271,8 +271,23 @@ export default function Transacoes() {
         </div>
       </div>
 
-      {/* Cards de resumo: Receitas | Despesas | Resultado */}
-      <div className="grid grid-cols-3 gap-3">
+      {/* Cards de resumo — mobile: 3 linhas horizontais; desktop: 3 colunas */}
+      <div className="card p-0 overflow-hidden md:hidden">
+        {([
+          { label: 'Receitas', valor: `+${fmt(totalReceitas)}`, count: `${countReceitas} lançamentos`, cor: 'text-sucesso' },
+          { label: 'Despesas', valor: `-${fmt(totalDespesas)}`, count: `${countDespesas} lançamentos`, cor: 'text-perigo' },
+          { label: 'Resultado', valor: fmt(resultado), count: `${countReceitas + countDespesas} transações`, cor: resultado >= 0 ? 'text-sucesso' : 'text-perigo' },
+        ] as const).map(({ label, valor, count, cor }, i) => (
+          <div key={label} className={`flex items-center gap-3 px-4 py-3 ${i < 2 ? 'border-b border-borda' : ''}`}>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-conteudo-suave">{label}</p>
+              <p className="text-xs text-conteudo-suave">{count}</p>
+            </div>
+            <p className={`text-base font-bold whitespace-nowrap ${cor}`}>{valor}</p>
+          </div>
+        ))}
+      </div>
+      <div className="hidden md:grid grid-cols-3 gap-3">
         <div className="card p-4">
           <p className="text-xs text-conteudo-suave mb-1">Receitas</p>
           <p className="text-lg font-bold text-sucesso">+{fmt(totalReceitas)}</p>

@@ -81,7 +81,7 @@ export default function LayoutAuth({ children }: { children: React.ReactNode }) 
       {/* Right panel */}
       <div className="flex-1 flex items-start md:items-center justify-center px-5 pb-8 md:py-8 relative"
         style={{ paddingTop: 'calc(env(safe-area-inset-top) + 4.5rem)' }}>
-        <div className="fixed top-4 right-4 z-20">
+        <div className="fixed right-4 z-20" style={{ top: 'calc(env(safe-area-inset-top) + 1rem)' }}>
           <AlternadorTema />
         </div>
 

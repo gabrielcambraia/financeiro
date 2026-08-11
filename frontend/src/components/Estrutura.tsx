@@ -123,7 +123,10 @@ export default function Estrutura() {
 
       {/* Área de conteúdo */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="flex items-center justify-end gap-3 px-6 py-3 bg-superficie border-b border-borda shrink-0">
+        <header
+          className="flex items-center justify-end gap-3 px-6 pb-3 bg-superficie border-b border-borda shrink-0"
+          style={{ paddingTop: 'calc(env(safe-area-inset-top) + 0.75rem)' }}
+        >
           <div className="md:hidden mr-auto">
             <SeletorEntidade />
           </div>

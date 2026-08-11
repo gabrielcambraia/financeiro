@@ -100,7 +100,8 @@ export default function Cartoes() {
         />
       </div>
 
-      <div className="card p-0 overflow-hidden">
+      {/* Desktop: tabela */}
+      <div className="card p-0 overflow-hidden hidden md:block">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -154,6 +155,50 @@ export default function Cartoes() {
             </p>
           )}
         </div>
+      </div>
+
+      {/* Mobile: cards */}
+      <div className="md:hidden space-y-3">
+        {isLoading && <div className="flex justify-center py-12"><Spinner /></div>}
+        {!isLoading && cartoesFiltrados.length === 0 && (
+          <p className="text-center py-12 text-conteudo-suave text-sm">
+            {cartoes.length === 0 ? 'Nenhum cartão cadastrado. Crie o primeiro!' : 'Nenhum cartão encontrado.'}
+          </p>
+        )}
+        {cartoesFiltrados.map(cartao => (
+          <div key={cartao.id} className="card p-4 space-y-3">
+            <div className="flex items-center gap-3">
+              <Link to={`/cartoes/${cartao.id}`} className="flex items-center gap-3 flex-1 min-w-0">
+                <LogoBanco banco={cartao.banco} tamanho={40} />
+                <div className="min-w-0">
+                  <p className="font-semibold text-conteudo truncate">{cartao.nome}</p>
+                  <p className="text-xs text-conteudo-suave">fecha dia {cartao.diaFechamento} · vence dia {cartao.diaVencimento}</p>
+                  <p className="text-xs text-conteudo-suave truncate">{cartao.contaPagamento.nome}</p>
+                </div>
+              </Link>
+              <div className="flex gap-1 shrink-0">
+                <button onClick={() => openEdit(cartao)} className="p-1.5 rounded-lg hover:bg-superficie-2 text-conteudo-suave hover:text-conteudo transition-colors">
+                  <Pencil size={14} />
+                </button>
+                <button onClick={() => setConfirmarExcluir(cartao)}
+                  className="p-1.5 rounded-lg hover:bg-red-900/40 text-conteudo-suave hover:text-red-400 transition-colors">
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            </div>
+            <div className="flex gap-0 border border-borda rounded-xl overflow-hidden">
+              <div className="flex-1 px-4 py-2.5 text-center border-r border-borda">
+                <p className="text-xs text-conteudo-suave mb-0.5">Fatura atual</p>
+                <p className="text-sm font-semibold text-conteudo whitespace-nowrap">{fmt(cartao.faturaAtualTotal)}</p>
+              </div>
+              <div className="flex-1 px-4 py-2.5 text-center">
+                <p className="text-xs text-conteudo-suave mb-0.5">Disponível</p>
+                <p className="text-sm font-semibold text-conteudo whitespace-nowrap">{fmt(cartao.limiteDisponivel)}</p>
+                <p className="text-xs text-conteudo-suave whitespace-nowrap">de {fmt(cartao.limite)}</p>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
       {cartoesFiltrados.length > 0 && (
         <p className="text-xs text-conteudo-suave">{cartoesFiltrados.length} registro{cartoesFiltrados.length !== 1 ? 's' : ''}</p>
