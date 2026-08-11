@@ -121,13 +121,13 @@ export default function Estrutura() {
         </div>
       </aside>
 
-      {/* Área de conteúdo */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <header
-          className="flex items-center justify-end gap-3 px-6 pb-3 bg-superficie border-b border-borda shrink-0"
-          style={{ paddingTop: 'calc(env(safe-area-inset-top) + 0.75rem)' }}
-        >
-          <div className="md:hidden mr-auto">
+      {/* Barra superior mobile — fixa igual à barra inferior */}
+      <header
+        className="md:hidden fixed top-0 left-0 right-0 z-40 bg-superficie border-b border-borda flex flex-col justify-end"
+        style={{ paddingTop: 'env(safe-area-inset-top)' }}
+      >
+        <div className="flex items-center justify-end gap-3 px-6 py-3">
+          <div className="mr-auto">
             <SeletorEntidade />
           </div>
           <AlternadorTema />
@@ -139,8 +139,29 @@ export default function Estrutura() {
               {iniciaisDoNome(sessao.nome)}
             </Link>
           )}
+        </div>
+      </header>
+
+      {/* Área de conteúdo */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Barra superior desktop — em fluxo normal na sidebar layout */}
+        <header
+          className="hidden md:flex items-center justify-end gap-3 px-6 pb-3 bg-superficie border-b border-borda shrink-0"
+          style={{ paddingTop: 'calc(env(safe-area-inset-top) + 0.75rem)' }}
+        >
+          <AlternadorTema />
+          {sessao && (
+            <Link
+              to="/perfil"
+              className="w-8 h-8 rounded-full bg-acento text-white flex items-center justify-center text-xs font-semibold shrink-0"
+            >
+              {iniciaisDoNome(sessao.nome)}
+            </Link>
+          )}
         </header>
         <main className="flex-1 overflow-auto pb-20 md:pb-0">
+          {/* Espaçador para a barra superior fixa no mobile */}
+          <div className="md:hidden" style={{ height: 'calc(env(safe-area-inset-top) + 3.5rem)' }} />
           <Outlet />
         </main>
       </div>
