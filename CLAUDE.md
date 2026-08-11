@@ -155,6 +155,12 @@ Tabelas com colunas `TEXT` que deveriam ser `TIMESTAMP`/`DATE`:
 
 Sempre incrementar — nunca editar uma migration já aplicada.
 
+**A partir de V24, versionamento por timestamp.** Migrations até V23 mantêm a numeração sequencial (`V1`...`V23`); a partir daqui, o nome do arquivo passa a ser `V{yyyyMMddHHmmss}__descricao.sql` (ex.: `V20260810153000__nexo10_assinatura_multiplo_espaco.sql`), com o número do ticket do Jira embutido na descrição quando fizer sentido para rastreabilidade.
+
+- **Por quê:** com duas máquinas/branches trabalhando em paralelo sem estar na `main`, numeração sequencial pequena colide facilmente (duas branches criando `V24` ao mesmo tempo). Timestamp praticamente elimina a colisão sem precisar de coordenação manual — o Flyway compara os números de versão numericamente, então um timestamp (bem maior que 23) sempre ordena depois de `V23` normalmente, mesmo misturando os dois esquemas no histórico.
+- Gerar o timestamp no momento de criar o arquivo (data/hora local, não precisa ser UTC nem exato ao segundo) — só precisa ser maior que o `V23` e improvável de colidir com o de outra pessoa.
+- Não é necessário renumerar as migrations antigas (V1–V23) para o novo esquema.
+
 | Versão | O que faz |
 |---|---|
 | V1 | Esquema inicial (espaços, usuários, contas, categorias, transações) |
