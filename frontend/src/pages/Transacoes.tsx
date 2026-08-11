@@ -95,7 +95,7 @@ export default function Transacoes() {
   const [vencimentoAberto, setVencimentoAberto] = useState(!!dataVencimentoInicio)
 
   const [filtroCategoria, setFiltroCategoria] = useState<number | ''>('')
-  const [filtroStatus] = useState<StatusTransacao | ''>('')
+  const [filtroStatus, setFiltroStatus] = useState<StatusTransacao | ''>('')
   const [filtroCartao, setFiltroCartao] = useState<number | ''>('')
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<EdicaoLancamento | undefined>()
@@ -363,6 +363,17 @@ export default function Transacoes() {
             <option value="">Cartão</option>
             {[...cartoes].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(c => (
               <option key={c.id} value={c.id}>{c.nome}</option>
+            ))}
+          </select>
+
+          {/* Select de status estilizado como chip */}
+          <select
+            className="text-xs px-3 py-1.5 rounded-full font-medium border border-borda bg-superficie text-conteudo-suave focus:border-acento focus:outline-none cursor-pointer"
+            value={filtroStatus}
+            onChange={e => setFiltroStatus((e.target.value || '') as StatusTransacao | '')}>
+            <option value="">Status</option>
+            {Object.entries(rotuloStatus).map(([status, rotulo]) => (
+              <option key={status} value={status}>{rotulo}</option>
             ))}
           </select>
 
