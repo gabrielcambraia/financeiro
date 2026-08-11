@@ -1,6 +1,7 @@
-import { X } from 'lucide-react'
-import { NavLink } from 'react-router-dom'
+import { X, LogOut } from 'lucide-react'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { itensSecundarios } from '../config/navegacao'
+import { useLojaAutenticacao } from '../store/lojaAutenticacao'
 
 interface Props {
   aberto: boolean
@@ -8,6 +9,15 @@ interface Props {
 }
 
 export default function DrawerMobile({ aberto, fechar }: Props) {
+  const limparSessao = useLojaAutenticacao(s => s.limparSessao)
+  const navigate = useNavigate()
+
+  const sair = () => {
+    limparSessao()
+    navigate('/login')
+    fechar()
+  }
+
   return (
     <>
       <div
@@ -39,6 +49,12 @@ export default function DrawerMobile({ aberto, fechar }: Props) {
             </NavLink>
           ))}
         </div>
+        <button
+          onClick={sair}
+          className="flex items-center gap-3 w-full px-5 py-4 border-t border-borda text-red-400 hover:bg-red-900/20 transition-colors text-sm font-medium">
+          <LogOut size={18} />
+          Sair
+        </button>
       </div>
     </>
   )
