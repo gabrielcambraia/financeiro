@@ -12,6 +12,7 @@ import com.financeiro.entity.Categoria;
 import com.financeiro.entity.Conta;
 import com.financeiro.entity.Divida;
 import com.financeiro.entity.Transacao;
+import com.financeiro.entity.enums.EscopoExclusao;
 import com.financeiro.entity.enums.StatusDivida;
 import com.financeiro.entity.enums.TipoPagamento;
 import com.financeiro.entity.enums.TipoTransacao;
@@ -133,7 +134,7 @@ public class DividaService {
                     "Estorne todas as parcelas pagas antes de cancelar a dívida");
         }
         if (!parcelas.isEmpty()) {
-            transacaoService.cancelar(parcelas.get(0).getId(), "GRUPO");
+            transacaoService.cancelar(parcelas.get(0).getId(), EscopoExclusao.GRUPO);
         }
         divida.setDataCancelamento(LocalDate.now());
         return toDTO(repository.save(divida));

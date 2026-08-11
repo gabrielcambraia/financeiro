@@ -117,7 +117,7 @@ public class OrcamentoService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         double percentual = o.getLimite().compareTo(BigDecimal.ZERO) == 0 ? 0
-                : gasto.divide(o.getLimite(), 4, RoundingMode.HALF_UP).doubleValue() * 100;
+                : gasto.divide(o.getLimite(), 6, RoundingMode.DOWN).doubleValue() * 100;
 
         CategoriaDTO catDTO = new CategoriaDTO();
         catDTO.setId(o.getCategoria().getId());
@@ -134,6 +134,7 @@ public class OrcamentoService {
         dto.setLimite(o.getLimite());
         dto.setGasto(gasto);
         dto.setPercentualUsado(percentual);
+        dto.setEstourado(gasto.compareTo(o.getLimite()) > 0);
         dto.setEntidadeId(o.getEntidadeId());
         return dto;
     }

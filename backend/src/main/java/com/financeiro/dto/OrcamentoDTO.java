@@ -27,4 +27,5 @@ public class OrcamentoDTO {
     private CategoriaDTO categoria;
     private BigDecimal gasto;
     private double percentualUsado;
+    private boolean estourado;
 }

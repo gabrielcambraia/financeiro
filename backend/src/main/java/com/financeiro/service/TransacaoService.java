@@ -15,6 +15,8 @@ import com.financeiro.entity.Meta;
 import com.financeiro.entity.MovimentacaoAtivo;
 import com.financeiro.entity.Transacao;
 import com.financeiro.entity.enums.DirecaoTransferencia;
+import com.financeiro.entity.enums.EscopoAtualizacao;
+import com.financeiro.entity.enums.EscopoExclusao;
 import com.financeiro.entity.enums.StatusTransacao;
 import com.financeiro.entity.enums.TipoPagamento;
 import com.financeiro.entity.enums.TipoMovimentacaoAtivo;
@@ -37,6 +39,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
@@ -244,7 +247,7 @@ public class TransacaoService {
     }
 
     @Transactional
-    public TransacaoDTO update(Long id, TransacaoDTO dto, String scope) {
+    public TransacaoDTO update(Long id, TransacaoDTO dto, EscopoAtualizacao scope) {
         Long espacoId = contextoEspaco.espacoAtual();
         Transacao existente = repository.findByIdAndEspacoId(id, espacoId)
                 .orElseThrow(() -> new ExcecaoRecursoNaoEncontrado("Transação não encontrada"));
@@ -266,7 +269,7 @@ public class TransacaoService {
                 ? categoriaRepository.findByIdAndEspacoId(dto.getCategoriaId(), espacoId).orElse(null)
                 : null;
 
-        if ("FUTURAS".equals(scope) && existente.isFixa() && existente.getOrigemFixaId() != null) {
+        if (scope == EscopoAtualizacao.FUTURAS && existente.isFixa() && existente.getOrigemFixaId() != null) {
             return atualizarFixasFuturas(existente, dto, novaConta, novaCategoria, espacoId);
         }
 
@@ -308,11 +311,10 @@ public class TransacaoService {
 
         bloquearSePagaOuCanceladaNoEscopo(futuras, t.getData());
 
-        // Delta em dias para manter a cadência mensal em cada linha futura.
-        long deltaDias = ChronoUnit.DAYS.between(t.getData(), dto.getData());
-        LocalDate vencOriginal = t.getDataVencimento() != null ? t.getDataVencimento() : t.getData();
-        LocalDate vencNovo = dto.getDataVencimento() != null ? dto.getDataVencimento() : dto.getData();
-        long deltaVenc = ChronoUnit.DAYS.between(vencOriginal, vencNovo);
+        // Reprojetar cada linha pelo seu offset mensal em relação à cabeça original,
+        // preservando a cadência mensal independente do número de dias entre meses.
+        LocalDate novaDataBase = dto.getData();
+        LocalDate novoVencBase = dto.getDataVencimento() != null ? dto.getDataVencimento() : dto.getData();
 
         Long novaCabecaId = t.getId();
         Long origemAntiga = t.getOrigemFixaId();
@@ -325,6 +327,8 @@ public class TransacaoService {
             BigDecimal deltaAntigo = eraSaldoAjustado ? computeDelta(f) : null;
             Conta contaAntiga = f.getConta();
 
+            long mesesDaCabeca = ChronoUnit.MONTHS.between(YearMonth.from(t.getData()), YearMonth.from(f.getData()));
+
             f.setConta(novaConta);
             f.setCategoria(novaCategoria);
             f.setTipo(dto.getTipo());
@@ -332,9 +336,8 @@ public class TransacaoService {
             f.setValor(dto.getValor());
             f.setDescricao(dto.getDescricao());
             f.setEntidadeId(dto.getEntidadeId());
-            f.setData(f.getData().plusDays(deltaDias));
-            LocalDate baseVenc = f.getDataVencimento() != null ? f.getDataVencimento() : f.getData().minusDays(deltaDias);
-            f.setDataVencimento(baseVenc.plusDays(deltaVenc));
+            f.setData(novaDataBase.plusMonths(mesesDaCabeca));
+            f.setDataVencimento(novoVencBase.plusMonths(mesesDaCabeca));
             f.setOrigemFixaId(novaCabecaId);
             f.setSerieAtiva(true);
             repository.save(f);
@@ -381,7 +384,7 @@ public class TransacaoService {
     }
 
     @Transactional
-    public void delete(Long id, String scope) {
+    public void delete(Long id, EscopoExclusao scope) {
         Long espacoId = contextoEspaco.espacoAtual();
         Transacao t = repository.findByIdAndEspacoId(id, espacoId)
                 .orElseThrow(() -> new ExcecaoRecursoNaoEncontrado("Transação não encontrada"));
@@ -397,14 +400,14 @@ public class TransacaoService {
             return;
         }
 
-        if ("GRUPO".equals(scope) && t.getGrupoParcelaId() != null) {
+        if (scope == EscopoExclusao.GRUPO && t.getGrupoParcelaId() != null) {
             List<Transacao> grupo = repository.findByEspacoIdAndGrupoParcelaId(espacoId, t.getGrupoParcelaId());
             grupo.forEach(this::verificarCanceladaParaExclusao);
             grupo.forEach(this::propagarExclusaoParaOrigem);
             grupo.stream().filter(Transacao::isSaldoAjustado).forEach(tx ->
                     contaService.adjustBalance(tx.getConta(), computeDelta(tx).negate()));
             repository.deleteAll(grupo);
-        } else if ("FUTURAS".equals(scope)) {
+        } else if (scope == EscopoExclusao.FUTURAS) {
             if (t.getGrupoParcelaId() != null) {
                 List<Transacao> futuras = repository.findByEspacoIdAndGrupoParcelaIdAndDataGreaterThanEqual(
                         espacoId, t.getGrupoParcelaId(), t.getData());
@@ -445,6 +448,30 @@ public class TransacaoService {
             }
             repository.delete(t);
         }
+    }
+
+    @Transactional
+    public TransacaoDTO pagar(Long id, String dataPagamentoStr, String multaStr) {
+        LocalDate dataPagamento = null;
+        if (dataPagamentoStr != null) {
+            try {
+                dataPagamento = LocalDate.parse(dataPagamentoStr);
+            } catch (DateTimeParseException e) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Data de pagamento inválida");
+            }
+        }
+        BigDecimal multa = null;
+        if (multaStr != null) {
+            try {
+                multa = new BigDecimal(multaStr);
+            } catch (NumberFormatException e) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Multa inválida");
+            }
+            if (multa.compareTo(BigDecimal.ZERO) < 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Multa não pode ser negativa");
+            }
+        }
+        return pagar(id, dataPagamento, multa);
     }
 
     @Transactional
@@ -507,17 +534,17 @@ public class TransacaoService {
     }
 
     @Transactional
-    public TransacaoDTO cancelar(Long id, String scope) {
+    public TransacaoDTO cancelar(Long id, EscopoExclusao scope) {
         Long espacoId = contextoEspaco.espacoAtual();
         Transacao t = repository.findByIdAndEspacoId(id, espacoId)
                 .orElseThrow(() -> new ExcecaoRecursoNaoEncontrado("Transação não encontrada"));
 
         verificarBloqueioFatura(t);
 
-        if ("GRUPO".equals(scope) && t.getGrupoParcelaId() != null) {
+        if (scope == EscopoExclusao.GRUPO && t.getGrupoParcelaId() != null) {
             repository.findByEspacoIdAndGrupoParcelaId(espacoId, t.getGrupoParcelaId())
                     .forEach(tx -> cancelarTransacao(tx, true));
-        } else if ("FUTURAS".equals(scope)) {
+        } else if (scope == EscopoExclusao.FUTURAS) {
             if (t.getGrupoParcelaId() != null) {
                 repository.findByEspacoIdAndGrupoParcelaIdAndDataGreaterThanEqual(
                         espacoId, t.getGrupoParcelaId(), t.getData())

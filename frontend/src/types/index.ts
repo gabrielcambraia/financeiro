@@ -251,6 +251,7 @@ export interface Orcamento {
   limite: number
   gasto: number
   percentualUsado: number
+  estourado: boolean
   entidadeId?: number | null
 }
 
