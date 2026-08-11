@@ -1,9 +1,12 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { IMaskInput } from 'react-imask'
 import {
   listarEntidades, criarEntidade, atualizarEntidade, excluirEntidade, buscarAssinatura, type DadosEntidade
 } from '../api/entidades'
+import { consultarCnpj, consultarCep } from '../api/consultas'
+import { validarCpf, validarCnpj, formatarCpf, formatarCnpj } from '../utils/documentos'
 import SobreposicaoModal from '../components/SobreposicaoModal'
 import ModalConfirmacao from '../components/ModalConfirmacao'
 import Spinner from '../components/Spinner'
@@ -11,6 +14,10 @@ import type { Assinatura, Entidade, TipoPessoa } from '../types'
 
 function rotuloTipoPessoa(t: TipoPessoa) {
   return t === 'FISICA' ? 'Pessoa Física' : 'Pessoa Jurídica'
+}
+
+function formatarDocumento(documento: string, tipoPessoa: TipoPessoa) {
+  return tipoPessoa === 'FISICA' ? formatarCpf(documento) : formatarCnpj(documento)
 }
 
 const dadosVazios = (): DadosEntidade => ({
@@ -41,6 +48,13 @@ export default function Entidades() {
   const [form, setForm] = useState<DadosEntidade>(dadosVazios())
   const [erro, setErro] = useState('')
   const [confirmarExcluir, setConfirmarExcluir] = useState<Entidade | null>(null)
+  const [erroCpf, setErroCpf] = useState('')
+  const [erroCnpj, setErroCnpj] = useState('')
+  const [carregandoCnpj, setCarregandoCnpj] = useState(false)
+  const [carregandoCep, setCarregandoCep] = useState(false)
+  const numeroRef = useRef<HTMLInputElement>(null)
+  const ultimoCnpjBuscado = useRef('')
+  const ultimoCepBuscado = useRef('')
 
   const invalidar = () => {
     qc.invalidateQueries({ queryKey: ['entidades'] })
@@ -70,10 +84,18 @@ export default function Entidades() {
     onSuccess: () => { invalidar(); setConfirmarExcluir(null); toast.success('Entidade excluída') },
   })
 
+  const resetErros = () => {
+    setErroCpf('')
+    setErroCnpj('')
+    ultimoCnpjBuscado.current = ''
+    ultimoCepBuscado.current = ''
+  }
+
   const abrirNova = () => {
     setEditando(null)
     setForm(dadosVazios())
     setErro('')
+    resetErros()
     setModalAberto(true)
   }
 
@@ -87,8 +109,8 @@ export default function Entidades() {
       inscricaoEstadual: ent.inscricaoEstadual ?? '',
       dataNascimento: ent.dataNascimento ?? '',
       email: ent.email ?? '',
-      telefone: ent.telefone ?? '',
-      cep: ent.cep ?? '',
+      telefone: ent.telefone ? ent.telefone.replace(/\D/g, '') : '',
+      cep: ent.cep ? ent.cep.replace(/\D/g, '') : '',
       logradouro: ent.logradouro ?? '',
       numero: ent.numero ?? '',
       complemento: ent.complemento ?? '',
@@ -97,20 +119,74 @@ export default function Entidades() {
       uf: ent.uf ?? '',
     })
     setErro('')
+    resetErros()
     setModalAberto(true)
   }
 
-  const fecharModal = () => { setModalAberto(false); setEditando(null) }
+  const fecharModal = () => { setModalAberto(false); setEditando(null); resetErros() }
 
   const setF = (k: keyof DadosEntidade, v: string) => setForm(f => ({ ...f, [k]: v }))
 
+  const alterarTipoPessoa = (t: TipoPessoa) => {
+    setForm(f => ({ ...f, tipoPessoa: t, documento: '' }))
+    setErroCpf('')
+    setErroCnpj('')
+  }
+
+  const handleCnpjBuscar = async (cnpj: string) => {
+    if (cnpj === ultimoCnpjBuscado.current) return
+    ultimoCnpjBuscado.current = cnpj
+    setCarregandoCnpj(true)
+    try {
+      const dados = await consultarCnpj(cnpj)
+      setForm(f => ({
+        ...f,
+        nome: f.nome || dados.razaoSocial,
+        nomeFantasia: f.nomeFantasia || dados.nomeFantasia || '',
+        email: f.email || dados.email || '',
+        telefone: f.telefone || (dados.telefone ? dados.telefone.replace(/\D/g, '') : ''),
+        cep: f.cep || dados.cep || '',
+        logradouro: f.logradouro || dados.logradouro || '',
+        numero: f.numero || dados.numero || '',
+        complemento: f.complemento || dados.complemento || '',
+        bairro: f.bairro || dados.bairro || '',
+        cidade: f.cidade || dados.cidade || '',
+        uf: f.uf || dados.uf || '',
+      }))
+    } catch {
+      // toast exibido pelo interceptor do cliente axios
+    } finally {
+      setCarregandoCnpj(false)
+    }
+  }
+
+  const handleCepBuscar = async (cep: string) => {
+    if (cep === ultimoCepBuscado.current) return
+    ultimoCepBuscado.current = cep
+    setCarregandoCep(true)
+    try {
+      const dados = await consultarCep(cep)
+      setForm(f => ({
+        ...f,
+        logradouro: f.logradouro || dados.logradouro || '',
+        bairro: f.bairro || dados.bairro || '',
+        cidade: f.cidade || dados.cidade || '',
+        uf: f.uf || dados.uf || '',
+      }))
+      numeroRef.current?.focus()
+    } catch {
+      // toast exibido pelo interceptor do cliente axios
+    } finally {
+      setCarregandoCep(false)
+    }
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    const dados = { ...form, tipoPessoa: form.tipoPessoa }
     if (editando) {
-      atualizar.mutate({ id: editando.id, dados })
+      atualizar.mutate({ id: editando.id, dados: form })
     } else {
-      criar.mutate(dados)
+      criar.mutate(form)
     }
   }
 
@@ -149,7 +225,7 @@ export default function Entidades() {
               <div className="min-w-0">
                 <p className="font-medium text-conteudo truncate">{ent.nome}</p>
                 <p className="text-sm text-conteudo-suave">
-                  {rotuloTipoPessoa(ent.tipoPessoa)} · {ent.documento}
+                  {rotuloTipoPessoa(ent.tipoPessoa)} · {formatarDocumento(ent.documento, ent.tipoPessoa)}
                   {ent.cidade && ` · ${ent.cidade}${ent.uf ? `/${ent.uf}` : ''}`}
                 </p>
               </div>
@@ -186,7 +262,7 @@ export default function Entidades() {
               <div className="flex gap-2">
                 {(['FISICA', 'JURIDICA'] as TipoPessoa[]).map(t => (
                   <button key={t} type="button"
-                    onClick={() => setF('tipoPessoa', t)}
+                    onClick={() => alterarTipoPessoa(t)}
                     className={`flex-1 py-1.5 rounded text-sm border transition-colors ${
                       form.tipoPessoa === t
                         ? 'border-acento bg-acento text-white'
@@ -211,7 +287,52 @@ export default function Entidades() {
 
               <div>
                 <label className="label">{form.tipoPessoa === 'FISICA' ? 'CPF' : 'CNPJ'}</label>
-                <input className="input" required value={form.documento} onChange={e => setF('documento', e.target.value)} />
+                {form.tipoPessoa === 'FISICA' ? (
+                  <>
+                    <IMaskInput
+                      mask="000.000.000-00"
+                      unmask={true}
+                      className={`input ${erroCpf ? 'border-red-500 focus:border-red-500' : ''}`}
+                      required
+                      value={form.documento}
+                      onAccept={(val) => {
+                        const v = val as string
+                        setF('documento', v)
+                        if (v.length === 11) setErroCpf(validarCpf(v) ? '' : 'CPF inválido')
+                        else setErroCpf('')
+                      }}
+                    />
+                    {erroCpf && <p className="text-xs text-red-500 mt-1">{erroCpf}</p>}
+                  </>
+                ) : (
+                  <>
+                    <div className="relative">
+                      <IMaskInput
+                        mask="SS.SSS.SSS/SSSS-00"
+                        definitions={{ S: /[A-Za-z0-9]/ } as Record<string, RegExp>}
+                        unmask={true}
+                        className={`input ${erroCnpj ? 'border-red-500 focus:border-red-500' : ''} ${carregandoCnpj ? 'pr-9' : ''}`}
+                        required
+                        value={form.documento}
+                        onAccept={(val) => {
+                          const v = (val as string).toUpperCase()
+                          setF('documento', v)
+                          if (v.length === 14) {
+                            if (!validarCnpj(v)) { setErroCnpj('CNPJ inválido'); return }
+                            setErroCnpj('')
+                            handleCnpjBuscar(v)
+                          } else setErroCnpj('')
+                        }}
+                      />
+                      {carregandoCnpj && (
+                        <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
+                          <Spinner />
+                        </div>
+                      )}
+                    </div>
+                    {erroCnpj && <p className="text-xs text-red-500 mt-1">{erroCnpj}</p>}
+                  </>
+                )}
               </div>
 
               {form.tipoPessoa === 'FISICA' && (
@@ -237,14 +358,37 @@ export default function Entidades() {
                 </div>
                 <div>
                   <label className="label">Telefone</label>
-                  <input className="input" type="tel" value={form.telefone} onChange={e => setF('telefone', e.target.value)} />
+                  <IMaskInput
+                    mask={[{ mask: '(00) 0000-0000' }, { mask: '(00) 00000-0000' }]}
+                    unmask={true}
+                    className="input"
+                    value={form.telefone}
+                    onAccept={(val) => setF('telefone', val as string)}
+                  />
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className="label">CEP</label>
-                  <input className="input" value={form.cep} onChange={e => setF('cep', e.target.value)} />
+                  <div className="relative">
+                    <IMaskInput
+                      mask="00000-000"
+                      unmask={true}
+                      className={`input ${carregandoCep ? 'pr-9' : ''}`}
+                      value={form.cep}
+                      onAccept={(val) => {
+                        const v = val as string
+                        setF('cep', v)
+                        if (v.length === 8) handleCepBuscar(v)
+                      }}
+                    />
+                    {carregandoCep && (
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
+                        <Spinner />
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="col-span-2">
                   <label className="label">Logradouro</label>
@@ -255,7 +399,7 @@ export default function Entidades() {
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className="label">Número</label>
-                  <input className="input" value={form.numero} onChange={e => setF('numero', e.target.value)} />
+                  <input ref={numeroRef} className="input" value={form.numero} onChange={e => setF('numero', e.target.value)} />
                 </div>
                 <div className="col-span-2">
                   <label className="label">Complemento</label>
