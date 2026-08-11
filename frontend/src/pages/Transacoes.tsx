@@ -2,9 +2,8 @@ import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Trash2, Pencil, CreditCard, Banknote, Repeat, Layers, CheckCircle2, Ban, Undo2, ArrowRightLeft, TrendingUp, TrendingDown, CalendarDays, Upload, Download, Plus, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Trash2, Pencil, CreditCard, Repeat, Layers, CheckCircle2, Ban, Undo2, ArrowRightLeft, TrendingUp, TrendingDown, CalendarDays, Upload, Download, Plus, ChevronLeft, ChevronRight } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
 import {
   buscarTransacoes, excluirTransacao, pagarTransacao, estornarTransacao, cancelarTransacao,
   impactoCancelamentoTransacao, impactoExclusaoTransacao,
@@ -57,14 +56,6 @@ type Lancamento =
   | { origem: 'ITEM_FATURA'; id: string; data: string; item: ItemFatura }
   | { origem: 'FATURA'; id: string; data: string; fatura: Fatura }
 
-const agruparPorData = (lancamentos: Lancamento[]) => {
-  const map = new Map<string, Lancamento[]>()
-  lancamentos.forEach(l => {
-    if (!map.has(l.data)) map.set(l.data, [])
-    map.get(l.data)!.push(l)
-  })
-  return [...map.entries()].sort((a, b) => b[0].localeCompare(a[0]))
-}
 
 interface EstadoNavegacaoTransacoes {
   tipo?: TipoTransacao
@@ -245,10 +236,10 @@ export default function Transacoes() {
         (l.origem === 'FATURA' && l.fatura.status === filtroStatus))
     : lancamentos
 
-  // Paginação sobre a lista filtrada
-  const totalPaginas = Math.max(1, Math.ceil(visiveis.length / ITENS_POR_PAGINA))
-  const visivelsPaginados = visiveis.slice((pagina - 1) * ITENS_POR_PAGINA, pagina * ITENS_POR_PAGINA)
-  const agrupadas = agruparPorData(visivelsPaginados)
+  // Paginação sobre a lista filtrada (ordenada por data desc)
+  const visiveisOrdenados = [...visiveis].sort((a, b) => b.data.localeCompare(a.data))
+  const totalPaginas = Math.max(1, Math.ceil(visiveisOrdenados.length / ITENS_POR_PAGINA))
+  const visivelsPaginados = visiveisOrdenados.slice((pagina - 1) * ITENS_POR_PAGINA, pagina * ITENS_POR_PAGINA)
 
   // Totais refletem o mês/conta/cartão selecionados, sem os filtros de status
   // (mesmo comportamento de antes) — cancelada/cancelado nunca conta, pois a
@@ -443,12 +434,12 @@ export default function Transacoes() {
         )}
       </div>
 
-      {/* Lista de lançamentos */}
+      {/* Tabela de lançamentos */}
       {isLoading ? (
         <div className="flex justify-center py-12">
           <Spinner />
         </div>
-      ) : agrupadas.length === 0 ? (
+      ) : visiveis.length === 0 ? (
         <div className="card text-center py-12 text-conteudo-suave">
           <p>Nenhum lançamento encontrado.</p>
           <button onClick={() => setShowForm(true)} className="mt-3 text-acento hover:opacity-80 text-sm">
@@ -456,235 +447,219 @@ export default function Transacoes() {
           </button>
         </div>
       ) : (
-        <div className="space-y-4">
-          {agrupadas.map(([data, itens]) => (
-            <div key={data}>
-              <p className="text-xs font-semibold text-conteudo-suave uppercase tracking-wider mb-2">
-                {format(parseISO(data), "EEEE, dd 'de' MMMM", { locale: ptBR })}
-              </p>
-              <div className="card p-0 overflow-hidden divide-y divide-borda">
-                {itens.map(lanc => lanc.origem === 'FATURA' ? (
-                  <div key={lanc.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-superficie-2 transition-colors group">
-                    {/* Bolinha de cor */}
-                    <div className="w-3 h-3 rounded-full shrink-0" style={{ background: lanc.fatura.cartao.cor }} />
-
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-conteudo truncate">
-                          Fatura {lanc.fatura.cartao.nome}
-                        </span>
-                        <BadgeStatus status={lanc.fatura.status} />
-                      </div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-xs text-conteudo-suave">
-                          {lanc.fatura.cartao.contaPagamento.nome} · vence {format(parseISO(lanc.fatura.dataVencimento), "dd/MM/yyyy", { locale: ptBR })}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Valor */}
-                    <span className="text-base font-bold text-red-500">-{fmt(lanc.fatura.valor)}</span>
-
-                    {/* Ações */}
-                    <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                      {(lanc.fatura.status === 'PENDENTE' || lanc.fatura.status === 'ATRASADA') && (
-                        <button onClick={() => setPagarModal({ id: lanc.fatura.transacaoDespesaId, tipo: 'DESPESA', status: lanc.fatura.status })}
-                          title="Marcar fatura como paga"
-                          className="p-1.5 rounded-lg hover:bg-emerald-900/40 text-conteudo-suave hover:text-emerald-500 transition-colors">
-                          <CheckCircle2 size={14} />
-                        </button>
-                      )}
-                      {lanc.fatura.status === 'PAGA' && (
-                        <button onClick={() => estornarMutation.mutate(lanc.fatura.transacaoDespesaId)}
-                          title="Estornar (voltar para pendente)"
-                          className="p-1.5 rounded-lg hover:bg-amber-900/40 text-conteudo-suave hover:text-amber-500 transition-colors">
-                          <Undo2 size={14} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ) : lanc.origem === 'TRANSACAO' ? (
-                  <div key={lanc.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-superficie-2 transition-colors group">
-                    {/* Bolinha de cor */}
-                    <div className="w-3 h-3 rounded-full shrink-0"
-                      style={{ background: lanc.tx.tipo === 'TRANSFERENCIA' ? '#3b82f6' : lanc.tx.categoria?.cor ?? '#6b7280' }} />
-
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-conteudo truncate">
+        <>
+          {/* Desktop: tabela */}
+          <div className="hidden md:block card p-0 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="border-b border-borda">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-conteudo-suave uppercase tracking-wide w-[110px]">Data</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-conteudo-suave uppercase tracking-wide">Descrição</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-conteudo-suave uppercase tracking-wide">Categoria</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-conteudo-suave uppercase tracking-wide">Conta</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-conteudo-suave uppercase tracking-wide">Status</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-conteudo-suave uppercase tracking-wide">Valor</th>
+                    <th className="px-4 py-3 w-[48px]" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {visivelsPaginados.map(lanc => lanc.origem === 'FATURA' ? (
+                    <tr key={lanc.id} className="group border-b border-borda last:border-b-0 hover:bg-superficie-2 transition-colors">
+                      <td className="px-4 py-3 text-xs text-conteudo-suave whitespace-nowrap">
+                        {format(parseISO(lanc.fatura.dataFechamento), 'dd/MM/yyyy')}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-conteudo">Fatura {lanc.fatura.cartao.nome}</div>
+                        <div className="text-xs text-conteudo-suave mt-0.5">
+                          {lanc.fatura.cartao.contaPagamento.nome} · vence {format(parseISO(lanc.fatura.dataVencimento), 'dd/MM/yyyy')}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-conteudo-suave">—</td>
+                      <td className="px-4 py-3 text-sm text-conteudo-suave">{lanc.fatura.cartao.contaPagamento.nome}</td>
+                      <td className="px-4 py-3"><BadgeStatus status={lanc.fatura.status} /></td>
+                      <td className="px-4 py-3 text-right">
+                        <span className="font-bold text-red-500 whitespace-nowrap">-{fmt(lanc.fatura.valor)}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-0.5 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                          {(lanc.fatura.status === 'PENDENTE' || lanc.fatura.status === 'ATRASADA') && (
+                            <button onClick={() => setPagarModal({ id: lanc.fatura.transacaoDespesaId, tipo: 'DESPESA', status: lanc.fatura.status })}
+                              title="Marcar fatura como paga"
+                              className="p-1.5 rounded-lg hover:bg-emerald-900/40 text-conteudo-suave hover:text-emerald-500 transition-colors">
+                              <CheckCircle2 size={14} />
+                            </button>
+                          )}
+                          {lanc.fatura.status === 'PAGA' && (
+                            <button onClick={() => estornarMutation.mutate(lanc.fatura.transacaoDespesaId)}
+                              title="Estornar (voltar para pendente)"
+                              className="p-1.5 rounded-lg hover:bg-amber-900/40 text-conteudo-suave hover:text-amber-500 transition-colors">
+                              <Undo2 size={14} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ) : lanc.origem === 'TRANSACAO' ? (
+                    <tr key={lanc.id} className={`group border-b border-borda last:border-b-0 hover:bg-superficie-2 transition-colors ${lanc.tx.status === 'CANCELADA' ? 'opacity-60' : ''}`}>
+                      <td className="px-4 py-3 text-xs text-conteudo-suave whitespace-nowrap">
+                        {format(parseISO(lanc.tx.data), 'dd/MM/yyyy')}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1.5 font-medium text-conteudo">
                           {lanc.tx.tipo === 'TRANSFERENCIA'
                             ? (lanc.tx.descricao || 'Transferência')
                             : (lanc.tx.descricao || lanc.tx.categoria?.nome || '—')}
-                        </span>
-                        {lanc.tx.fixa && <Repeat size={12} className="text-acento shrink-0" aria-label="Fixa" />}
-                        {lanc.tx.totalParcelas && (
-                          <span className="text-xs text-conteudo-suave flex items-center gap-0.5">
-                            <Layers size={11} />
-                            {lanc.tx.numeroParcela}/{lanc.tx.totalParcelas}
+                          {lanc.tx.fixa && <Repeat size={11} className="text-acento shrink-0" aria-label="Fixa" />}
+                          {lanc.tx.totalParcelas && (
+                            <span className="text-xs text-conteudo-suave flex items-center gap-0.5">
+                              <Layers size={10} />{lanc.tx.numeroParcela}/{lanc.tx.totalParcelas}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-conteudo-suave mt-0.5">
+                          {lanc.tx.tipo === 'TRANSFERENCIA' ? (
+                            <span className="flex items-center gap-1">
+                              <ArrowRightLeft size={10} />
+                              {lanc.tx.direcaoTransferencia === 'SAIDA'
+                                ? `${lanc.tx.conta.nome} → ${lanc.tx.contaVinculada?.nome ?? '—'}`
+                                : `${lanc.tx.contaVinculada?.nome ?? '—'} → ${lanc.tx.conta.nome}`}
+                            </span>
+                          ) : (
+                            `${lanc.tx.conta.nome}${lanc.tx.tipoPagamento === 'CREDITO' ? ' · Crédito' : ''}`
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        {lanc.tx.categoria ? (
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-2 h-2 rounded-full shrink-0" style={{ background: lanc.tx.categoria.cor }} />
+                            <span className="text-xs text-conteudo whitespace-nowrap">{lanc.tx.categoria.nome}</span>
+                          </div>
+                        ) : <span className="text-xs text-conteudo-suave">—</span>}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-conteudo-suave whitespace-nowrap">{lanc.tx.conta.nome}</td>
+                      <td className="px-4 py-3"><BadgeStatus status={lanc.tx.status} /></td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="whitespace-nowrap">
+                          <span className={`font-bold ${lanc.tx.tipo === 'TRANSFERENCIA' ? 'text-blue-500' : lanc.tx.tipo === 'RECEITA' ? 'text-emerald-500' : 'text-red-500'}`}>
+                            {lanc.tx.tipo === 'TRANSFERENCIA'
+                              ? (lanc.tx.direcaoTransferencia === 'ENTRADA' ? '+' : '-')
+                              : (lanc.tx.tipo === 'RECEITA' ? '+' : '-')}
+                            {fmt(lanc.tx.valor + (lanc.tx.multa ?? 0))}
                           </span>
-                        )}
-                        <BadgeStatus status={lanc.tx.status} />
-                      </div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        {lanc.tx.tipo === 'TRANSFERENCIA' ? (
-                          <span className="text-xs text-conteudo-suave flex items-center gap-1">
-                            <ArrowRightLeft size={11} />
-                            {lanc.tx.direcaoTransferencia === 'SAIDA'
-                              ? `${lanc.tx.conta.nome} → ${lanc.tx.contaVinculada?.nome ?? '—'}`
-                              : `${lanc.tx.contaVinculada?.nome ?? '—'} → ${lanc.tx.conta.nome}`}
-                          </span>
-                        ) : (
-                          <>
-                            <span className="text-xs text-conteudo-suave">{lanc.tx.conta.nome}</span>
-                            {lanc.tx.categoria && (
-                              <span className="text-xs px-1.5 py-0.5 rounded-full" style={{
-                                background: `${lanc.tx.categoria.cor}20`, color: lanc.tx.categoria.cor
-                              }}>
-                                {lanc.tx.categoria.nome}
-                              </span>
-                            )}
-                            {lanc.tx.tipoPagamento === 'CREDITO' ? (
-                              <CreditCard size={11} className="text-conteudo-suave" />
-                            ) : (
-                              <Banknote size={11} className="text-conteudo-suave" />
-                            )}
-                            {lanc.tx.multa != null && (
-                              <span className="text-xs text-orange-500">+ multa {fmt(lanc.tx.multa)}</span>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Valor */}
-                    <span className={`text-base font-bold ${
-                      lanc.tx.tipo === 'TRANSFERENCIA'
-                        ? 'text-blue-500'
-                        : lanc.tx.tipo === 'RECEITA' ? 'text-emerald-500' : 'text-red-500'
-                    }`}>
-                      {lanc.tx.tipo === 'TRANSFERENCIA'
-                        ? (lanc.tx.direcaoTransferencia === 'ENTRADA' ? '+' : '-')
-                        : (lanc.tx.tipo === 'RECEITA' ? '+' : '-')}{fmt(lanc.tx.valor + (lanc.tx.multa ?? 0))}
-                    </span>
-
-                    {/* Ações */}
-                    <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                      {(lanc.tx.status === 'PENDENTE' || lanc.tx.status === 'ATRASADA') && (
-                        <button onClick={() => setPagarModal({ id: lanc.tx.id, tipo: lanc.tx.tipo, status: lanc.tx.status })}
-                          title={lanc.tx.tipo === 'RECEITA' ? 'Marcar como recebida' : lanc.tx.tipo === 'TRANSFERENCIA' ? 'Marcar como transferida' : 'Marcar como paga'}
-                          className="p-1.5 rounded-lg hover:bg-emerald-900/40 text-conteudo-suave hover:text-emerald-500 transition-colors">
-                          <CheckCircle2 size={14} />
-                        </button>
-                      )}
-                      {lanc.tx.status === 'PAGA' && (
-                        <button onClick={() => estornarMutation.mutate(lanc.tx.id)}
-                          title="Estornar (voltar para pendente)"
-                          className="p-1.5 rounded-lg hover:bg-amber-900/40 text-conteudo-suave hover:text-amber-500 transition-colors">
-                          <Undo2 size={14} />
-                        </button>
-                      )}
-                      {lanc.tx.status !== 'CANCELADA' && (
-                        <button onClick={() => abrirCancelModal(lanc.tx)}
-                          title="Cancelar"
-                          className="p-1.5 rounded-lg hover:bg-orange-900/40 text-conteudo-suave hover:text-orange-500 transition-colors">
-                          <Ban size={14} />
-                        </button>
-                      )}
-                      <button
-                        onClick={() => { if (!lanc.tx.origemDerivada) { setEditing({ origem: 'TRANSACAO', tx: lanc.tx }); setShowForm(true) } }}
-                        disabled={!!lanc.tx.origemDerivada}
-                        title={lanc.tx.origemDerivada ? 'Transação derivada — exclua e crie uma nova para corrigir' : undefined}
-                        className="p-1.5 rounded-lg hover:bg-superficie-2 text-conteudo-suave hover:text-conteudo transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
-                        <Pencil size={14} />
-                      </button>
-                      {lanc.tx.status === 'CANCELADA' && (
-                        <button onClick={() => abrirDeleteModal(lanc.tx)}
-                          title="Excluir"
-                          className="p-1.5 rounded-lg hover:bg-red-900/40 text-conteudo-suave hover:text-red-500 transition-colors">
-                          <Trash2 size={14} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <div key={lanc.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-superficie-2 transition-colors group">
-                    {/* Bolinha de cor */}
-                    <div className="w-3 h-3 rounded-full shrink-0" style={{ background: lanc.item.categoria?.cor ?? '#6b7280' }} />
-
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className={`text-sm font-medium text-conteudo truncate ${lanc.item.cancelado ? 'line-through text-conteudo-suave' : ''}`}>
-                          {lanc.item.descricao || lanc.item.categoria?.nome || '—'}
-                        </span>
-                        {lanc.item.totalParcelas && (
-                          <span className="text-xs text-conteudo-suave flex items-center gap-0.5">
-                            <Layers size={11} />
-                            {lanc.item.numeroParcela}/{lanc.item.totalParcelas}
-                          </span>
-                        )}
-                        <span className="text-xs px-1.5 py-0.5 rounded-full font-medium bg-violet-500/15 text-violet-400">
-                          {lanc.item.cancelado ? 'Cancelado' : 'No cartão'}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-xs text-conteudo-suave">{lanc.item.cartaoNome}</span>
-                        {lanc.item.categoria && (
-                          <span className="text-xs px-1.5 py-0.5 rounded-full" style={{
-                            background: `${lanc.item.categoria.cor}20`, color: lanc.item.categoria.cor
-                          }}>
-                            {lanc.item.categoria.nome}
-                          </span>
-                        )}
-                        <CreditCard size={11} className="text-conteudo-suave" />
-                      </div>
-                    </div>
-
-                    {/* Valor */}
-                    <span className={`text-base font-bold ${lanc.item.cancelado ? 'text-conteudo-suave line-through' : 'text-red-500'}`}>
-                      -{fmt(lanc.item.valor)}
-                    </span>
-
-                    {/* Ações */}
-                    <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                      {!lanc.item.cancelado && (
-                        <>
-                          <button onClick={() => cancelarItemMutation.mutate(lanc.item.id)}
-                            title="Cancelar"
-                            className="p-1.5 rounded-lg hover:bg-orange-900/40 text-conteudo-suave hover:text-orange-500 transition-colors">
-                            <Ban size={14} />
-                          </button>
-                          <button onClick={() => { setEditing({ origem: 'ITEM_FATURA', item: lanc.item }); setShowForm(true) }}
-                            className="p-1.5 rounded-lg hover:bg-superficie-2 text-conteudo-suave hover:text-conteudo transition-colors">
+                          {lanc.tx.multa != null && (
+                            <div className="text-xs text-orange-500">+ multa {fmt(lanc.tx.multa)}</div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-0.5 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                          {(lanc.tx.status === 'PENDENTE' || lanc.tx.status === 'ATRASADA') && (
+                            <button onClick={() => setPagarModal({ id: lanc.tx.id, tipo: lanc.tx.tipo, status: lanc.tx.status })}
+                              title={lanc.tx.tipo === 'RECEITA' ? 'Marcar como recebida' : lanc.tx.tipo === 'TRANSFERENCIA' ? 'Marcar como transferida' : 'Marcar como paga'}
+                              className="p-1.5 rounded-lg hover:bg-emerald-900/40 text-conteudo-suave hover:text-emerald-500 transition-colors">
+                              <CheckCircle2 size={14} />
+                            </button>
+                          )}
+                          {lanc.tx.status === 'PAGA' && (
+                            <button onClick={() => estornarMutation.mutate(lanc.tx.id)}
+                              title="Estornar (voltar para pendente)"
+                              className="p-1.5 rounded-lg hover:bg-amber-900/40 text-conteudo-suave hover:text-amber-500 transition-colors">
+                              <Undo2 size={14} />
+                            </button>
+                          )}
+                          {lanc.tx.status !== 'CANCELADA' && (
+                            <button onClick={() => abrirCancelModal(lanc.tx)} title="Cancelar"
+                              className="p-1.5 rounded-lg hover:bg-orange-900/40 text-conteudo-suave hover:text-orange-500 transition-colors">
+                              <Ban size={14} />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => { if (!lanc.tx.origemDerivada) { setEditing({ origem: 'TRANSACAO', tx: lanc.tx }); setShowForm(true) } }}
+                            disabled={!!lanc.tx.origemDerivada}
+                            title={lanc.tx.origemDerivada ? 'Transação derivada — exclua e crie uma nova para corrigir' : undefined}
+                            className="p-1.5 rounded-lg hover:bg-superficie-2 text-conteudo-suave hover:text-conteudo transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
                             <Pencil size={14} />
                           </button>
-                          <button onClick={() => setConfirmarExcluirItem(lanc.item.id)}
-                            className="p-1.5 rounded-lg hover:bg-red-900/40 text-conteudo-suave hover:text-red-500 transition-colors">
-                            <Trash2 size={14} />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
+                          {lanc.tx.status === 'CANCELADA' && (
+                            <button onClick={() => abrirDeleteModal(lanc.tx)} title="Excluir"
+                              className="p-1.5 rounded-lg hover:bg-red-900/40 text-conteudo-suave hover:text-red-500 transition-colors">
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    <tr key={lanc.id} className="group border-b border-borda last:border-b-0 hover:bg-superficie-2 transition-colors">
+                      <td className="px-4 py-3 text-xs text-conteudo-suave whitespace-nowrap">
+                        {format(parseISO(lanc.item.data), 'dd/MM/yyyy')}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className={`flex items-center gap-1.5 font-medium text-conteudo ${lanc.item.cancelado ? 'line-through text-conteudo-suave' : ''}`}>
+                          {lanc.item.descricao || lanc.item.categoria?.nome || '—'}
+                          {lanc.item.totalParcelas && (
+                            <span className="text-xs text-conteudo-suave flex items-center gap-0.5">
+                              <Layers size={10} />{lanc.item.numeroParcela}/{lanc.item.totalParcelas}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-conteudo-suave mt-0.5">{lanc.item.cartaoNome} · Cartão</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        {lanc.item.categoria ? (
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-2 h-2 rounded-full shrink-0" style={{ background: lanc.item.categoria.cor }} />
+                            <span className="text-xs text-conteudo whitespace-nowrap">{lanc.item.categoria.nome}</span>
+                          </div>
+                        ) : <span className="text-xs text-conteudo-suave">—</span>}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-conteudo-suave">{lanc.item.cartaoNome}</td>
+                      <td className="px-4 py-3">
+                        <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${lanc.item.cancelado ? 'bg-gray-500/15 text-gray-400' : 'bg-violet-500/15 text-violet-400'}`}>
+                          {lanc.item.cancelado ? 'Cancelado' : 'No cartão'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span className={`font-bold whitespace-nowrap ${lanc.item.cancelado ? 'text-conteudo-suave line-through' : 'text-red-500'}`}>
+                          -{fmt(lanc.item.valor)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-0.5 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                          {!lanc.item.cancelado && (
+                            <>
+                              <button onClick={() => cancelarItemMutation.mutate(lanc.item.id)} title="Cancelar"
+                                className="p-1.5 rounded-lg hover:bg-orange-900/40 text-conteudo-suave hover:text-orange-500 transition-colors">
+                                <Ban size={14} />
+                              </button>
+                              <button onClick={() => { setEditing({ origem: 'ITEM_FATURA', item: lanc.item }); setShowForm(true) }}
+                                className="p-1.5 rounded-lg hover:bg-superficie-2 text-conteudo-suave hover:text-conteudo transition-colors">
+                                <Pencil size={14} />
+                              </button>
+                              <button onClick={() => setConfirmarExcluirItem(lanc.item.id)}
+                                className="p-1.5 rounded-lg hover:bg-red-900/40 text-conteudo-suave hover:text-red-500 transition-colors">
+                                <Trash2 size={14} />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          ))}
-
-          {/* Paginação */}
-          {totalPaginas > 1 && (
-            <div className="card p-3 flex items-center justify-between">
+            {/* Paginação da tabela */}
+            {totalPaginas > 1 && <div className="border-t border-borda px-4 py-3 flex items-center justify-between">
               <span className="text-xs text-conteudo-suave">
                 {visiveis.length} transações · Página {pagina} de {totalPaginas}
               </span>
               <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setPagina(p => Math.max(1, p - 1))}
-                  disabled={pagina === 1}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg border border-borda text-conteudo-suave hover:border-acento hover:text-acento disabled:opacity-40 transition-colors text-sm">
-                  <ChevronLeft size={14} />
+                <button onClick={() => setPagina(p => Math.max(1, p - 1))} disabled={pagina === 1}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg border border-borda text-conteudo-suave hover:border-acento hover:text-acento disabled:opacity-40 transition-colors">
+                  <ChevronLeft size={13} />
                 </button>
                 {Array.from({ length: totalPaginas }, (_, i) => i + 1)
                   .filter(p => p === 1 || p === totalPaginas || Math.abs(p - pagina) <= 1)
@@ -694,22 +669,108 @@ export default function Transacoes() {
                         <span key={`dots-${p}`} className="text-xs text-conteudo-suave px-1">...</span>
                       )}
                       <button key={p} onClick={() => setPagina(p)}
-                        className={`w-8 h-8 flex items-center justify-center rounded-lg border text-sm transition-colors
-                          ${p === pagina ? 'bg-acento text-white border-acento' : 'border-borda text-conteudo-suave hover:border-acento hover:text-acento'}`}>
+                        className={`w-8 h-8 flex items-center justify-center rounded-lg border text-sm transition-colors ${p === pagina ? 'bg-acento text-white border-acento' : 'border-borda text-conteudo-suave hover:border-acento hover:text-acento'}`}>
                         {p}
                       </button>
                     </>
                   ))}
-                <button
-                  onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))}
-                  disabled={pagina === totalPaginas}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg border border-borda text-conteudo-suave hover:border-acento hover:text-acento disabled:opacity-40 transition-colors text-sm">
-                  <ChevronRight size={14} />
+                <button onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))} disabled={pagina === totalPaginas}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg border border-borda text-conteudo-suave hover:border-acento hover:text-acento disabled:opacity-40 transition-colors">
+                  <ChevronRight size={13} />
                 </button>
               </div>
-            </div>
-          )}
-        </div>
+            </div>}
+          </div>
+
+          {/* Mobile: cards */}
+          <div className="md:hidden space-y-2">
+            {visivelsPaginados.map(lanc => lanc.origem === 'FATURA' ? (
+              <div key={lanc.id} className="card flex items-center gap-3 px-4 py-3">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ background: `${lanc.fatura.cartao.cor}20` }}>
+                  <CreditCard size={16} style={{ color: lanc.fatura.cartao.cor }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-conteudo text-sm truncate">Fatura {lanc.fatura.cartao.nome}</div>
+                  <div className="text-xs text-conteudo-suave mt-0.5">
+                    {format(parseISO(lanc.fatura.dataFechamento), 'dd/MM')} · {lanc.fatura.cartao.contaPagamento.nome}
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="font-bold text-red-500 text-sm">-{fmt(lanc.fatura.valor)}</div>
+                  <BadgeStatus status={lanc.fatura.status} />
+                </div>
+              </div>
+            ) : lanc.origem === 'TRANSACAO' ? (
+              <div key={lanc.id} className={`card flex items-center gap-3 px-4 py-3 ${lanc.tx.status === 'CANCELADA' ? 'opacity-60' : ''}`}>
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ background: `${lanc.tx.tipo === 'TRANSFERENCIA' ? '#3b82f6' : (lanc.tx.categoria?.cor ?? '#6b7280')}20` }}>
+                  {lanc.tx.tipo === 'RECEITA' ? <TrendingUp size={16} className="text-emerald-500" />
+                    : lanc.tx.tipo === 'TRANSFERENCIA' ? <ArrowRightLeft size={16} className="text-blue-500" />
+                    : <TrendingDown size={16} className="text-red-500" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-conteudo text-sm truncate">
+                    {lanc.tx.tipo === 'TRANSFERENCIA' ? (lanc.tx.descricao || 'Transferência') : (lanc.tx.descricao || lanc.tx.categoria?.nome || '—')}
+                  </div>
+                  <div className="text-xs text-conteudo-suave mt-0.5">
+                    {format(parseISO(lanc.tx.data), 'dd/MM')} · {lanc.tx.conta.nome}
+                    {lanc.tx.categoria ? ` · ${lanc.tx.categoria.nome}` : ''}
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className={`font-bold text-sm ${lanc.tx.tipo === 'TRANSFERENCIA' ? 'text-blue-500' : lanc.tx.tipo === 'RECEITA' ? 'text-emerald-500' : 'text-red-500'}`}>
+                    {lanc.tx.tipo === 'TRANSFERENCIA'
+                      ? (lanc.tx.direcaoTransferencia === 'ENTRADA' ? '+' : '-')
+                      : (lanc.tx.tipo === 'RECEITA' ? '+' : '-')}
+                    {fmt(lanc.tx.valor + (lanc.tx.multa ?? 0))}
+                  </div>
+                  <BadgeStatus status={lanc.tx.status} />
+                </div>
+              </div>
+            ) : (
+              <div key={lanc.id} className="card flex items-center gap-3 px-4 py-3">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ background: `${lanc.item.categoria?.cor ?? '#6b7280'}20` }}>
+                  <CreditCard size={16} style={{ color: lanc.item.categoria?.cor ?? '#6b7280' }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className={`font-medium text-conteudo text-sm truncate ${lanc.item.cancelado ? 'line-through text-conteudo-suave' : ''}`}>
+                    {lanc.item.descricao || lanc.item.categoria?.nome || '—'}
+                  </div>
+                  <div className="text-xs text-conteudo-suave mt-0.5">
+                    {format(parseISO(lanc.item.data), 'dd/MM')} · {lanc.item.cartaoNome}
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className={`font-bold text-sm ${lanc.item.cancelado ? 'text-conteudo-suave line-through' : 'text-red-500'}`}>
+                    -{fmt(lanc.item.valor)}
+                  </div>
+                  <span className="text-xs text-violet-400">{lanc.item.cancelado ? 'Cancelado' : 'No cartão'}</span>
+                </div>
+              </div>
+            ))}
+            {/* Paginação mobile */}
+            {totalPaginas > 1 && (
+              <div className="card p-3 flex items-center justify-between">
+                <span className="text-xs text-conteudo-suave">
+                  {visiveis.length} transações · Pág. {pagina}/{totalPaginas}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => setPagina(p => Math.max(1, p - 1))} disabled={pagina === 1}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg border border-borda text-conteudo-suave hover:border-acento hover:text-acento disabled:opacity-40 transition-colors">
+                    <ChevronLeft size={13} />
+                  </button>
+                  <span className="text-sm text-conteudo px-2">{pagina} / {totalPaginas}</span>
+                  <button onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))} disabled={pagina === totalPaginas}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg border border-borda text-conteudo-suave hover:border-acento hover:text-acento disabled:opacity-40 transition-colors">
+                    <ChevronRight size={13} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </>
       )}
 
       {showForm && (

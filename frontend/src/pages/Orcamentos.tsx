@@ -91,7 +91,7 @@ export default function Orcamentos() {
           </div>
           <div className="h-2 rounded-full bg-superficie-2 overflow-hidden">
             <div
-              className={`h-full rounded-full transition-all ${corBarra(totalLimite ? (totalGasto / totalLimite) * 100 : 0)}`}
+              className={`h-full rounded-full transition-all ${totalGasto > totalLimite ? 'bg-red-500' : corBarra(totalLimite ? (totalGasto / totalLimite) * 100 : 0)}`}
               style={{ width: `${Math.min(100, totalLimite ? (totalGasto / totalLimite) * 100 : 0)}%` }}
             />
           </div>
@@ -108,7 +108,7 @@ export default function Orcamentos() {
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-sm text-conteudo-suave">
-                  <span className={o.percentualUsado >= 100 ? 'text-red-500 font-semibold' : 'text-conteudo font-semibold'}>{fmt(o.gasto)}</span> de {fmt(o.limite)}
+                  <span className={o.estourado ? 'text-red-500 font-semibold' : 'text-conteudo font-semibold'}>{fmt(o.gasto)}</span> de {fmt(o.limite)}
                 </span>
                 <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                   <button onClick={() => openEdit(o)} className="p-1.5 rounded-lg hover:bg-superficie-2 text-conteudo-suave hover:text-conteudo transition-colors">
@@ -127,7 +127,7 @@ export default function Orcamentos() {
                 style={{ width: `${Math.min(100, o.percentualUsado)}%` }}
               />
             </div>
-            {o.percentualUsado >= 100 && (
+            {o.estourado && (
               <p className="text-xs text-red-500 mt-1.5">Orçamento estourado</p>
             )}
           </div>
