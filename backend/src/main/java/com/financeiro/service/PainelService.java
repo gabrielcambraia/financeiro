@@ -65,9 +65,9 @@ public class PainelService {
                 .despesasPorCategoria(buildResumoCategoria(ativasTx, TipoTransacao.DESPESA, totalDespesas))
                 .receitasPorCategoria(buildResumoCategoria(ativasTx, TipoTransacao.RECEITA, totalReceitas))
                 .tendenciaMensal(buildTendenciaMensal(espacoId, ym, contaId))
-                .saldosContas(buildSaldosContas(espacoId))
+                .saldosContas(buildSaldosContas(espacoId, contaId))
                 .saldoDiario(buildSaldoDiario(ativasTx, ym))
-                .vencimentos(buildVencimentos(espacoId))
+                .vencimentos(buildVencimentos(espacoId, contaId))
                 .build();
     }
 
@@ -159,11 +159,14 @@ public class PainelService {
         return tendencia;
     }
 
-    private List<PainelDTO.SaldoConta> buildSaldosContas(Long espacoId) {
+    private List<PainelDTO.SaldoConta> buildSaldosContas(Long espacoId, Long contaId) {
         Long entidadeId = contextoEntidade.entidadeAtual();
         var contas = entidadeId != null
                 ? contaRepository.findByEspacoIdFiltradoPorEntidade(espacoId, entidadeId)
                 : contaRepository.findByEspacoId(espacoId);
+        if (contaId != null) {
+            contas = contas.stream().filter(c -> c.getId().equals(contaId)).toList();
+        }
         return contas.stream().map(c ->
                 PainelDTO.SaldoConta.builder()
                         .conta(contaService.toDTO(c))
@@ -197,16 +200,16 @@ public class PainelService {
     }
 
     // Vencidas (sem limite inferior, mesmo fora do mês filtrado) + a vencer nos
-    // próximos DIAS_JANELA_VENCIMENTO dias. É um alerta, não uma visão filtrada:
-    // independe tanto do mês quanto da conta selecionados no painel — cada item
-    // exibe o nome da própria conta (ItemVencimento.contaNome) para dar contexto.
-    private PainelDTO.Vencimentos buildVencimentos(Long espacoId) {
+    // próximos DIAS_JANELA_VENCIMENTO dias. É um alerta, não uma visão de
+    // competência: independe do mês selecionado no painel, mas respeita a
+    // conta selecionada (contaId), assim como "Contas".
+    private PainelDTO.Vencimentos buildVencimentos(Long espacoId, Long contaId) {
         LocalDate hoje = LocalDate.now();
         LocalDate limiteAVencer = hoje.plusDays(DIAS_JANELA_VENCIMENTO);
 
         return PainelDTO.Vencimentos.builder()
-                .aPagar(buildGrupoVencimento(espacoId, TipoTransacao.DESPESA, hoje, limiteAVencer))
-                .aReceber(buildGrupoVencimento(espacoId, TipoTransacao.RECEITA, hoje, limiteAVencer))
+                .aPagar(buildGrupoVencimento(espacoId, contaId, TipoTransacao.DESPESA, hoje, limiteAVencer))
+                .aReceber(buildGrupoVencimento(espacoId, contaId, TipoTransacao.RECEITA, hoje, limiteAVencer))
                 .build();
     }
 
@@ -215,17 +218,13 @@ public class PainelService {
     // isso, a lista de vencidas cresceria sem limite conforme o histórico do
     // espaço, mesmo que só os primeiros itens sejam exibidos. "A vencer" já é
     // naturalmente limitada pela janela de DIAS_JANELA_VENCIMENTO dias.
-    private PainelDTO.GrupoVencimento buildGrupoVencimento(Long espacoId, TipoTransacao tipo, LocalDate hoje, LocalDate limiteAVencer) {
-        long quantidadeVencida = transacaoRepository
-                .countByEspacoIdAndTipoAndDataVencimentoBeforeAndDataPagamentoIsNullAndDataCancelamentoIsNull(espacoId, tipo, hoje);
-        BigDecimal totalVencido = transacaoRepository.somaVencidas(espacoId, tipo, hoje);
+    private PainelDTO.GrupoVencimento buildGrupoVencimento(Long espacoId, Long contaId, TipoTransacao tipo, LocalDate hoje, LocalDate limiteAVencer) {
+        long quantidadeVencida = transacaoRepository.countVencidas(espacoId, contaId, tipo, hoje);
+        BigDecimal totalVencido = transacaoRepository.somaVencidas(espacoId, contaId, tipo, hoje);
         List<Transacao> vencidas = transacaoRepository
-                .findByEspacoIdAndTipoAndDataVencimentoBeforeAndDataPagamentoIsNullAndDataCancelamentoIsNullOrderByDataVencimentoAsc(
-                        espacoId, tipo, hoje, PageRequest.of(0, MAX_ITENS_VENCIMENTO));
+                .findVencidas(espacoId, contaId, tipo, hoje, PageRequest.of(0, MAX_ITENS_VENCIMENTO));
 
-        List<Transacao> aVencer = transacaoRepository
-                .findByEspacoIdAndTipoAndDataVencimentoBetweenAndDataPagamentoIsNullAndDataCancelamentoIsNullOrderByDataVencimentoAsc(
-                        espacoId, tipo, hoje, limiteAVencer);
+        List<Transacao> aVencer = transacaoRepository.findAVencer(espacoId, contaId, tipo, hoje, limiteAVencer);
 
         return PainelDTO.GrupoVencimento.builder()
                 .totalVencido(totalVencido)

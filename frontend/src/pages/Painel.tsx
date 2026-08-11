@@ -4,12 +4,11 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, AreaChart, Area, Legend
 } from 'recharts'
-import { TrendingUp, TrendingDown, Wallet, ArrowLeftRight, ArrowUp, ArrowDown, Minus, ArrowDownCircle, ArrowUpCircle, CheckCircle2 } from 'lucide-react'
+import { TrendingUp, TrendingDown, Wallet, ArrowLeftRight, ArrowUp, ArrowDown, Minus, CheckCircle2 } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Link } from 'react-router-dom'
 import { buscarPainel } from '../api/painel'
-import { buscarMetas } from '../api/metas'
 import { useLojaFiltro } from '../store/lojaFiltro'
 import Spinner from '../components/Spinner'
 import SeletorMes from '../components/SeletorMes'
@@ -63,7 +62,6 @@ export default function Painel() {
     queryKey: ['painel', mes, contaId],
     queryFn: () => buscarPainel(mes, contaId),
   })
-  const { data: metas = [] } = useQuery({ queryKey: ['metas'], queryFn: buscarMetas })
 
   if (isLoading || !data) {
     return (
@@ -113,14 +111,6 @@ export default function Painel() {
     abaVencimento === 'avencer' ? itensAVencer
     : abaVencimento === 'vencidas' ? itensVencidas
     : itensTodos
-
-  // Próximos lançamentos
-  const proximosLancamentos: ItemVencimentoComTipo[] = [...itensAVencer]
-    .sort((a, b) => a.diasEmRelacaoAHoje - b.diasEmRelacaoAHoje)
-    .slice(0, 8)
-
-  // Metas ativas
-  const metasAtivas = metas.filter(m => !m.concluida && !m.dataCancelamento).slice(0, 5)
 
   return (
     <div className="p-6 space-y-6">
@@ -345,115 +335,60 @@ export default function Painel() {
               Sem despesas no mês
             </div>
           ) : (
-            <>
-              <ResponsiveContainer width="100%" height={200}>
-                <PieChart>
-                  <Pie
-                    data={data.despesasPorCategoria}
-                    dataKey="total"
-                    nameKey="categoria.nome"
-                    cx="50%" cy="50%"
-                    innerRadius={50} outerRadius={85}
-                    labelLine={false}
-                    label={renderCustomLabel}
-                  >
-                    {data.despesasPorCategoria.map((entry, i) => (
-                      <Cell key={i} fill={entry.categoria.cor} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{ background: cores.tooltipFundo, border: `1px solid ${cores.tooltipBorda}`, borderRadius: 8 }}
-                    formatter={(v) => fmt(Number(v))}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="mt-2 space-y-1">
-                {data.despesasPorCategoria.map(({ categoria, total, percentual }) => (
-                  <div key={categoria.id} className="flex items-center gap-2 px-1">
-                    <div className="w-2 h-2 rounded-full shrink-0" style={{ background: categoria.cor }} />
-                    <span className="text-xs text-conteudo-suave flex-1 truncate">{categoria.nome}</span>
-                    <span className="text-xs text-conteudo-suave">{percentual.toFixed(0)}%</span>
-                    <span className="text-xs text-conteudo font-medium">{fmt(total)}</span>
-                  </div>
-                ))}
+            <ResponsiveContainer width="100%" height={200}>
+              <PieChart>
+                <Pie
+                  data={data.despesasPorCategoria}
+                  dataKey="total"
+                  nameKey="categoria.nome"
+                  cx="50%" cy="50%"
+                  innerRadius={50} outerRadius={85}
+                  labelLine={false}
+                  label={renderCustomLabel}
+                >
+                  {data.despesasPorCategoria.map((entry, i) => (
+                    <Cell key={i} fill={entry.categoria.cor} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{ background: cores.tooltipFundo, border: `1px solid ${cores.tooltipBorda}`, borderRadius: 8 }}
+                  formatter={(v) => fmt(Number(v))}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      </div>
+
+      {/* Detalhamento por categoria */}
+      {data.despesasPorCategoria.length > 0 && (
+        <div className="card">
+          <h3 className="text-sm font-semibold text-conteudo mb-4">Detalhamento por categoria</h3>
+          <div className="space-y-1">
+            {data.despesasPorCategoria.map(({ categoria, total, percentual }) => (
+              <div key={categoria.id}
+                className="flex items-center gap-3 px-3 py-2 rounded-xl transition-colors hover:bg-superficie-2 group cursor-default">
+                <div className="w-2.5 h-2.5 rounded-full shrink-0 transition-transform group-hover:scale-125"
+                  style={{ background: categoria.cor }} />
+                <span className="text-sm text-conteudo-suave w-24 md:w-32 truncate group-hover:text-conteudo transition-colors">
+                  {categoria.nome}
+                </span>
+                <div className="flex-1 bg-superficie-2 rounded-full h-2">
+                  <div className="h-2 rounded-full transition-all group-hover:brightness-125"
+                    style={{ width: `${percentual}%`, background: categoria.cor }} />
+                </div>
+                <span className="text-sm text-conteudo w-14 md:w-20 text-right font-medium transition-colors">
+                  {fmt(total)}
+                </span>
+                <span className="hidden sm:block text-xs text-conteudo-suave w-10 text-right transition-colors">
+                  {percentual.toFixed(0)}%
+                </span>
               </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Próximos Lançamentos + Metas */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-4">
-        {/* Próximos Lançamentos */}
-        <div className="card">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-conteudo">Próximos Lançamentos</h3>
-            <Link to="/transacoes" className="text-xs text-acento hover:underline">Ver todos lançamentos</Link>
+            ))}
           </div>
-          {proximosLancamentos.length === 0 ? (
-            <p className="text-conteudo-suave text-sm text-center py-8">Nenhum lançamento a vencer</p>
-          ) : (
-            <div className="space-y-1">
-              {proximosLancamentos.map((item, idx) => (
-                <div key={`${item.tipo}-${item.id}-${idx}`} className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-superficie-2 transition-colors">
-                  {item.tipo === 'pagar' ? (
-                    <ArrowDownCircle size={18} className="text-perigo shrink-0" />
-                  ) : (
-                    <ArrowUpCircle size={18} className="text-sucesso shrink-0" />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-conteudo truncate">{item.descricao}</p>
-                    <p className="text-xs text-conteudo-suave truncate">{item.contaNome}</p>
-                  </div>
-                  <div className="flex flex-col items-end shrink-0">
-                    <span className="text-xs text-conteudo-suave">
-                      {format(parseISO(item.dataVencimento), 'dd/MM')}
-                    </span>
-                    <span className={`text-sm font-semibold ${item.tipo === 'receber' ? 'text-sucesso' : 'text-conteudo'}`}>
-                      {fmt(item.valor)}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
+      )}
 
-        {/* Metas */}
-        <div className="card">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-conteudo">Metas</h3>
-            <Link to="/metas" className="text-xs text-acento hover:underline">Ver todas</Link>
-          </div>
-          {metasAtivas.length === 0 ? (
-            <p className="text-conteudo-suave text-sm text-center py-8">Nenhuma meta ativa</p>
-          ) : (
-            <div className="space-y-4">
-              {metasAtivas.map(meta => (
-                <div key={meta.id}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-sm text-conteudo font-medium truncate">{meta.nome}</span>
-                    <span className="text-xs text-conteudo-suave shrink-0 ml-2">{meta.percentualConcluido.toFixed(0)}%</span>
-                  </div>
-                  <div className="w-full bg-superficie-2 rounded-full h-2 mb-1">
-                    <div
-                      className="h-2 rounded-full transition-all"
-                      style={{
-                        width: `${Math.min(meta.percentualConcluido, 100)}%`,
-                        background: meta.cor,
-                      }}
-                    />
-                  </div>
-                  <div className="flex justify-between text-xs text-conteudo-suave">
-                    <span>{fmt(meta.valorAtual)}</span>
-                    <span>{fmt(meta.valorAlvo)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   )
 }

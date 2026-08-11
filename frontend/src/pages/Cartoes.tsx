@@ -8,6 +8,7 @@ import { buscarContas } from '../api/contas'
 import SobreposicaoModal from '../components/SobreposicaoModal'
 import ModalConfirmacao from '../components/ModalConfirmacao'
 import SeletorBanco from '../components/SeletorBanco'
+import SeletorCor from '../components/SeletorCor'
 import LogoBanco from '../components/LogoBanco'
 import AcaoNova from '../components/AcaoNova'
 import CampoEntidade from '../components/forms/CampoEntidade'
@@ -16,6 +17,8 @@ import type { Cartao } from '../types'
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
+
+const CORES = ['#ef4444','#f97316','#eab308','#22c55e','#10b981','#06b6d4','#3b82f6','#8b5cf6','#ec4899','#6b7280','#6366f1','#84cc16','#000000']
 
 const formPadrao = {
   nome: '', limite: '', diaFechamento: '', diaVencimento: '', contaPagamentoId: '',
@@ -207,6 +210,11 @@ export default function Cartoes() {
                   <option value="">Selecione...</option>
                   {[...contas].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
                 </select>
+              </div>
+              <div>
+                <label className="label">Cor</label>
+                <SeletorCor cores={CORES} corSelecionada={form.cor} tamanho="sm"
+                  aoSelecionar={c => setForm(f => ({ ...f, cor: c }))} />
               </div>
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={closeForm}
