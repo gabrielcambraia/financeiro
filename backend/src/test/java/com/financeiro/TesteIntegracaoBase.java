@@ -14,6 +14,7 @@ import com.financeiro.entity.enums.TipoPessoa;
 import com.financeiro.repository.AssinaturaRepository;
 import com.financeiro.repository.PlanoRepository;
 import com.financeiro.seguranca.LimitadorTaxa;
+import com.financeiro.service.ServicoConsultaExterna;
 import com.financeiro.service.ServicoIndiceEconomico;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -109,6 +110,11 @@ public abstract class TesteIntegracaoBase {
 
     @MockBean
     protected JavaMailSender mailSender;
+
+    // ServicoConsultaExterna chama BrasilAPI externamente — mockado para evitar
+    // chamadas reais de rede em qualquer teste da suíte.
+    @MockBean
+    protected ServicoConsultaExterna servicoConsultaExterna;
 
     @Autowired
     private AssinaturaRepository assinaturaRepository;
