@@ -9,13 +9,15 @@ import org.springframework.web.server.ResponseStatusException;
 public class ValidadorDocumento {
 
     public String limparEValidar(String documento, TipoPessoa tipoPessoa) {
-        String limpo = documento.replaceAll("\\D", "");
         if (tipoPessoa == TipoPessoa.FISICA) {
+            String limpo = documento.replaceAll("\\D", "");
             validarCpf(limpo);
+            return limpo;
         } else {
+            String limpo = documento.replaceAll("[.\\-/]", "").toUpperCase();
             validarCnpj(limpo);
+            return limpo;
         }
-        return limpo;
     }
 
     private void validarCpf(String numeros) {
@@ -33,18 +35,31 @@ public class ValidadorDocumento {
         }
     }
 
-    private void validarCnpj(String numeros) {
-        if (numeros.length() != 14 || numeros.chars().distinct().count() == 1) {
+    private void validarCnpj(String cnpj) {
+        if (cnpj.length() != 14 || cnpj.chars().distinct().count() == 1) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "CNPJ inválido");
         }
+        // Posições 1–12: [A-Z0-9]; posições 13–14: dígitos verificadores [0-9]
+        for (int i = 0; i < 12; i++) {
+            char c = cnpj.charAt(i);
+            if (!Character.isLetterOrDigit(c) || Character.isLowerCase(c)) {
+                throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "CNPJ inválido");
+            }
+        }
+        for (int i = 12; i < 14; i++) {
+            if (!Character.isDigit(cnpj.charAt(i))) {
+                throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "CNPJ inválido");
+            }
+        }
+        // Cálculo dos DVs: char - '0' funciona para letras também (A=17, Z=42)
         int[] p1 = {5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2};
         int[] p2 = {6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2};
         int s1 = 0, s2 = 0;
-        for (int i = 0; i < 12; i++) s1 += (numeros.charAt(i) - '0') * p1[i];
+        for (int i = 0; i < 12; i++) s1 += (cnpj.charAt(i) - '0') * p1[i];
         int d1 = s1 % 11 < 2 ? 0 : 11 - s1 % 11;
-        for (int i = 0; i < 13; i++) s2 += (numeros.charAt(i) - '0') * p2[i];
+        for (int i = 0; i < 13; i++) s2 += (cnpj.charAt(i) - '0') * p2[i];
         int d2 = s2 % 11 < 2 ? 0 : 11 - s2 % 11;
-        if (d1 != (numeros.charAt(12) - '0') || d2 != (numeros.charAt(13) - '0')) {
+        if (d1 != (cnpj.charAt(12) - '0') || d2 != (cnpj.charAt(13) - '0')) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "CNPJ inválido");
         }
     }

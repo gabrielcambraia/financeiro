@@ -24,7 +24,8 @@ export default function LayoutAuth({ children }: { children: React.ReactNode }) 
   return (
     <div className="min-h-screen flex bg-fundo">
       {/* Mobile header */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-10 flex items-center gap-2.5 px-5 py-4 bg-sb-fundo">
+      <div className="md:hidden fixed top-0 left-0 right-0 z-10 flex items-center gap-2.5 px-5 bg-sb-fundo"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)', paddingBottom: '1rem' }}>
         <LogoNexo360 tamanho={28} />
         <span className="text-base font-bold text-sb-texto">Nexo360</span>
       </div>
@@ -78,8 +79,9 @@ export default function LayoutAuth({ children }: { children: React.ReactNode }) 
       </div>
 
       {/* Right panel */}
-      <div className="flex-1 flex items-start md:items-center justify-center px-5 pt-24 pb-8 md:py-8 relative">
-        <div className="fixed top-4 right-4 z-20">
+      <div className="flex-1 flex items-start md:items-center justify-center px-5 pb-8 md:py-8 relative"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top) + 4.5rem)' }}>
+        <div className="fixed right-4 z-20" style={{ top: 'calc(env(safe-area-inset-top) + 1rem)' }}>
           <AlternadorTema />
         </div>
 

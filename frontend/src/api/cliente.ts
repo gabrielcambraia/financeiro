@@ -15,7 +15,7 @@ cliente.interceptors.request.use(config => {
     config.headers.Authorization = `Bearer ${token}`
   }
   const entidadeAtualId = useLojaEntidadeAtual.getState().entidadeAtualId
-  if (entidadeAtualId != null && !config.url?.startsWith('/entidades')) {
+  if (entidadeAtualId != null && !config.url?.startsWith('/entidades') && !config.url?.startsWith('/consultas')) {
     config.headers['X-Entidade-Id'] = String(entidadeAtualId)
   }
   return config
