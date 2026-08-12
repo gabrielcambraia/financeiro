@@ -8,11 +8,11 @@ export function limparCnpj(v: string): string {
 
 export function validarCpf(cpf: string): boolean {
   if (cpf.length !== 11 || /^(.)\1+$/.test(cpf)) return false
-  let d1 = 0, d2 = 0
-  for (let i = 0; i < 9; i++) d1 += parseInt(cpf[i]) * (10 - i)
-  d1 = (d1 * 10 % 11) % 10
-  for (let i = 0; i < 9; i++) d2 += parseInt(cpf[i]) * (11 - i)
-  d2 = ((d2 + d1 * 2) * 10 % 11) % 10
+  let s1 = 0, s2 = 0
+  for (let i = 0; i < 9; i++) s1 += parseInt(cpf[i]) * (10 - i)
+  const d1 = s1 % 11 < 2 ? 0 : 11 - s1 % 11
+  for (let i = 0; i < 10; i++) s2 += parseInt(cpf[i]) * (11 - i)
+  const d2 = s2 % 11 < 2 ? 0 : 11 - s2 % 11
   return d1 === parseInt(cpf[9]) && d2 === parseInt(cpf[10])
 }
 

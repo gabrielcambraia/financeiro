@@ -310,12 +310,13 @@ export default function Entidades() {
                       <IMaskInput
                         mask="SS.SSS.SSS/SSSS-00"
                         definitions={{ S: /[A-Za-z0-9]/ } as Record<string, RegExp>}
+                        prepare={(s: string) => s.toUpperCase()}
                         unmask={true}
                         className={`input ${erroCnpj ? 'border-red-500 focus:border-red-500' : ''} ${carregandoCnpj ? 'pr-9' : ''}`}
                         required
                         value={form.documento}
                         onAccept={(val) => {
-                          const v = (val as string).toUpperCase()
+                          const v = val as string
                           setF('documento', v)
                           if (v.length === 14) {
                             if (!validarCnpj(v)) { setErroCnpj('CNPJ inválido'); return }
