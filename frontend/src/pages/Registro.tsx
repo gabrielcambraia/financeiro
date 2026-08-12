@@ -420,22 +420,21 @@ export default function Registro() {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="label">E-mail <span className="text-conteudo-suave text-xs font-normal">(opcional)</span></label>
-              <input className="input" type="email" value={entidade.email}
-                onChange={e => setEnt('email', e.target.value)} />
-            </div>
-            <div>
-              <label className="label">Telefone <span className="text-conteudo-suave text-xs font-normal">(opcional)</span></label>
-              <IMaskInput
-                mask={[{ mask: '(00) 0000-0000' }, { mask: '(00) 00000-0000' }]}
-                unmask={true}
-                className="input"
-                value={entidade.telefone}
-                onAccept={(val) => setEnt('telefone', val as string)}
-              />
-            </div>
+          <div>
+            <label className="label">E-mail <span className="text-conteudo-suave text-xs font-normal">(opcional)</span></label>
+            <input className="input" type="email" value={entidade.email}
+              onChange={e => setEnt('email', e.target.value)} />
+          </div>
+
+          <div>
+            <label className="label">Telefone <span className="text-conteudo-suave text-xs font-normal">(opcional)</span></label>
+            <IMaskInput
+              mask={[{ mask: '(00) 0000-0000' }, { mask: '(00) 00000-0000' }]}
+              unmask={true}
+              className="input"
+              value={entidade.telefone}
+              onAccept={(val) => setEnt('telefone', val as string)}
+            />
           </div>
 
           <div className="grid grid-cols-3 gap-2">
