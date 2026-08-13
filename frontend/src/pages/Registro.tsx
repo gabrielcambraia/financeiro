@@ -1,11 +1,15 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Mail, Lock, User, Phone } from 'lucide-react'
+import { IMaskInput } from 'react-imask'
 import { registrar } from '../api/autenticacao'
+import { consultarCnpj, consultarCep } from '../api/consultas'
 import { confirmarVerificacaoEmail, solicitarVerificacaoEmail } from '../api/verificacaoContato'
 import { useLojaAutenticacao } from '../store/lojaAutenticacao'
+import { validarCpf, validarCnpj } from '../utils/documentos'
 import CampoSenha from '../components/CampoSenha'
 import LayoutAuth from '../components/LayoutAuth'
+import Spinner from '../components/Spinner'
 import type { TipoPessoa } from '../types'
 
 type Passo = 1 | 2 | 3
@@ -63,8 +67,71 @@ export default function Registro() {
   const [erro, setErro] = useState('')
   const [carregando, setCarregando] = useState(false)
 
+  const [erroCpf, setErroCpf] = useState('')
+  const [erroCnpj, setErroCnpj] = useState('')
+  const [carregandoCnpj, setCarregandoCnpj] = useState(false)
+  const [carregandoCep, setCarregandoCep] = useState(false)
+  const numeroRef = useRef<HTMLInputElement>(null)
+  const ultimoCnpjBuscado = useRef('')
+  const ultimoCepBuscado = useRef('')
+
   const setPf = (k: keyof FormPerfil, v: string) => setPerfil(p => ({ ...p, [k]: v }))
   const setEnt = (k: keyof FormEntidade, v: string) => setEntidade(e => ({ ...e, [k]: v }))
+
+  const alterarTipoPessoa = (t: TipoPessoa) => {
+    setEntidade(e => ({ ...e, tipoPessoa: t, documento: '' }))
+    setErroCpf('')
+    setErroCnpj('')
+    ultimoCnpjBuscado.current = ''
+  }
+
+  const handleCnpjBuscar = async (cnpj: string) => {
+    if (cnpj === ultimoCnpjBuscado.current) return
+    ultimoCnpjBuscado.current = cnpj
+    setCarregandoCnpj(true)
+    try {
+      const dados = await consultarCnpj(cnpj)
+      setEntidade(e => ({
+        ...e,
+        nome: e.nome || dados.razaoSocial,
+        nomeFantasia: e.nomeFantasia || dados.nomeFantasia || '',
+        email: e.email || dados.email || '',
+        telefone: e.telefone || (dados.telefone ? dados.telefone.replace(/\D/g, '') : ''),
+        cep: e.cep || dados.cep || '',
+        logradouro: e.logradouro || dados.logradouro || '',
+        numero: e.numero || dados.numero || '',
+        complemento: e.complemento || dados.complemento || '',
+        bairro: e.bairro || dados.bairro || '',
+        cidade: e.cidade || dados.cidade || '',
+        uf: e.uf || dados.uf || '',
+      }))
+    } catch {
+      // toast exibido pelo interceptor do cliente axios
+    } finally {
+      setCarregandoCnpj(false)
+    }
+  }
+
+  const handleCepBuscar = async (cep: string) => {
+    if (cep === ultimoCepBuscado.current) return
+    ultimoCepBuscado.current = cep
+    setCarregandoCep(true)
+    try {
+      const dados = await consultarCep(cep)
+      setEntidade(e => ({
+        ...e,
+        logradouro: e.logradouro || dados.logradouro || '',
+        bairro: e.bairro || dados.bairro || '',
+        cidade: e.cidade || dados.cidade || '',
+        uf: e.uf || dados.uf || '',
+      }))
+      numeroRef.current?.focus()
+    } catch {
+      // toast exibido pelo interceptor do cliente axios
+    } finally {
+      setCarregandoCep(false)
+    }
+  }
 
   const submitPasso1 = (e: React.FormEvent) => {
     e.preventDefault()
@@ -212,12 +279,13 @@ export default function Registro() {
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-conteudo-suave pointer-events-none">
                 <Phone size={15} />
               </span>
-              <input
+              <IMaskInput
+                mask={[{ mask: '(00) 0000-0000' }, { mask: '(00) 00000-0000' }]}
+                unmask={true}
                 className="input pl-10"
-                type="tel"
                 placeholder="(11) 99999-9999"
                 value={perfil.telefone}
-                onChange={e => setPf('telefone', e.target.value)}
+                onAccept={(val) => setPf('telefone', val as string)}
               />
             </div>
           </div>
@@ -259,7 +327,7 @@ export default function Registro() {
               <button
                 key={t}
                 type="button"
-                onClick={() => setEnt('tipoPessoa', t)}
+                onClick={() => alterarTipoPessoa(t)}
                 className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
                   entidade.tipoPessoa === t
                     ? 'border-acento bg-acento text-white'
@@ -287,9 +355,53 @@ export default function Registro() {
 
           <div>
             <label className="label">{entidade.tipoPessoa === 'FISICA' ? 'CPF' : 'CNPJ'}</label>
-            <input className="input" required value={entidade.documento}
-              onChange={e => setEnt('documento', e.target.value)}
-              placeholder={entidade.tipoPessoa === 'FISICA' ? '000.000.000-00' : '00.000.000/0001-00'} />
+            {entidade.tipoPessoa === 'FISICA' ? (
+              <>
+                <IMaskInput
+                  mask="000.000.000-00"
+                  unmask={true}
+                  className={`input ${erroCpf ? 'border-red-500 focus:border-red-500' : ''}`}
+                  required
+                  value={entidade.documento}
+                  onAccept={(val) => {
+                    const v = val as string
+                    setEnt('documento', v)
+                    if (v.length === 11) setErroCpf(validarCpf(v) ? '' : 'CPF inválido')
+                    else setErroCpf('')
+                  }}
+                />
+                {erroCpf && <p className="text-xs text-red-500 mt-1">{erroCpf}</p>}
+              </>
+            ) : (
+              <>
+                <div className="relative">
+                  <IMaskInput
+                    mask="SS.SSS.SSS/SSSS-00"
+                    definitions={{ S: /[A-Za-z0-9]/ } as Record<string, RegExp>}
+                    prepare={(s: string) => s.toUpperCase()}
+                    unmask={true}
+                    className={`input ${erroCnpj ? 'border-red-500 focus:border-red-500' : ''} ${carregandoCnpj ? 'pr-9' : ''}`}
+                    required
+                    value={entidade.documento}
+                    onAccept={(val) => {
+                      const v = val as string
+                      setEnt('documento', v)
+                      if (v.length === 14) {
+                        if (!validarCnpj(v)) { setErroCnpj('CNPJ inválido'); return }
+                        setErroCnpj('')
+                        handleCnpjBuscar(v)
+                      } else setErroCnpj('')
+                    }}
+                  />
+                  {carregandoCnpj && (
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
+                      <Spinner />
+                    </div>
+                  )}
+                </div>
+                {erroCnpj && <p className="text-xs text-red-500 mt-1">{erroCnpj}</p>}
+              </>
+            )}
           </div>
 
           {entidade.tipoPessoa === 'FISICA' && (
@@ -308,24 +420,44 @@ export default function Registro() {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="label">E-mail <span className="text-conteudo-suave text-xs font-normal">(opcional)</span></label>
-              <input className="input" type="email" value={entidade.email}
-                onChange={e => setEnt('email', e.target.value)} />
-            </div>
-            <div>
-              <label className="label">Telefone <span className="text-conteudo-suave text-xs font-normal">(opcional)</span></label>
-              <input className="input" type="tel" value={entidade.telefone}
-                onChange={e => setEnt('telefone', e.target.value)} />
-            </div>
+          <div>
+            <label className="label">E-mail <span className="text-conteudo-suave text-xs font-normal">(opcional)</span></label>
+            <input className="input" type="email" value={entidade.email}
+              onChange={e => setEnt('email', e.target.value)} />
+          </div>
+
+          <div>
+            <label className="label">Telefone <span className="text-conteudo-suave text-xs font-normal">(opcional)</span></label>
+            <IMaskInput
+              mask={[{ mask: '(00) 0000-0000' }, { mask: '(00) 00000-0000' }]}
+              unmask={true}
+              className="input"
+              value={entidade.telefone}
+              onAccept={(val) => setEnt('telefone', val as string)}
+            />
           </div>
 
           <div className="grid grid-cols-3 gap-2">
             <div>
               <label className="label">CEP</label>
-              <input className="input" value={entidade.cep}
-                onChange={e => setEnt('cep', e.target.value)} />
+              <div className="relative">
+                <IMaskInput
+                  mask="00000-000"
+                  unmask={true}
+                  className={`input ${carregandoCep ? 'pr-9' : ''}`}
+                  value={entidade.cep}
+                  onAccept={(val) => {
+                    const v = val as string
+                    setEnt('cep', v)
+                    if (v.length === 8) handleCepBuscar(v)
+                  }}
+                />
+                {carregandoCep && (
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <Spinner />
+                  </div>
+                )}
+              </div>
             </div>
             <div className="col-span-2">
               <label className="label">Logradouro</label>
@@ -337,7 +469,7 @@ export default function Registro() {
           <div className="grid grid-cols-3 gap-2">
             <div>
               <label className="label">Número</label>
-              <input className="input" value={entidade.numero}
+              <input ref={numeroRef} className="input" value={entidade.numero}
                 onChange={e => setEnt('numero', e.target.value)} />
             </div>
             <div className="col-span-2">

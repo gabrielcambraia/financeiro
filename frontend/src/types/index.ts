@@ -228,6 +228,22 @@ export interface ItemFatura {
   cartaoCor: string
   contaPagamentoId: number
   contaPagamentoNome: string
+  fixa: boolean
+  origemFixaId?: number
+  faturaStatus?: string
+}
+
+export interface ConversaoParaCartaoPayload {
+  cartaoId: number
+  totalParcelas?: number
+  escopo?: 'UNICA' | 'FUTURAS'
+}
+
+export interface ConversaoParaDebitoPayload {
+  contaId: number
+  escopo?: 'UNICA' | 'FUTURAS'
+  quitarNaCriacao?: boolean
+  dataPagamento?: string
 }
 
 export interface Fatura {

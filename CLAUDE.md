@@ -1,5 +1,9 @@
 # Financeiro — Contexto do Projeto
 
+## Postura de colaboração
+
+Antes de implementar qualquer sugestão, avaliar criticamente se ela faz sentido. Se houver problema — técnico, de segurança, de arquitetura, de consistência com o restante do projeto ou de UX — apontar diretamente e discutir antes de prosseguir. Não concordar por padrão; concordar só quando a proposta for de fato a melhor opção. Se houver alternativa melhor, propô-la com justificativa curta.
+
 ## Convenção de idioma
 
 Todo código novo (métodos, variáveis, classes, DTOs, comentários, mensagens) deve ser escrito em português. Não usar nomes em inglês para identificadores novos, mesmo que o restante do ecossistema (Spring, React) use termos em inglês.

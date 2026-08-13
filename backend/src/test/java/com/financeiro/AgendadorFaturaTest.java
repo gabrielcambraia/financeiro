@@ -1,6 +1,5 @@
 package com.financeiro;
 
-import com.financeiro.dto.CartaoDTO;
 import com.financeiro.dto.FaturaDTO;
 import com.financeiro.dto.ItemFaturaDTO;
 import com.financeiro.entity.ItemFatura;
@@ -250,20 +249,6 @@ class AgendadorFaturaTest extends TesteIntegracaoBase {
         return diaFechamento >= 28 ? 5 : diaFechamento + 3 > 31 ? 31 : diaFechamento + 3;
     }
 
-    private Long criarCartao(String token, Long contaPagamentoId, int diaFechamento, int diaVencimento) {
-        CartaoDTO dto = new CartaoDTO();
-        dto.setNome("Cartão Teste");
-        dto.setLimite(BigDecimal.valueOf(5000));
-        dto.setDiaFechamento(diaFechamento);
-        dto.setDiaVencimento(diaVencimento);
-        dto.setContaPagamentoId(contaPagamentoId);
-        dto.setCor("#000000");
-        dto.setIcone("credit-card");
-        ResponseEntity<CartaoDTO> resposta = post("/api/cartoes", dto, token, CartaoDTO.class);
-        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        return resposta.getBody().getId();
-    }
-
     private ItemFaturaDTO criarItem(String token, Long cartaoId, BigDecimal valor) {
         return criarItemComData(token, cartaoId, valor, LocalDate.now());
     }
@@ -281,11 +266,4 @@ class AgendadorFaturaTest extends TesteIntegracaoBase {
         return resposta.getBody().get(0);
     }
 
-    private List<FaturaDTO> listarFaturas(String token, Long cartaoId) {
-        ResponseEntity<List<FaturaDTO>> resposta = get("/api/faturas?cartaoId=" + cartaoId, token,
-                new ParameterizedTypeReference<List<FaturaDTO>>() {
-                });
-        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
-        return resposta.getBody();
-    }
 }

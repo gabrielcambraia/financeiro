@@ -42,4 +42,12 @@ public class ItemFaturaDTO {
     private String cartaoCor;
     private Long contaPagamentoId;
     private String contaPagamentoNome;
+
+    // Campos de série fixa (espelhando Transacao)
+    private boolean fixa;
+    private Long origemFixaId;
+
+    // Status derivado da fatura fechada, quando existir — usado pelo frontend
+    // para saber se a conversão para débito está bloqueada (PAGA/CANCELADA).
+    private String faturaStatus;
 }

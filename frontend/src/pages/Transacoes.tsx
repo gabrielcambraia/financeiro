@@ -88,6 +88,7 @@ export default function Transacoes() {
   const [filtroCategoria, setFiltroCategoria] = useState<number | ''>('')
   const [filtroStatus, setFiltroStatus] = useState<StatusTransacao | ''>('')
   const [filtroCartao, setFiltroCartao] = useState<number | ''>('')
+  const [modoCartao, setModoCartao] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<EdicaoLancamento | undefined>()
   const [deleteModal, setDeleteModal] = useState<{ tx: Transacao; impacto: RespostaImpacto | null; carregando: boolean; erro?: string } | null>(null)
@@ -97,7 +98,7 @@ export default function Transacoes() {
 
   // Paginação
   const [pagina, setPagina] = useState(1)
-  useEffect(() => { setPagina(1) }, [mes, contaId, filtroTipo, filtroCategoria, filtroCartao, filtroDataInicio, filtroDataFim, filtroStatus])
+  useEffect(() => { setPagina(1) }, [mes, contaId, filtroTipo, filtroCategoria, filtroCartao, modoCartao, filtroDataInicio, filtroDataFim, filtroStatus])
 
   const abrirDeleteModal = async (tx: Transacao) => {
     setDeleteModal({ tx, impacto: null, carregando: true })
@@ -132,13 +133,13 @@ export default function Transacoes() {
       dataVencimentoInicio: filtroDataInicio,
       dataVencimentoFim: filtroDataFim,
     }),
-    enabled: !filtroCartao,
+    enabled: !filtroCartao && !modoCartao,
   })
 
   // Itens de fatura em aberto não têm vencimento nem "tipo" formal — sempre
   // são despesa. Não busca quando o filtro de tipo exclui despesas, nem
   // quando a navegação veio filtrada por vencimento (não se aplica a eles).
-  const buscaItensHabilitada = (filtroTipo === '' || filtroTipo === 'DESPESA') && !filtroDataFim
+  const buscaItensHabilitada = modoCartao || !!filtroCartao || filtroTipo === ''
   const { data: itensFaturaRaw = [] } = useQuery({
     queryKey: ['itensFatura', 'lancamentos', mes, contaId, filtroCartao],
     queryFn: () => buscarItensFatura({ month: mes, contaId, cartaoId: filtroCartao || undefined }),
@@ -219,14 +220,14 @@ export default function Transacoes() {
   // Com cartão selecionado: só compras em aberto + faturas fechadas daquele
   // cartão. Sem cartão selecionado: lançamentos de débito da conta + compras
   // em aberto de todos os cartões (comportamento padrão da tela).
-  const lancamentos: Lancamento[] = filtroCartao
+  const lancamentos: Lancamento[] = (modoCartao || filtroCartao)
     ? [
         ...itensFatura.map(item => ({ origem: 'ITEM_FATURA' as const, id: `item-${item.id}`, data: item.data, item })),
         ...faturasCartao.map(fatura => ({ origem: 'FATURA' as const, id: `fatura-${fatura.id}`, data: fatura.dataFechamento, fatura })),
       ]
     : [
         ...transacoes.map(tx => ({ origem: 'TRANSACAO' as const, id: `tx-${tx.id}`, data: tx.data, tx })),
-        ...itensFatura.map(item => ({ origem: 'ITEM_FATURA' as const, id: `item-${item.id}`, data: item.data, item })),
+        ...(filtroTipo === '' ? itensFatura.map(item => ({ origem: 'ITEM_FATURA' as const, id: `item-${item.id}`, data: item.data, item })) : []),
       ]
 
   // Itens de fatura não têm status formal — somem quando um status específico é filtrado.
@@ -244,8 +245,9 @@ export default function Transacoes() {
   // Totais refletem o mês/conta/cartão selecionados, sem os filtros de status
   // (mesmo comportamento de antes) — cancelada/cancelado nunca conta, pois a
   // movimentação nunca aconteceu de fato.
-  const ativas = filtroCartao ? [] : transacoes.filter(t => t.status !== 'CANCELADA')
-  const itensAtivos = itensFatura.filter(i => !i.cancelado)
+  const ativas = (filtroCartao || modoCartao) ? [] : transacoes.filter(t => t.status !== 'CANCELADA')
+  const mostrandoItens = modoCartao || !!filtroCartao || filtroTipo === ''
+  const itensAtivos = mostrandoItens ? itensFatura.filter(i => !i.cancelado) : []
 
   const totalReceitas = ativas.filter(t => t.tipo === 'RECEITA').reduce((s, t) => s + t.valor, 0)
   const totalDespesasItens = itensAtivos.reduce((s, i) => s + i.valor, 0)
@@ -311,27 +313,33 @@ export default function Transacoes() {
         <div className="flex flex-wrap gap-2 items-center">
           {/* Chips de tipo */}
           <button
-            className={`${chipBase} ${filtroTipo === '' ? chipAtivo : chipInativo}`}
-            onClick={() => { setFiltroTipo(''); setFiltroCategoria('') }}>
+            className={`${chipBase} ${!modoCartao && filtroTipo === '' ? chipAtivo : chipInativo}`}
+            onClick={() => { setFiltroTipo(''); setFiltroCategoria(''); setModoCartao(false) }}>
             Todos
           </button>
           <button
-            className={`${chipBase} ${filtroTipo === 'RECEITA' ? chipAtivo : chipInativo}`}
-            onClick={() => { setFiltroTipo('RECEITA'); setFiltroCategoria('') }}>
+            className={`${chipBase} ${!modoCartao && filtroTipo === 'RECEITA' ? chipAtivo : chipInativo}`}
+            onClick={() => { setFiltroTipo('RECEITA'); setFiltroCategoria(''); setModoCartao(false), setFiltroCartao('') }}>
             <TrendingUp size={11} />
             Receita
           </button>
           <button
-            className={`${chipBase} ${filtroTipo === 'DESPESA' ? chipAtivo : chipInativo}`}
-            onClick={() => { setFiltroTipo('DESPESA'); setFiltroCategoria('') }}>
+            className={`${chipBase} ${!modoCartao && filtroTipo === 'DESPESA' ? chipAtivo : chipInativo}`}
+            onClick={() => { setFiltroTipo('DESPESA'); setFiltroCategoria(''); setModoCartao(false), setFiltroCartao('') }}>
             <TrendingDown size={11} />
             Despesa
           </button>
           <button
-            className={`${chipBase} ${filtroTipo === 'TRANSFERENCIA' ? chipAtivo : chipInativo}`}
-            onClick={() => { setFiltroTipo('TRANSFERENCIA'); setFiltroCategoria('') }}>
+            className={`${chipBase} ${!modoCartao && filtroTipo === 'TRANSFERENCIA' ? chipAtivo : chipInativo}`}
+            onClick={() => { setFiltroTipo('TRANSFERENCIA'); setFiltroCategoria(''); setModoCartao(false); setFiltroCartao('') }}>
             <ArrowRightLeft size={11} />
             Transferência
+          </button>
+          <button
+            className={`${chipBase} ${modoCartao ? chipAtivo : chipInativo}`}
+            onClick={() => { setModoCartao(true); setFiltroTipo(''); setFiltroCartao('') }}>
+            <CreditCard size={11} />
+            Cartão
           </button>
 
           {/* Divisor */}
@@ -364,7 +372,7 @@ export default function Transacoes() {
           <select
             className="text-xs px-3 py-1.5 rounded-full font-medium border border-borda bg-superficie text-conteudo-suave focus:border-acento focus:outline-none cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             value={filtroCartao}
-            disabled={filtroTipo === 'RECEITA' || filtroTipo === 'TRANSFERENCIA'}
+            disabled={!modoCartao && (filtroTipo === 'RECEITA' || filtroTipo === 'TRANSFERENCIA')}
             onChange={e => setFiltroCartao(e.target.value ? Number(e.target.value) : '')}>
             <option value="">Cartão</option>
             {[...cartoes].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(c => (
@@ -383,13 +391,15 @@ export default function Transacoes() {
             ))}
           </select>
 
-          {/* Chip de vencimento */}
-          <button
-            className={`${chipBase} ${(filtroDataInicio || filtroDataFim) ? chipAtivo : chipInativo}`}
-            onClick={() => setVencimentoAberto(!vencimentoAberto)}>
-            <CalendarDays size={12} />
-            Vencimento
-          </button>
+          {/* Chip de vencimento — não se aplica a itens de cartão */}
+          {!modoCartao && (
+            <button
+              className={`${chipBase} ${(filtroDataInicio || filtroDataFim) ? chipAtivo : chipInativo}`}
+              onClick={() => setVencimentoAberto(!vencimentoAberto)}>
+              <CalendarDays size={12} />
+              Vencimento
+            </button>
+          )}
 
           {/* Ações à direita */}
           <div className="ml-auto flex gap-2">

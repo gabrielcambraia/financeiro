@@ -83,6 +83,9 @@ public class ConfiguracaoSeguranca {
                         // por <img>/<link>, que também não mandam Authorization.
                         .requestMatchers(HttpMethod.GET, "/api/configuracao-plataforma",
                                 "/api/configuracao-plataforma/logo").permitAll()
+                        // Consulta de CNPJ/CEP: dados públicos (BrasilAPI); usada também
+                        // no formulário de registro antes de o usuário ter um token.
+                        .requestMatchers(HttpMethod.GET, "/api/consultas/**").permitAll()
                         .requestMatchers(req -> !req.getRequestURI().startsWith("/api/")).permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(excecao -> excecao

@@ -6,8 +6,8 @@ import { format } from 'date-fns'
 import { buscarContas } from '../../api/contas'
 import { buscarCategorias } from '../../api/categorias'
 import { buscarCartoes } from '../../api/cartoes'
-import { criarTransacao, atualizarTransacao, type EscopoAtualizacao } from '../../api/transacoes'
-import { criarItemFatura, atualizarItemFatura } from '../../api/itensFatura'
+import { criarTransacao, atualizarTransacao, converterTransacaoParaCartao, type EscopoAtualizacao } from '../../api/transacoes'
+import { criarItemFatura, atualizarItemFatura, converterItemParaDebito } from '../../api/itensFatura'
 import SobreposicaoModal from '../SobreposicaoModal'
 import CampoEntidade from './CampoEntidade'
 import type { Transacao, ItemFatura, TipoTransacao, TipoPagamento } from '../../types'
@@ -67,14 +67,35 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
     entidadeId: (editingTx?.entidadeId ?? null) as number | null | undefined,
   })
   const paga = form.dataPagamento !== ''
-  // Uma Transacao legada com tipoPagamento=CREDITO (criada antes desta
-  // mudança) continua editável como Transacao normal — só uma compra que já
-  // nasceu como ItemFatura (ou uma nova sendo criada em crédito) usa o modo
-  // "cartão" do formulário.
-  const credito = editingTx ? false : (editingItem ? true : (tipo === 'DESPESA' && form.tipoPagamento === 'CREDITO'))
+  // Guards de elegibilidade para conversão entre débito e crédito.
+  const podeConverterParaCredito = !!(
+    editingTx &&
+    editingTx.tipo === 'DESPESA' &&
+    editingTx.tipoPagamento === 'DEBITO' &&
+    !editingTx.origemDerivada &&
+    !editingTx.grupoParcelaId &&
+    editingTx.status !== 'CANCELADA'
+  )
+  const podeConverterParaDebito = !!(
+    editingItem &&
+    !editingItem.dataCancelamento &&
+    !editingItem.grupoParcelaId &&
+    editingItem.faturaStatus !== 'PAGA' &&
+    editingItem.faturaStatus !== 'CANCELADA'
+  )
+
+  // Modo crédito: ItemFatura form vs Transacao form.
+  // Para editingTx, só entra em modo crédito se elegível E o toggle foi
+  // trocado; legado com tipoPagamento=CREDITO não é elegível e fica em débito.
+  const credito = editingTx
+    ? (podeConverterParaCredito && form.tipoPagamento === 'CREDITO')
+    : (tipo === 'DESPESA' && form.tipoPagamento === 'CREDITO')
+
+  const convertendoParaCredito = !!(editingTx && credito)
+  const convertendoParaDebito = !!(editingItem && !credito)
 
   const { data: contas = [] } = useQuery({ queryKey: ['contas'], queryFn: buscarContas })
-  const { data: cartoes = [] } = useQuery({ queryKey: ['cartoes'], queryFn: buscarCartoes, enabled: credito })
+  const { data: cartoes = [] } = useQuery({ queryKey: ['cartoes'], queryFn: buscarCartoes, enabled: credito || !!editingItem })
 
   useEffect(() => {
     if (!editing && contas.length === 1 && !form.contaId) {
@@ -106,6 +127,7 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
     await Promise.all([
       qc.invalidateQueries({ queryKey: ['transacoes'] }),
       qc.invalidateQueries({ queryKey: ['itensFatura'] }),
+      qc.invalidateQueries({ queryKey: ['faturas'] }),
       qc.invalidateQueries({ queryKey: ['painel'] }),
       qc.invalidateQueries({ queryKey: ['contas'] }),
       qc.invalidateQueries({ queryKey: ['cartoes'] }),
@@ -114,6 +136,22 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
 
   const mutation = useMutation({
     mutationFn: async () => {
+      if (convertendoParaCredito) {
+        await converterTransacaoParaCartao(editingTx!.id, {
+          cartaoId: Number(form.cartaoId),
+          escopo: editingTx!.fixa ? escopoEdicao : 'UNICA',
+        })
+        return 'convertido'
+      }
+      if (convertendoParaDebito) {
+        await converterItemParaDebito(editingItem!.id, {
+          contaId: Number(form.contaId),
+          escopo: editingItem!.fixa ? escopoEdicao : 'UNICA',
+          quitarNaCriacao: paga,
+          dataPagamento: paga ? (form.dataPagamento || form.data) : undefined,
+        })
+        return 'convertido'
+      }
       if (credito) {
         const payload = {
           cartaoId: Number(form.cartaoId),
@@ -122,10 +160,11 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
           descricao: form.descricao || undefined,
           data: form.data,
           totalParcelas: editingItem ? undefined : (form.totalParcelas ? Number(form.totalParcelas) : undefined),
+          fixa: editingItem ? undefined : form.fixa,
         }
-        if (editingItem) { await atualizarItemFatura(editingItem.id, payload); return }
+        if (editingItem) { await atualizarItemFatura(editingItem.id, payload); return 'salvo' }
         await criarItemFatura(payload)
-        return
+        return 'salvo'
       }
       const payload = {
         contaId: Number(form.contaId),
@@ -143,12 +182,13 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
         totalParcelas: tipo === 'TRANSFERENCIA' ? undefined : (form.totalParcelas ? Number(form.totalParcelas) : undefined),
         entidadeId: form.entidadeId ?? null,
       }
-      if (editingTx) { await atualizarTransacao(editingTx.id, payload, editingTx.fixa ? escopoEdicao : 'UNICA'); return }
+      if (editingTx) { await atualizarTransacao(editingTx.id, payload, editingTx.fixa ? escopoEdicao : 'UNICA'); return 'salvo' }
       await criarTransacao(payload)
+      return 'salvo'
     },
-    onSuccess: async () => {
+    onSuccess: async (resultado) => {
       await invalidarTudo()
-      toast.success('Transação salva')
+      toast.success(resultado === 'convertido' ? 'Lançamento convertido com sucesso' : 'Transação salva')
       onClose()
     },
     onError: (e: unknown) => {
@@ -325,25 +365,36 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
           </div>
 
           {/* Débito / Crédito — transferência não usa forma de pagamento;
-              receita não pode ser em crédito (não faz sentido). */}
+              receita não pode ser em crédito (não faz sentido).
+              Na edição, só habilitado para conversões elegíveis. */}
           {tipo !== 'TRANSFERENCIA' && (
           <div>
             <label className="label">Forma de pagamento</label>
+            {(convertendoParaCredito || convertendoParaDebito) && (
+              <p className="text-xs text-acento mb-1.5">
+                {convertendoParaCredito
+                  ? 'Selecione o cartão abaixo — o lançamento será convertido para crédito.'
+                  : 'Selecione a conta abaixo — o item será convertido para débito.'}
+              </p>
+            )}
             <div className="flex gap-2">
-              {(tipo === 'RECEITA' ? (['DEBITO'] as TipoPagamento[]) : (['DEBITO', 'CREDITO'] as TipoPagamento[])).map(p => (
-                <button
-                  key={p} type="button"
-                  disabled={!!editing}
-                  onClick={() => set('tipoPagamento', p)}
-                  className={`flex-1 py-2 text-sm rounded-lg border transition-colors
-                    ${form.tipoPagamento === p
-                      ? 'border-acento bg-acento/20 text-acento'
-                      : 'border-borda text-conteudo-suave hover:border-conteudo-suave'}
-                    ${editing ? 'opacity-60 cursor-not-allowed' : ''}`}
-                >
-                  {p === 'DEBITO' ? 'Débito' : 'Crédito'}
-                </button>
-              ))}
+              {(tipo === 'RECEITA' ? (['DEBITO'] as TipoPagamento[]) : (['DEBITO', 'CREDITO'] as TipoPagamento[])).map(p => {
+                const toggleDesabilitado = !!editing && !podeConverterParaCredito && !podeConverterParaDebito
+                return (
+                  <button
+                    key={p} type="button"
+                    disabled={toggleDesabilitado}
+                    onClick={() => set('tipoPagamento', p)}
+                    className={`flex-1 py-2 text-sm rounded-lg border transition-colors
+                      ${form.tipoPagamento === p
+                        ? 'border-acento bg-acento/20 text-acento'
+                        : 'border-borda text-conteudo-suave hover:border-conteudo-suave'}
+                      ${toggleDesabilitado ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  >
+                    {p === 'DEBITO' ? 'Débito' : 'Crédito'}
+                  </button>
+                )
+              })}
             </div>
           </div>
           )}
@@ -352,19 +403,17 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
               uma compra já no cartão (parcelamento só se decide na criação) */}
           {!editing && tipo !== 'TRANSFERENCIA' && (
             <div className="space-y-3">
-              {!credito && (
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-superficie-2">
-                  <input
-                    id="fixa" type="checkbox"
-                    checked={form.fixa}
-                    onChange={e => { set('fixa', e.target.checked); if (e.target.checked) set('totalParcelas', '') }}
-                    className="w-4 h-4 accent-acento"
-                  />
-                  <label htmlFor="fixa" className="text-sm text-conteudo">
-                    Repetir todo mês (fixa)
-                  </label>
-                </div>
-              )}
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-superficie-2">
+                <input
+                  id="fixa" type="checkbox"
+                  checked={form.fixa}
+                  onChange={e => { set('fixa', e.target.checked); if (e.target.checked) set('totalParcelas', '') }}
+                  className="w-4 h-4 accent-acento"
+                />
+                <label htmlFor="fixa" className="text-sm text-conteudo">
+                  Repetir todo mês (fixa)
+                </label>
+              </div>
 
               {!form.fixa && (
                 <div>
@@ -384,9 +433,11 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
             </div>
           )}
 
-          {editingTx?.fixa && (
+          {(editingTx?.fixa || (editingItem?.fixa && convertendoParaDebito)) && (
             <div className="space-y-2 p-3 rounded-xl bg-superficie-2">
-              <label className="text-sm font-medium text-conteudo">Aplicar alteração em:</label>
+              <label className="text-sm font-medium text-conteudo">
+                {convertendoParaCredito || convertendoParaDebito ? 'Converter em:' : 'Aplicar alteração em:'}
+              </label>
               <div className="flex gap-2">
                 {(['UNICA', 'FUTURAS'] as EscopoAtualizacao[]).map(s => (
                   <button

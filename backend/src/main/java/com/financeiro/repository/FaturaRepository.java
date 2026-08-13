@@ -32,4 +32,8 @@ public interface FaturaRepository extends JpaRepository<Fatura, Long> {
                                                               @Param("entidadeId") Long entidadeId);
 
     Optional<Fatura> findByTransacaoDespesaId(Long transacaoId);
+
+    // Usado pela resolução de fatura alvo na conversão de lançamentos:
+    // cartaoId + dataFechamento identifica unicamente uma fatura por design do scheduler.
+    Optional<Fatura> findByCartaoIdAndDataFechamento(Long cartaoId, LocalDate dataFechamento);
 }

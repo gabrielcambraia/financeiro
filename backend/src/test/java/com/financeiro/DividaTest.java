@@ -242,15 +242,4 @@ class DividaTest extends TesteIntegracaoBase {
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
     }
 
-    private BigDecimal saldoConta(String token, Long contaId) {
-        ResponseEntity<List<com.financeiro.dto.ContaDTO>> resposta = get("/api/contas", token,
-                new ParameterizedTypeReference<List<com.financeiro.dto.ContaDTO>>() {
-                });
-        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
-        return resposta.getBody().stream()
-                .filter(c -> c.getId().equals(contaId))
-                .findFirst()
-                .orElseThrow()
-                .getSaldo();
-    }
 }

@@ -73,12 +73,17 @@ class ConsultaExternaTest extends TesteIntegracaoBase {
     }
 
     @Test
-    @SuppressWarnings("rawtypes")
-    void cnpj_semAutenticacao_retorna401() {
-        ResponseEntity<Map> resposta = restTemplate.getForEntity(
-                url("/api/consultas/cnpj/11222333000181"), Map.class);
+    void cnpj_semAutenticacao_retorna200() {
+        var esperado = new RespostaConsultaCnpj(
+                "EMPRESA SEM AUTH", null, null, null,
+                null, null, null, null, null, null, null);
+        when(servicoConsultaExterna.consultarCnpj("11222333000181")).thenReturn(esperado);
 
-        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        ResponseEntity<RespostaConsultaCnpj> resposta = restTemplate.getForEntity(
+                url("/api/consultas/cnpj/11222333000181"), RespostaConsultaCnpj.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resposta.getBody().razaoSocial()).isEqualTo("EMPRESA SEM AUTH");
     }
 
     // ──── /api/consultas/cep ────
@@ -110,11 +115,14 @@ class ConsultaExternaTest extends TesteIntegracaoBase {
     }
 
     @Test
-    @SuppressWarnings("rawtypes")
-    void cep_semAutenticacao_retorna401() {
-        ResponseEntity<Map> resposta = restTemplate.getForEntity(
-                url("/api/consultas/cep/01310100"), Map.class);
+    void cep_semAutenticacao_retorna200() {
+        var esperado = new RespostaConsultaCep("01310100", "Av. Paulista", "Bela Vista", "São Paulo", "SP");
+        when(servicoConsultaExterna.consultarCep("01310100")).thenReturn(esperado);
 
-        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        ResponseEntity<RespostaConsultaCep> resposta = restTemplate.getForEntity(
+                url("/api/consultas/cep/01310100"), RespostaConsultaCep.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resposta.getBody().uf()).isEqualTo("SP");
     }
 }
