@@ -63,6 +63,7 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
     // o fluxo leve de hoje); o usuário pode desmarcar para deixar a pagar.
     dataPagamento: editingTx ? (editingTx.dataPagamento ?? '') : (dataInicial <= hoje ? dataInicial : ''),
     fixa: editingTx?.fixa ?? false,
+    debitoAutomatico: editingTx?.debitoAutomatico ?? false,
     totalParcelas: editingTx?.totalParcelas ?? editingItem?.totalParcelas ?? '',
     entidadeId: (editingTx?.entidadeId ?? null) as number | null | undefined,
   })
@@ -179,6 +180,7 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
         dataPagamento: paga ? (form.dataPagamento || form.data) : undefined,
         quitarNaCriacao: paga,
         fixa: tipo === 'TRANSFERENCIA' ? false : form.fixa,
+        debitoAutomatico: tipo === 'DESPESA' ? form.debitoAutomatico : false,
         totalParcelas: tipo === 'TRANSFERENCIA' ? undefined : (form.totalParcelas ? Number(form.totalParcelas) : undefined),
         entidadeId: form.entidadeId ?? null,
       }
@@ -430,6 +432,20 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
                   )}
                 </div>
               )}
+            </div>
+          )}
+
+          {tipo === 'DESPESA' && form.tipoPagamento === 'DEBITO' && !editingItem && (
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-superficie-2">
+              <input
+                id="debitoAutomatico" type="checkbox"
+                checked={form.debitoAutomatico}
+                onChange={e => set('debitoAutomatico', e.target.checked)}
+                className="w-4 h-4 accent-acento"
+              />
+              <label htmlFor="debitoAutomatico" className="text-sm text-conteudo">
+                Débito automático (quitar no vencimento)
+              </label>
             </div>
           )}
 

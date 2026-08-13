@@ -293,6 +293,7 @@ public class TransacaoService {
         existente.setDataVencimento(dto.getDataVencimento() != null ? dto.getDataVencimento() : dto.getData());
         existente.setDataPagamento(novaPaga ? dto.getDataPagamento() : null);
         existente.setFixa(dto.isFixa());
+        existente.setDebitoAutomatico(dto.getTipo() == TipoTransacao.DESPESA && dto.getTipoPagamento() == TipoPagamento.DEBITO && dto.isDebitoAutomatico());
         existente.setSaldoAjustado(novaPaga);
         repository.save(existente);
 
@@ -336,6 +337,7 @@ public class TransacaoService {
             f.setValor(dto.getValor());
             f.setDescricao(dto.getDescricao());
             f.setEntidadeId(dto.getEntidadeId());
+            f.setDebitoAutomatico(dto.getTipo() == TipoTransacao.DESPESA && dto.getTipoPagamento() == TipoPagamento.DEBITO && dto.isDebitoAutomatico());
             f.setData(novaDataBase.plusMonths(mesesDaCabeca));
             f.setDataVencimento(novoVencBase.plusMonths(mesesDaCabeca));
             f.setOrigemFixaId(novaCabecaId);
@@ -510,6 +512,17 @@ public class TransacaoService {
             repository.save(leg);
         }
         return toDTO(repository.findByIdAndEspacoId(id, espacoId).orElseThrow());
+    }
+
+    // Chamado pelo AgendadorDebitoAutomatico — não usa contextoEspaco (request-scoped).
+    @Transactional
+    public void quitarDebitoAutomatico(Transacao t) {
+        if (t.isSaldoAjustado() || t.getDataCancelamento() != null || t.getDataPagamento() != null) return;
+        LocalDate hoje = LocalDate.now();
+        contaService.adjustBalance(t.getConta(), computeDelta(t));
+        t.setSaldoAjustado(true);
+        t.setDataPagamento(hoje);
+        repository.save(t);
     }
 
     @Transactional
@@ -785,6 +798,7 @@ public class TransacaoService {
                 .data(dto.getData())
                 .dataVencimento(dto.getDataVencimento() != null ? dto.getDataVencimento() : dto.getData())
                 .fixa(dto.isFixa())
+                .debitoAutomatico(dto.getTipo() == TipoTransacao.DESPESA && dto.getTipoPagamento() == TipoPagamento.DEBITO && dto.isDebitoAutomatico())
                 .espacoId(espacoId)
                 .usuarioId(usuarioId)
                 .entidadeId(dto.getEntidadeId())
@@ -831,6 +845,7 @@ public class TransacaoService {
         dto.setDataCancelamento(t.getDataCancelamento());
         dto.setStatus(computeStatus(t));
         dto.setFixa(t.isFixa());
+        dto.setDebitoAutomatico(t.isDebitoAutomatico());
         dto.setTotalParcelas(t.getTotalParcelas());
         dto.setNumeroParcela(t.getNumeroParcela());
         dto.setGrupoParcelaId(t.getGrupoParcelaId());

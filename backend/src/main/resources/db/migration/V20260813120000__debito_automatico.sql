@@ -1,0 +1,2 @@
+ALTER TABLE transacoes
+    ADD COLUMN debito_automatico BOOLEAN NOT NULL DEFAULT FALSE;
