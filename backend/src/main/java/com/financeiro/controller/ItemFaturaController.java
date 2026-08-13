@@ -1,6 +1,9 @@
 package com.financeiro.controller;
 
+import com.financeiro.dto.ConversaoParaDebitoDTO;
 import com.financeiro.dto.ItemFaturaDTO;
+import com.financeiro.dto.TransacaoDTO;
+import com.financeiro.service.ConversaoLancamentoService;
 import com.financeiro.service.ItemFaturaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +18,7 @@ import java.util.List;
 public class ItemFaturaController {
 
     private final ItemFaturaService service;
+    private final ConversaoLancamentoService conversaoService;
 
     // Usado pela tela de Lançamentos: itens em aberto filtrados por MÊS DE
     // COMPETÊNCIA (calendário), opcionalmente por cartão e/ou pela conta de
@@ -58,5 +62,13 @@ public class ItemFaturaController {
     @PatchMapping("/{id}/cancelar")
     public ItemFaturaDTO cancelar(@PathVariable Long id) {
         return service.cancelar(id);
+    }
+
+    @PostMapping("/{id}/converter-para-debito")
+    @ResponseStatus(HttpStatus.CREATED)
+    public List<TransacaoDTO> converterParaDebito(
+            @PathVariable Long id,
+            @Valid @RequestBody ConversaoParaDebitoDTO dto) {
+        return conversaoService.converterParaDebito(id, dto);
     }
 }

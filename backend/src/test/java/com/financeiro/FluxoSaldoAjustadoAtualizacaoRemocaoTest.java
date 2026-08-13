@@ -1,6 +1,5 @@
 package com.financeiro;
 
-import com.financeiro.dto.ContaDTO;
 import com.financeiro.dto.TransacaoDTO;
 import com.financeiro.entity.enums.TipoPagamento;
 import com.financeiro.entity.enums.TipoTransacao;
@@ -364,17 +363,6 @@ class FluxoSaldoAjustadoAtualizacaoRemocaoTest extends TesteIntegracaoBase {
     private void deletarTransacao(String token, Long id, String scope) {
         ResponseEntity<Void> resposta = delete("/api/transacoes/" + id + "?scope=" + scope, token);
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
-    }
-
-    private BigDecimal saldoConta(String token, Long contaId) {
-        ResponseEntity<List<ContaDTO>> resposta = get("/api/contas", token, new ParameterizedTypeReference<List<ContaDTO>>() {
-        });
-        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
-        return resposta.getBody().stream()
-                .filter(c -> c.getId().equals(contaId))
-                .findFirst()
-                .orElseThrow()
-                .getSaldo();
     }
 
     @SuppressWarnings("rawtypes")

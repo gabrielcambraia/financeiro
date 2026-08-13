@@ -6,17 +6,21 @@ import com.financeiro.dto.CategoriaDTO;
 import com.financeiro.dto.ItemFaturaDTO;
 import com.financeiro.entity.Cartao;
 import com.financeiro.entity.Categoria;
+import com.financeiro.entity.Fatura;
 import com.financeiro.entity.ItemFatura;
+import com.financeiro.entity.Transacao;
 import com.financeiro.erro.ExcecaoRecursoNaoEncontrado;
 import com.financeiro.repository.CartaoRepository;
 import com.financeiro.repository.CategoriaRepository;
 import com.financeiro.repository.ItemFaturaRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
@@ -25,11 +29,13 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ItemFaturaService {
 
     private final ItemFaturaRepository repository;
     private final CartaoRepository cartaoRepository;
     private final CategoriaRepository categoriaRepository;
+    private final ResolvedorFaturaAlvo resolvedorFaturaAlvo;
     private final ContextoEspaco contextoEspaco;
     private final ContextoUsuario contextoUsuario;
 
@@ -76,9 +82,56 @@ public class ItemFaturaService {
                 ? categoriaRepository.findByIdAndEspacoId(dto.getCategoriaId(), espacoId).orElse(null)
                 : null;
 
+        if (dto.isFixa() && dto.getTotalParcelas() != null && dto.getTotalParcelas() > 1) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Item fixa não pode ser parcelado. Use parcelas para compras únicas divididas.");
+        }
+
         List<ItemFatura> criados = new ArrayList<>();
 
-        if (dto.getTotalParcelas() != null && dto.getTotalParcelas() > 1) {
+        if (dto.isFixa()) {
+            // Valida antes de qualquer escrita — se a fatura da cabeça estiver
+            // paga/cancelada, bloqueia tudo sem persistir nada.
+            Fatura faturaCabeca = resolvedorFaturaAlvo.resolver(cartao, dto.getData());
+            if (faturaCabeca != null) {
+                validarFaturaAberta(faturaCabeca, dto.getData());
+            }
+
+            // Cria o item do mês corrente (cabeça da série) + 11 meses futuros
+            ItemFatura cabeca = buildItem(dto, cartao, categoria, espacoId, usuarioId);
+            if (faturaCabeca != null) {
+                cabeca.setFatura(faturaCabeca);
+            }
+            cabeca = repository.save(cabeca);
+            cabeca.setOrigemFixaId(cabeca.getId());
+            cabeca.setSerieAtiva(true);
+            cabeca = repository.save(cabeca);
+            if (faturaCabeca != null) {
+                adicionarNaFatura(faturaCabeca, cabeca.getValor());
+            }
+            criados.add(cabeca);
+
+            Long cabecaId = cabeca.getId();
+            LocalDate dataBase = dto.getData();
+            for (int i = 1; i <= 11; i++) {
+                LocalDate dataFutura = dataBase.plusMonths(i);
+                Fatura faturaAlvo = resolvedorFaturaAlvo.resolver(cartao, dataFutura);
+                if (faturaAlvo != null && !faturaAberta(faturaAlvo)) {
+                    log.warn("Pulando {} na criação de item fixa — fatura paga/cancelada", dataFutura);
+                    continue;
+                }
+                ItemFatura futura = buildItem(dto, cartao, categoria, espacoId, usuarioId);
+                futura.setData(dataFutura);
+                futura.setOrigemFixaId(cabecaId);
+                futura.setSerieAtiva(true);
+                futura.setFatura(faturaAlvo);
+                futura = repository.save(futura);
+                if (faturaAlvo != null) {
+                    adicionarNaFatura(faturaAlvo, futura.getValor());
+                }
+                criados.add(futura);
+            }
+        } else if (dto.getTotalParcelas() != null && dto.getTotalParcelas() > 1) {
             String grupoId = UUID.randomUUID().toString();
             LocalDate dataBase = dto.getData();
             for (int i = 1; i <= dto.getTotalParcelas(); i++) {
@@ -97,6 +150,29 @@ public class ItemFaturaService {
         }
 
         return criados.stream().map(this::toDTO).toList();
+    }
+
+    /** Retorna true se a fatura existe e ainda pode receber itens (não foi paga nem cancelada). */
+    private boolean faturaAberta(Fatura fatura) {
+        Transacao despesa = fatura.getTransacaoDespesa();
+        return despesa.getDataPagamento() == null && despesa.getDataCancelamento() == null;
+    }
+
+    /** Lança 400 se a fatura da cabeça já estiver paga ou cancelada. */
+    private void validarFaturaAberta(Fatura fatura, LocalDate data) {
+        if (!faturaAberta(fatura)) {
+            Transacao despesa = fatura.getTransacaoDespesa();
+            String motivo = despesa.getDataPagamento() != null ? "paga" : "cancelada";
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Não é possível criar o item: a fatura de " + YearMonth.from(data) +
+                    " já está " + motivo + ".");
+        }
+    }
+
+    /** Incrementa o valor da transação de pagamento da fatura fechada. */
+    private void adicionarNaFatura(Fatura fatura, BigDecimal valor) {
+        Transacao despesa = fatura.getTransacaoDespesa();
+        despesa.setValor(despesa.getValor().add(valor));
     }
 
     @Transactional
@@ -150,6 +226,7 @@ public class ItemFaturaService {
                 .valor(dto.getValor())
                 .descricao(dto.getDescricao())
                 .data(dto.getData())
+                .fixa(dto.isFixa())
                 .espacoId(espacoId)
                 .usuarioId(usuarioId)
                 .build();
@@ -173,6 +250,20 @@ public class ItemFaturaService {
         dto.setCancelado(i.getDataCancelamento() != null);
         dto.setFaturaId(i.getFatura() != null ? i.getFatura().getId() : null);
         dto.setFaturado(i.getFatura() != null);
+        dto.setFixa(i.isFixa());
+        dto.setOrigemFixaId(i.getOrigemFixaId());
+
+        if (i.getFatura() != null) {
+            Transacao despesa = i.getFatura().getTransacaoDespesa();
+            if (despesa.getDataCancelamento() != null) {
+                dto.setFaturaStatus("CANCELADA");
+            } else if (despesa.getDataPagamento() != null) {
+                dto.setFaturaStatus("PAGA");
+            } else {
+                LocalDate venc = despesa.getDataVencimento() != null ? despesa.getDataVencimento() : despesa.getData();
+                dto.setFaturaStatus(venc.isBefore(LocalDate.now()) ? "ATRASADA" : "PENDENTE");
+            }
+        }
 
         if (i.getCategoria() != null) {
             CategoriaDTO catDTO = new CategoriaDTO();

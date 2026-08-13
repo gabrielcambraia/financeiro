@@ -1,6 +1,5 @@
 package com.financeiro;
 
-import com.financeiro.dto.ContaDTO;
 import com.financeiro.dto.MetaDTO;
 import com.financeiro.dto.MetaMovimentoDTO;
 import org.junit.jupiter.api.Test;
@@ -205,14 +204,4 @@ class MetaTest extends TesteIntegracaoBase {
         return resposta.getBody().stream().filter(m -> m.getId().equals(metaId)).findFirst().orElseThrow();
     }
 
-    private BigDecimal saldoConta(String token, Long contaId) {
-        ResponseEntity<List<ContaDTO>> resposta = get("/api/contas", token, new ParameterizedTypeReference<List<ContaDTO>>() {
-        });
-        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
-        return resposta.getBody().stream()
-                .filter(c -> c.getId().equals(contaId))
-                .findFirst()
-                .orElseThrow()
-                .getSaldo();
-    }
 }

@@ -1,9 +1,9 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { ChevronLeft, Pencil, Trash2, Ban, Upload, Download, Plus, Tag } from 'lucide-react'
-import { format, parseISO, addMonths, subMonths, differenceInCalendarDays } from 'date-fns'
+import { format, parseISO, addMonths, differenceInCalendarDays } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { buscarCartoes } from '../api/cartoes'
 import { buscarItensFaturaPorCiclo, excluirItemFatura, cancelarItemFatura } from '../api/itensFatura'
@@ -94,23 +94,33 @@ export default function CartaoDetalhe() {
   const hoje = useMemo(() => new Date(), [])
   const mesAtual = useMemo(() => format(hoje, 'yyyy-MM'), [hoje])
   const [mesSelecionado, setMesSelecionado] = useState(mesAtual)
-
-  const chips = useMemo(() => {
-    const base = parseISO(`${mesAtual}-01`)
-    return [
-      format(subMonths(base, 2), 'yyyy-MM'),
-      format(subMonths(base, 1), 'yyyy-MM'),
-      mesAtual,
-      format(addMonths(base, 1), 'yyyy-MM'),
-      format(addMonths(base, 2), 'yyyy-MM'),
-    ]
-  }, [mesAtual])
+  const [chipBase, setChipBase] = useState(mesAtual)
+  const cicloInicializado = useRef(false)
 
   const { data: cartoes = [], isLoading: carregandoCartoes } = useQuery({
     queryKey: ['cartoes'],
     queryFn: buscarCartoes,
   })
   const cartao = cartoes.find(c => c.id === cartaoId)
+
+  // Assim que o cartão carrega, salta para o ciclo de fatura aberto (pode ser
+  // o próximo mês se o fechamento deste mês já tiver passado hoje).
+  useEffect(() => {
+    if (!cartao || cicloInicializado.current) return
+    cicloInicializado.current = true
+    const fechamentoMesAtual = new Date(hoje.getFullYear(), hoje.getMonth(), cartao.diaFechamento)
+    const mesAberto = hoje > fechamentoMesAtual
+      ? format(addMonths(new Date(hoje.getFullYear(), hoje.getMonth(), 1), 1), 'yyyy-MM')
+      : mesAtual
+    setMesSelecionado(mesAberto)
+    setChipBase(mesAberto)
+  }, [cartao, hoje, mesAtual])
+
+  // 12 meses: 6 de histórico + ciclo aberto + 5 futuros
+  const chips = useMemo(() => {
+    const base = parseISO(`${chipBase}-01`)
+    return Array.from({ length: 12 }, (_, i) => format(addMonths(base, i - 6), 'yyyy-MM'))
+  }, [chipBase])
 
   const { data: itensAbertos = [] } = useQuery({
     queryKey: ['itensFatura', 'ciclo', cartaoId, mesSelecionado],
@@ -294,15 +304,15 @@ export default function CartaoDetalhe() {
 
       {/* Month chip selector + status + actions */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 max-w-full scrollbar-hide">
           {chips.map(mes => (
             <button
               key={mes}
               onClick={() => setMesSelecionado(mes)}
-              className={`px-4 py-1.5 rounded-full border text-sm font-medium transition-all capitalize ${
+              className={`shrink-0 px-4 py-1.5 rounded-full border text-sm font-medium transition-all capitalize ${
                 mes === mesSelecionado
                   ? 'bg-sb-fundo text-white border-sb-fundo'
-                  : mes > mesAtual
+                  : mes > chipBase
                   ? 'border-borda bg-superficie text-conteudo-suave opacity-60 hover:opacity-80'
                   : 'border-borda bg-superficie text-conteudo-suave hover:text-conteudo hover:border-conteudo-suave'
               }`}

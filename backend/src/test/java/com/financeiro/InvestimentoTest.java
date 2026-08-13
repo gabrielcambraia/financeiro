@@ -1,7 +1,6 @@
 package com.financeiro;
 
 import com.financeiro.dto.AtivoDTO;
-import com.financeiro.dto.ContaDTO;
 import com.financeiro.dto.MovimentacaoAtivoDTO;
 import com.financeiro.dto.PatrimonioDTO;
 import com.financeiro.entity.enums.TipoAtivo;
@@ -256,14 +255,4 @@ class InvestimentoTest extends TesteIntegracaoBase {
         return resposta.getBody();
     }
 
-    private BigDecimal saldoConta(String token, Long contaId) {
-        ResponseEntity<List<ContaDTO>> resposta = get("/api/contas", token, new ParameterizedTypeReference<List<ContaDTO>>() {
-        });
-        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
-        return resposta.getBody().stream()
-                .filter(c -> c.getId().equals(contaId))
-                .findFirst()
-                .orElseThrow()
-                .getSaldo();
-    }
 }

@@ -1,5 +1,5 @@
 import cliente from './cliente'
-import type { RespostaImpacto, Transacao, TipoTransacao } from '../types'
+import type { ConversaoParaCartaoPayload, ItemFatura, RespostaImpacto, Transacao, TipoTransacao } from '../types'
 
 interface FiltrosTransacao {
   month: string
@@ -61,3 +61,6 @@ export const impactoCancelamentoTransacao = (id: number) =>
 
 export const impactoExclusaoTransacao = (id: number) =>
   cliente.get<RespostaImpacto>(`/transacoes/${id}/impacto-exclusao`).then(r => r.data)
+
+export const converterTransacaoParaCartao = (id: number, payload: ConversaoParaCartaoPayload) =>
+  cliente.post<ItemFatura[]>(`/transacoes/${id}/converter-para-cartao`, payload).then(r => r.data)

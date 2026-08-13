@@ -1,10 +1,13 @@
 package com.financeiro.controller;
 
+import com.financeiro.dto.ConversaoParaCartaoDTO;
+import com.financeiro.dto.ItemFaturaDTO;
 import com.financeiro.dto.RespostaImpacto;
 import com.financeiro.dto.TransacaoDTO;
 import com.financeiro.entity.enums.EscopoAtualizacao;
 import com.financeiro.entity.enums.EscopoExclusao;
 import com.financeiro.entity.enums.TipoTransacao;
+import com.financeiro.service.ConversaoLancamentoService;
 import com.financeiro.service.TransacaoService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +24,7 @@ import java.util.Map;
 public class TransacaoController {
 
     private final TransacaoService service;
+    private final ConversaoLancamentoService conversaoService;
 
     @GetMapping
     public List<TransacaoDTO> findAll(
@@ -82,5 +86,13 @@ public class TransacaoController {
     @GetMapping("/{id}/impacto-exclusao")
     public RespostaImpacto impactoExclusao(@PathVariable Long id) {
         return service.calcularImpactoExclusao(id);
+    }
+
+    @PostMapping("/{id}/converter-para-cartao")
+    @ResponseStatus(HttpStatus.CREATED)
+    public List<ItemFaturaDTO> converterParaCartao(
+            @PathVariable Long id,
+            @Valid @RequestBody ConversaoParaCartaoDTO dto) {
+        return conversaoService.converterParaCredito(id, dto);
     }
 }
