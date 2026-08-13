@@ -338,17 +338,4 @@ class CartaoFaturaTest extends TesteIntegracaoBase {
         return resposta.getBody();
     }
 
-    private List<FaturaDTO> listarFaturas(String token, Long cartaoId) {
-        ResponseEntity<List<FaturaDTO>> resposta = get("/api/faturas?cartaoId=" + cartaoId, token,
-                new ParameterizedTypeReference<List<FaturaDTO>>() {
-                });
-        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(resposta.getBody()).isNotEmpty();
-        return resposta.getBody();
-    }
-
-    private void pagarTransacao(String token, Long transacaoId) {
-        ResponseEntity<Map> resposta = patch("/api/transacoes/" + transacaoId + "/pagar", null, token, Map.class);
-        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
-    }
 }

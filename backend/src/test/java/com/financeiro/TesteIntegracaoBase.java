@@ -1,7 +1,13 @@
 package com.financeiro;
 
+import com.financeiro.dto.CartaoDTO;
 import com.financeiro.dto.ContaDTO;
+import com.financeiro.dto.FaturaDTO;
+import com.financeiro.dto.ItemFaturaDTO;
 import com.financeiro.dto.PrimeiraEntidadeDTO;
+import com.financeiro.dto.TransacaoDTO;
+import com.financeiro.entity.enums.TipoPagamento;
+import com.financeiro.entity.enums.TipoTransacao;
 import com.financeiro.dto.RequisicaoCriarEntidade;
 import com.financeiro.dto.RequisicaoRegistro;
 import com.financeiro.dto.RespostaAutenticacao;
@@ -34,6 +40,8 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -185,6 +193,54 @@ public abstract class TesteIntegracaoBase {
         ResponseEntity<ContaDTO> resposta = post("/api/contas", dto, token, ContaDTO.class);
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         return resposta.getBody().getId();
+    }
+
+    protected Long criarCartao(String token, Long contaPagamentoId, int diaFechamento, int diaVencimento) {
+        CartaoDTO dto = new CartaoDTO();
+        dto.setNome("Cartão Teste");
+        dto.setLimite(BigDecimal.valueOf(5000));
+        dto.setDiaFechamento(diaFechamento);
+        dto.setDiaVencimento(diaVencimento);
+        dto.setContaPagamentoId(contaPagamentoId);
+        dto.setCor("#000");
+        dto.setIcone("credit-card");
+        ResponseEntity<CartaoDTO> resposta = post("/api/cartoes", dto, token, CartaoDTO.class);
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        return resposta.getBody().getId();
+    }
+
+    protected Long criarTransacao(String token, Long contaId, BigDecimal valor, LocalDate data) {
+        TransacaoDTO dto = new TransacaoDTO();
+        dto.setContaId(contaId);
+        dto.setTipo(TipoTransacao.DESPESA);
+        dto.setTipoPagamento(TipoPagamento.DEBITO);
+        dto.setValor(valor);
+        dto.setData(data);
+        dto.setDataVencimento(data);
+        dto.setQuitarNaCriacao(!data.isAfter(LocalDate.now()));
+        return post("/api/transacoes", dto, token,
+                new ParameterizedTypeReference<List<TransacaoDTO>>() {})
+                .getBody().get(0).getId();
+    }
+
+    protected BigDecimal saldoConta(String token, Long contaId) {
+        return get("/api/contas", token, new ParameterizedTypeReference<List<ContaDTO>>() {})
+                .getBody().stream()
+                .filter(c -> c.getId().equals(contaId))
+                .findFirst().orElseThrow()
+                .getSaldo();
+    }
+
+    protected List<FaturaDTO> listarFaturas(String token, Long cartaoId) {
+        ResponseEntity<List<FaturaDTO>> resposta = get("/api/faturas?cartaoId=" + cartaoId, token,
+                new ParameterizedTypeReference<List<FaturaDTO>>() {});
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        return resposta.getBody();
+    }
+
+    protected void pagarTransacao(String token, Long transacaoId) {
+        ResponseEntity<Map> resposta = patch("/api/transacoes/" + transacaoId + "/pagar", null, token, Map.class);
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
     }
 
     /** Promove o espaço ao plano Empresa (limite_entidades=5) para testes que precisam de múltiplas entidades. */

@@ -1,5 +1,5 @@
 import cliente from './cliente'
-import type { ItemFatura } from '../types'
+import type { ConversaoParaDebitoPayload, ItemFatura, Transacao } from '../types'
 
 interface FiltrosItemFatura {
   cartaoId?: number
@@ -14,6 +14,7 @@ interface PayloadCriarItem {
   descricao?: string
   data: string
   totalParcelas?: number
+  fixa?: boolean
 }
 
 export const buscarItensFatura = (filtros: FiltrosItemFatura) =>
@@ -36,3 +37,6 @@ export const excluirItemFatura = (id: number) =>
 
 export const cancelarItemFatura = (id: number) =>
   cliente.patch<ItemFatura>(`/itens-fatura/${id}/cancelar`).then(r => r.data)
+
+export const converterItemParaDebito = (id: number, payload: ConversaoParaDebitoPayload) =>
+  cliente.post<Transacao[]>(`/itens-fatura/${id}/converter-para-debito`, payload).then(r => r.data)

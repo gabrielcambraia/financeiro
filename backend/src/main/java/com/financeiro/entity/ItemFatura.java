@@ -65,6 +65,16 @@ public class ItemFatura {
     @Column(name = "criado_em", nullable = false)
     private LocalDateTime criadoEm;
 
+    @Column(name = "fixa", nullable = false)
+    private boolean fixa;
+
+    @Column(name = "origem_fixa_id")
+    private Long origemFixaId;
+
+    @Builder.Default
+    @Column(name = "serie_ativa", nullable = false)
+    private boolean serieAtiva = true;
+
     @Column(name = "espaco_id", nullable = false)
     private Long espacoId;
 

@@ -1,6 +1,5 @@
 package com.financeiro;
 
-import com.financeiro.dto.ContaDTO;
 import com.financeiro.dto.TransacaoDTO;
 import com.financeiro.entity.enums.DirecaoTransferencia;
 import com.financeiro.entity.enums.TipoPagamento;
@@ -244,17 +243,6 @@ class TransferenciaEntreContasTest extends TesteIntegracaoBase {
         ResponseEntity<TransacaoDTO> resposta = patch("/api/transacoes/" + id + "/estornar", null, token, TransacaoDTO.class);
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
         return resposta.getBody();
-    }
-
-    private BigDecimal saldoConta(String token, Long contaId) {
-        ResponseEntity<List<ContaDTO>> resposta = get("/api/contas", token, new ParameterizedTypeReference<List<ContaDTO>>() {
-        });
-        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
-        return resposta.getBody().stream()
-                .filter(c -> c.getId().equals(contaId))
-                .findFirst()
-                .orElseThrow()
-                .getSaldo();
     }
 
     @SuppressWarnings("rawtypes")

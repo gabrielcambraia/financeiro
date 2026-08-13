@@ -1,7 +1,6 @@
 package com.financeiro;
 
 import com.financeiro.dto.AtivoDTO;
-import com.financeiro.dto.ContaDTO;
 import com.financeiro.dto.DividaDTO;
 import com.financeiro.dto.MetaDTO;
 import com.financeiro.dto.MovimentacaoAtivoDTO;
@@ -540,12 +539,4 @@ class CascataOrigemTransacaoTest extends TesteIntegracaoBase {
         return resp.getBody();
     }
 
-    private BigDecimal saldoConta(String token, Long contaId) {
-        ResponseEntity<List<ContaDTO>> resp = get("/api/contas", token, new ParameterizedTypeReference<>() {});
-        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
-        return resp.getBody().stream()
-                .filter(c -> c.getId().equals(contaId))
-                .findFirst().orElseThrow()
-                .getSaldo();
-    }
 }

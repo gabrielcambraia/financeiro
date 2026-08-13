@@ -2,8 +2,10 @@ package com.financeiro.repository;
 
 import com.financeiro.entity.ItemFatura;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -50,4 +52,25 @@ public interface ItemFaturaRepository extends JpaRepository<ItemFatura, Long> {
     List<ItemFatura> buscarAbertosPorFiltro(@Param("espacoId") Long espacoId, @Param("inicio") LocalDate inicio,
                                              @Param("fim") LocalDate fim, @Param("contaId") Long contaId,
                                              @Param("cartaoId") Long cartaoId);
+
+    // --- série de fixas (itens de fatura) ---
+
+    List<ItemFatura> findByEspacoIdAndOrigemFixaIdAndDataGreaterThanEqual(
+            Long espacoId, Long origemFixaId, LocalDate data);
+
+    boolean existsByEspacoIdAndOrigemFixaIdAndDataBetween(
+            Long espacoId, Long origemFixaId, LocalDate inicio, LocalDate fim);
+
+    List<ItemFatura> findByEspacoIdAndFixaTrueAndSerieAtivaTrueAndDataBetween(
+            Long espacoId, LocalDate inicio, LocalDate fim);
+
+    @Query("SELECT DISTINCT i.espacoId FROM ItemFatura i " +
+           "WHERE i.fixa = true AND i.serieAtiva = true AND i.data BETWEEN :inicio AND :fim")
+    List<Long> findEspacosComItemFixaAtivaNoPeriodo(@Param("inicio") LocalDate inicio, @Param("fim") LocalDate fim);
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE ItemFatura i SET i.serieAtiva = false WHERE i.espacoId = :espacoId AND i.origemFixaId = :origemFixaId AND i.data < :dataCorte")
+    void encerrarTrilhoAntigo(@Param("espacoId") Long espacoId, @Param("origemFixaId") Long origemFixaId,
+                               @Param("dataCorte") LocalDate dataCorte);
 }

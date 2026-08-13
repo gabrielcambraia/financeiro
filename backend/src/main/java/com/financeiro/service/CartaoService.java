@@ -95,8 +95,20 @@ public class CartaoService {
     public CartaoDTO toDTO(Cartao c) {
         Long espacoId = c.getEspacoId();
 
+        // Somente itens do ciclo de fechamento ABERTO. Se o fechamento do mês corrente já
+        // passou (o AgendadorFatura vai fechá-lo ou já fechou), o ciclo aberto é o do mês
+        // seguinte; caso contrário é o do mês corrente. Itens de meses ainda mais futuros
+        // (pré-criados por fixas) não pertencem ao ciclo corrente e não entram aqui.
+        java.time.LocalDate hoje = java.time.LocalDate.now();
+        java.time.YearMonth mesAtual = java.time.YearMonth.from(hoje);
+        java.time.LocalDate fechamentoMesAtual = CalculadoraFechamentoCartao.fechamentoDoMes(c, mesAtual);
+        java.time.YearMonth mesCicloAberto = hoje.isAfter(fechamentoMesAtual) ? mesAtual.plusMonths(1) : mesAtual;
+        java.time.LocalDate fechamentoCiclo = CalculadoraFechamentoCartao.fechamentoDoMes(c, mesCicloAberto);
+        java.time.LocalDate inicioCiclo = CalculadoraFechamentoCartao.fechamentoDoMes(c, mesCicloAberto.minusMonths(1)).plusDays(1);
+
         BigDecimal faturaAtualTotal = itemFaturaRepository
-                .findByEspacoIdAndCartaoIdAndFaturaIdIsNullOrderByDataDesc(espacoId, c.getId()).stream()
+                .findByEspacoIdAndCartaoIdAndFaturaIdIsNullAndDataBetweenOrderByDataDesc(
+                        espacoId, c.getId(), inicioCiclo, fechamentoCiclo).stream()
                 .filter(i -> i.getDataCancelamento() == null)
                 .map(ItemFatura::getValor)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
