@@ -65,6 +65,10 @@ public class Transacao {
     private boolean fixa;
 
     @Builder.Default
+    @Column(name = "debito_automatico", nullable = false)
+    private boolean debitoAutomatico = false;
+
+    @Builder.Default
     @Column(name = "saldo_ajustado", nullable = false)
     private boolean saldoAjustado = true;
 

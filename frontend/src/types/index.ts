@@ -116,6 +116,7 @@ export interface Transacao {
   dataCancelamento?: string
   status: StatusTransacao
   fixa: boolean
+  debitoAutomatico?: boolean
   totalParcelas?: number
   numeroParcela?: number
   grupoParcelaId?: string

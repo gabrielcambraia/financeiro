@@ -193,4 +193,22 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
     @org.springframework.transaction.annotation.Transactional
     @Query("UPDATE Transacao t SET t.meta = null WHERE t.meta.id = :metaId")
     void desvincularMeta(@Param("metaId") Long metaId);
+
+    // --- débito automático ---
+
+    @Query("SELECT DISTINCT t.espacoId FROM Transacao t " +
+           "WHERE t.debitoAutomatico = true " +
+           "AND t.tipo = com.financeiro.entity.enums.TipoTransacao.DESPESA " +
+           "AND t.tipoPagamento = com.financeiro.entity.enums.TipoPagamento.DEBITO " +
+           "AND t.dataPagamento IS NULL AND t.dataCancelamento IS NULL " +
+           "AND t.dataVencimento <= :hoje")
+    List<Long> findEspacosComDebitoAutomaticoVencido(@Param("hoje") LocalDate hoje);
+
+    @Query("SELECT t FROM Transacao t WHERE t.espacoId = :espacoId " +
+           "AND t.debitoAutomatico = true " +
+           "AND t.tipo = com.financeiro.entity.enums.TipoTransacao.DESPESA " +
+           "AND t.tipoPagamento = com.financeiro.entity.enums.TipoPagamento.DEBITO " +
+           "AND t.dataPagamento IS NULL AND t.dataCancelamento IS NULL " +
+           "AND t.dataVencimento <= :hoje")
+    List<Transacao> findDebitoAutomaticoAQuitar(@Param("espacoId") Long espacoId, @Param("hoje") LocalDate hoje);
 }

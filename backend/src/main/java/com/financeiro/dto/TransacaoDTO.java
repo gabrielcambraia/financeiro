@@ -50,6 +50,8 @@ public class TransacaoDTO {
 
     private boolean fixa;
 
+    private boolean debitoAutomatico;
+
     private Integer totalParcelas;
 
     private Long entidadeId;

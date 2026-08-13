@@ -23,6 +23,7 @@ interface PayloadCriarTransacao {
   dataPagamento?: string
   quitarNaCriacao?: boolean
   fixa: boolean
+  debitoAutomatico?: boolean
   totalParcelas?: number
   entidadeId?: number | null
 }

@@ -93,6 +93,7 @@ public class AgendadorTransacaoFixa {
                         .data(dataCopia)
                         .dataVencimento(dataCopia)
                         .fixa(true)
+                        .debitoAutomatico(original.isDebitoAutomatico())
                         .saldoAjustado(false)
                         .espacoId(original.getEspacoId())
                         .usuarioId(original.getUsuarioId())
