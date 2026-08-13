@@ -242,22 +242,27 @@ export default function Transacoes() {
   const totalPaginas = Math.max(1, Math.ceil(visiveisOrdenados.length / ITENS_POR_PAGINA))
   const visivelsPaginados = visiveisOrdenados.slice((pagina - 1) * ITENS_POR_PAGINA, pagina * ITENS_POR_PAGINA)
 
-  // Totais refletem o mês/conta/cartão selecionados, sem os filtros de status
-  // (mesmo comportamento de antes) — cancelada/cancelado nunca conta, pois a
-  // movimentação nunca aconteceu de fato.
-  const ativas = (filtroCartao || modoCartao) ? [] : transacoes.filter(t => t.status !== 'CANCELADA')
-  const mostrandoItens = modoCartao || !!filtroCartao || filtroTipo === ''
-  const itensAtivos = mostrandoItens ? itensFatura.filter(i => !i.cancelado) : []
+  // Totais derivados de `visiveis` (todos os filtros já aplicados) —
+  // cancelados nunca entram, pois a movimentação nunca aconteceu de fato.
+  const txVisiveis = visiveis
+    .filter(l => l.origem === 'TRANSACAO')
+    .map(l => l.tx)
+    .filter(t => t.status !== 'CANCELADA')
+  const itensVisiveis = visiveis
+    .filter(l => l.origem === 'ITEM_FATURA')
+    .map(l => l.item)
+    .filter(i => !i.cancelado)
+  const faturasVisiveis = visiveis
+    .filter(l => l.origem === 'FATURA')
+    .map(l => l.fatura)
 
-  const totalReceitas = ativas.filter(t => t.tipo === 'RECEITA').reduce((s, t) => s + t.valor, 0)
-  const totalDespesasItens = itensAtivos.reduce((s, i) => s + i.valor, 0)
-  const totalDespesasFaturas = faturasCartao.reduce((s, f) => s + f.valor, 0)
-  const totalDespesas = ativas.filter(t => t.tipo === 'DESPESA').reduce((s, t) => s + t.valor, 0)
-    + totalDespesasItens + totalDespesasFaturas
-
+  const totalReceitas = txVisiveis.filter(t => t.tipo === 'RECEITA').reduce((s, t) => s + t.valor, 0)
+  const totalDespesas = txVisiveis.filter(t => t.tipo === 'DESPESA').reduce((s, t) => s + t.valor, 0)
+    + itensVisiveis.reduce((s, i) => s + i.valor, 0)
+    + faturasVisiveis.reduce((s, f) => s + f.valor, 0)
   const resultado = totalReceitas - totalDespesas
-  const countReceitas = ativas.filter(t => t.tipo === 'RECEITA').length
-  const countDespesas = ativas.filter(t => t.tipo === 'DESPESA').length + itensAtivos.length
+  const countReceitas = txVisiveis.filter(t => t.tipo === 'RECEITA').length
+  const countDespesas = txVisiveis.filter(t => t.tipo === 'DESPESA').length + itensVisiveis.length
 
   // Chip de tipo: classe base e classe ativa
   const chipBase = 'text-xs px-3 py-1.5 rounded-full font-medium transition-colors flex items-center gap-1'
@@ -624,6 +629,7 @@ export default function Transacoes() {
                       <td className="px-4 py-3">
                         <div className={`flex items-center gap-1.5 font-medium text-conteudo ${lanc.item.cancelado ? 'line-through text-conteudo-suave' : ''}`}>
                           {lanc.item.descricao || lanc.item.categoria?.nome || '—'}
+                          {lanc.item.fixa && <Repeat size={11} className="text-acento shrink-0" aria-label="Fixa" />}
                           {lanc.item.totalParcelas && (
                             <span className="text-xs text-conteudo-suave flex items-center gap-0.5">
                               <Layers size={10} />{lanc.item.numeroParcela}/{lanc.item.totalParcelas}
@@ -735,8 +741,9 @@ export default function Transacoes() {
                     : <TrendingDown size={16} className="text-red-500" />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium text-conteudo text-sm truncate">
+                  <div className="font-medium text-conteudo text-sm truncate flex items-center gap-1.5">
                     {lanc.tx.tipo === 'TRANSFERENCIA' ? (lanc.tx.descricao || 'Transferência') : (lanc.tx.descricao || lanc.tx.categoria?.nome || '—')}
+                    {lanc.tx.fixa && <Repeat size={11} className="text-acento shrink-0" aria-label="Fixa" />}
                   </div>
                   <div className="text-xs text-conteudo-suave mt-0.5">
                     {format(parseISO(lanc.tx.data), 'dd/MM')} · {lanc.tx.conta.nome}
@@ -760,8 +767,9 @@ export default function Transacoes() {
                   <CreditCard size={16} style={{ color: lanc.item.categoria?.cor ?? '#6b7280' }} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className={`font-medium text-conteudo text-sm truncate ${lanc.item.cancelado ? 'line-through text-conteudo-suave' : ''}`}>
+                  <div className={`font-medium text-conteudo text-sm truncate flex items-center gap-1.5 ${lanc.item.cancelado ? 'line-through text-conteudo-suave' : ''}`}>
                     {lanc.item.descricao || lanc.item.categoria?.nome || '—'}
+                    {lanc.item.fixa && <Repeat size={11} className="text-acento shrink-0" aria-label="Fixa" />}
                   </div>
                   <div className="text-xs text-conteudo-suave mt-0.5">
                     {format(parseISO(lanc.item.data), 'dd/MM')} · {lanc.item.cartaoNome}
