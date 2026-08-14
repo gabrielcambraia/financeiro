@@ -5,6 +5,7 @@ import { X } from 'lucide-react'
 import { format } from 'date-fns'
 import { buscarContas } from '../../api/contas'
 import { buscarCategorias } from '../../api/categorias'
+import { buscarCentrosCusto } from '../../api/centrosCusto'
 import { buscarCartoes } from '../../api/cartoes'
 import { criarTransacao, atualizarTransacao, converterTransacaoParaCartao, type EscopoAtualizacao } from '../../api/transacoes'
 import { criarItemFatura, atualizarItemFatura, converterItemParaDebito } from '../../api/itensFatura'
@@ -66,6 +67,7 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
     debitoAutomatico: editingTx?.debitoAutomatico ?? false,
     totalParcelas: editingTx?.totalParcelas ?? editingItem?.totalParcelas ?? '',
     entidadeId: (editingTx?.entidadeId ?? null) as number | null | undefined,
+    centroCustoId: (editingTx?.centroCustoId ?? editingItem?.centroCustoId ?? '') as number | '',
   })
   const paga = form.dataPagamento !== ''
   // Guards de elegibilidade para conversão entre débito e crédito.
@@ -124,6 +126,12 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
     enabled: tipo !== 'TRANSFERENCIA',
   })
 
+  const { data: centrosCusto = [] } = useQuery({
+    queryKey: ['centros-custo'],
+    queryFn: buscarCentrosCusto,
+    enabled: tipo !== 'TRANSFERENCIA',
+  })
+
   const invalidarTudo = async () => {
     await Promise.all([
       qc.invalidateQueries({ queryKey: ['transacoes'] }),
@@ -162,6 +170,7 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
           data: form.data,
           totalParcelas: editingItem ? undefined : (form.totalParcelas ? Number(form.totalParcelas) : undefined),
           fixa: editingItem ? undefined : form.fixa,
+          centroCustoId: form.centroCustoId ? Number(form.centroCustoId) : null,
         }
         if (editingItem) { await atualizarItemFatura(editingItem.id, payload); return 'salvo' }
         await criarItemFatura(payload)
@@ -183,6 +192,7 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
         debitoAutomatico: tipo === 'DESPESA' ? form.debitoAutomatico : false,
         totalParcelas: tipo === 'TRANSFERENCIA' ? undefined : (form.totalParcelas ? Number(form.totalParcelas) : undefined),
         entidadeId: form.entidadeId ?? null,
+        centroCustoId: tipo !== 'TRANSFERENCIA' && form.centroCustoId ? Number(form.centroCustoId) : null,
       }
       if (editingTx) { await atualizarTransacao(editingTx.id, payload, editingTx.fixa ? escopoEdicao : 'UNICA'); return 'salvo' }
       await criarTransacao(payload)
@@ -292,6 +302,18 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
               </div>
             )}
           </div>
+          {tipo !== 'TRANSFERENCIA' && centrosCusto.length > 0 && (
+            <div>
+              <label className="label">Centro de Custo</label>
+              <select className="select" value={form.centroCustoId} onChange={e => set('centroCustoId', e.target.value ? Number(e.target.value) : '')}>
+                <option value="">Sem centro de custo</option>
+                {[...centrosCusto].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(cc => (
+                  <option key={cc.id} value={cc.id}>{cc.nome}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {erro && <p className="text-sm text-red-500">{erro}</p>}
 
           {/* Valor e Data */}

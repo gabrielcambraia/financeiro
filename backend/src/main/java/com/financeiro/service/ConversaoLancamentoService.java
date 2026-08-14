@@ -160,6 +160,7 @@ public class ConversaoLancamentoService {
                     .totalParcelas(grupoParcelaId != null ? parcelas : null)
                     .espacoId(espacoId)
                     .usuarioId(usuarioId)
+                    .centroCustoId(t.getCentroCustoId())
                     .build();
 
             item = itemFaturaRepository.save(item);
@@ -255,6 +256,7 @@ public class ConversaoLancamentoService {
                     .dataPagamento(paga ? dataPagamento : null)
                     .espacoId(espacoId)
                     .usuarioId(usuarioId)
+                    .centroCustoId(i.getCentroCustoId())
                     .build();
 
             novaT = transacaoRepository.save(novaT);

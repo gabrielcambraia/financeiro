@@ -3,6 +3,7 @@ package com.financeiro.service;
 import com.financeiro.context.ContextoEspaco;
 import com.financeiro.context.ContextoUsuario;
 import com.financeiro.dto.CategoriaDTO;
+import com.financeiro.dto.CentroCustoDTO;
 import com.financeiro.dto.ItemFaturaDTO;
 import com.financeiro.entity.Cartao;
 import com.financeiro.entity.Categoria;
@@ -66,10 +67,16 @@ public class ItemFaturaService {
     // aceito para reaproveitar a mesma tela em contextos específicos de
     // um cartão). Sem cartaoId nem contaId, traz de todos os cartões do espaço.
     public List<ItemFaturaDTO> buscarAbertosPorFiltro(String month, Long contaId, Long cartaoId) {
+        return buscarAbertosPorFiltro(month, contaId, cartaoId, null);
+    }
+
+    public List<ItemFaturaDTO> buscarAbertosPorFiltro(String month, Long contaId, Long cartaoId, Long centroCustoId) {
         Long espacoId = contextoEspaco.espacoAtual();
         YearMonth ym = month != null ? YearMonth.parse(month) : YearMonth.now();
         return repository.buscarAbertosPorFiltro(espacoId, ym.atDay(1), ym.atEndOfMonth(), contaId, cartaoId)
-                .stream().map(this::toDTO).toList();
+                .stream()
+                .filter(i -> centroCustoId == null || centroCustoId.equals(i.getCentroCustoId()))
+                .map(this::toDTO).toList();
     }
 
     @Transactional
@@ -190,6 +197,7 @@ public class ItemFaturaService {
         item.setValor(dto.getValor());
         item.setDescricao(dto.getDescricao());
         item.setData(dto.getData());
+        item.setCentroCustoId(dto.getCentroCustoId());
         return toDTO(repository.save(item));
     }
 
@@ -229,6 +237,7 @@ public class ItemFaturaService {
                 .fixa(dto.isFixa())
                 .espacoId(espacoId)
                 .usuarioId(usuarioId)
+                .centroCustoId(dto.getCentroCustoId())
                 .build();
     }
 
@@ -274,6 +283,15 @@ public class ItemFaturaService {
             catDTO.setIcone(i.getCategoria().getIcone());
             dto.setCategoria(catDTO);
             dto.setCategoriaId(i.getCategoria().getId());
+        }
+
+        dto.setCentroCustoId(i.getCentroCustoId());
+        if (i.getCentroCusto() != null) {
+            CentroCustoDTO ccDTO = new CentroCustoDTO();
+            ccDTO.setId(i.getCentroCusto().getId());
+            ccDTO.setNome(i.getCentroCusto().getNome());
+            ccDTO.setCor(i.getCentroCusto().getCor());
+            dto.setCentroCusto(ccDTO);
         }
 
         return dto;

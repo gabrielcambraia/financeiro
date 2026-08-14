@@ -8,6 +8,7 @@ interface FiltrosTransacao {
   categoriaId?: number
   dataVencimentoInicio?: string
   dataVencimentoFim?: string
+  centroCustoId?: number
 }
 
 interface PayloadCriarTransacao {
@@ -26,6 +27,7 @@ interface PayloadCriarTransacao {
   debitoAutomatico?: boolean
   totalParcelas?: number
   entidadeId?: number | null
+  centroCustoId?: number | null
 }
 
 export const buscarTransacoes = (filtros: FiltrosTransacao) =>

@@ -4,6 +4,7 @@ import com.financeiro.context.ContextoEntidade;
 import com.financeiro.context.ContextoEspaco;
 import com.financeiro.context.ContextoUsuario;
 import com.financeiro.dto.CategoriaDTO;
+import com.financeiro.dto.CentroCustoDTO;
 import com.financeiro.dto.ContaDTO;
 import com.financeiro.dto.RespostaImpacto;
 import com.financeiro.dto.TransacaoDTO;
@@ -66,7 +67,7 @@ public class TransacaoService {
     private final ContextoEntidade contextoEntidade;
 
     public List<TransacaoDTO> findByFilters(String month, Long contaId, TipoTransacao tipo, Long categoriaId) {
-        return findByFilters(month, contaId, tipo, categoriaId, null, null);
+        return findByFilters(month, contaId, tipo, categoriaId, null, null, null);
     }
 
     // dataVencimentoFim presente troca o critério de "competência dentro do mês"
@@ -76,6 +77,12 @@ public class TransacaoService {
     // e já pagas (mesmo critério de "pendente" do próprio bloco).
     public List<TransacaoDTO> findByFilters(String month, Long contaId, TipoTransacao tipo, Long categoriaId,
                                              LocalDate dataVencimentoInicio, LocalDate dataVencimentoFim) {
+        return findByFilters(month, contaId, tipo, categoriaId, dataVencimentoInicio, dataVencimentoFim, null);
+    }
+
+    public List<TransacaoDTO> findByFilters(String month, Long contaId, TipoTransacao tipo, Long categoriaId,
+                                             LocalDate dataVencimentoInicio, LocalDate dataVencimentoFim,
+                                             Long centroCustoId) {
         Long espacoId = contextoEspaco.espacoAtual();
         Long entidadeId = contextoEntidade.entidadeAtual();
 
@@ -116,6 +123,7 @@ public class TransacaoService {
                 .filter(t -> tipo == null || t.getTipo() == tipo)
                 .filter(t -> categoriaId == null
                         || (t.getCategoria() != null && t.getCategoria().getId().equals(categoriaId)))
+                .filter(t -> centroCustoId == null || centroCustoId.equals(t.getCentroCustoId()))
                 .toList();
         List<TransacaoDTO> dtos = filtradas.stream().map(this::toDTO).toList();
         enriquecerOrigemDerivadaLote(filtradas, dtos);
@@ -295,6 +303,7 @@ public class TransacaoService {
         existente.setFixa(dto.isFixa());
         existente.setDebitoAutomatico(dto.getTipo() == TipoTransacao.DESPESA && dto.getTipoPagamento() == TipoPagamento.DEBITO && dto.isDebitoAutomatico());
         existente.setSaldoAjustado(novaPaga);
+        existente.setCentroCustoId(dto.getCentroCustoId());
         repository.save(existente);
 
         // Aplica o novo saldo apenas se a transação está paga
@@ -337,6 +346,7 @@ public class TransacaoService {
             f.setValor(dto.getValor());
             f.setDescricao(dto.getDescricao());
             f.setEntidadeId(dto.getEntidadeId());
+            f.setCentroCustoId(dto.getCentroCustoId());
             f.setDebitoAutomatico(dto.getTipo() == TipoTransacao.DESPESA && dto.getTipoPagamento() == TipoPagamento.DEBITO && dto.isDebitoAutomatico());
             f.setData(novaDataBase.plusMonths(mesesDaCabeca));
             f.setDataVencimento(novoVencBase.plusMonths(mesesDaCabeca));
@@ -802,6 +812,7 @@ public class TransacaoService {
                 .espacoId(espacoId)
                 .usuarioId(usuarioId)
                 .entidadeId(dto.getEntidadeId())
+                .centroCustoId(dto.getCentroCustoId())
                 .build();
     }
 
@@ -882,6 +893,14 @@ public class TransacaoService {
         }
 
         dto.setEntidadeId(t.getEntidadeId());
+        dto.setCentroCustoId(t.getCentroCustoId());
+        if (t.getCentroCusto() != null) {
+            CentroCustoDTO ccDTO = new CentroCustoDTO();
+            ccDTO.setId(t.getCentroCusto().getId());
+            ccDTO.setNome(t.getCentroCusto().getNome());
+            ccDTO.setCor(t.getCentroCusto().getCor());
+            dto.setCentroCusto(ccDTO);
+        }
         return dto;
     }
 

@@ -27,8 +27,9 @@ public class ItemFaturaController {
     public List<ItemFaturaDTO> findAll(
             @RequestParam(required = false) Long cartaoId,
             @RequestParam(required = false) Long contaId,
-            @RequestParam(required = false) String month) {
-        return service.buscarAbertosPorFiltro(month, contaId, cartaoId);
+            @RequestParam(required = false) String month,
+            @RequestParam(required = false) Long centroCustoId) {
+        return service.buscarAbertosPorFiltro(month, contaId, cartaoId, centroCustoId);
     }
 
     // Usado pela tela do cartão: itens em aberto do CICLO DE FATURAMENTO que

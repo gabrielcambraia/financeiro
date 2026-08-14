@@ -389,6 +389,62 @@ export default function Painel() {
         </div>
       )}
 
+      {/* PieChart - Despesas por Centro de Custo */}
+      {data.despesasPorCentroCusto?.length > 0 && (
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="card lg:col-span-2">
+              <h3 className="text-sm font-semibold text-conteudo mb-4">Despesas por Centro de Custo</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie
+                      data={data.despesasPorCentroCusto}
+                      dataKey="total"
+                      nameKey="centroCusto.nome"
+                      cx="50%" cy="50%"
+                      innerRadius={50} outerRadius={85}
+                      labelLine={false}
+                      label={renderCustomLabel}
+                    >
+                      {data.despesasPorCentroCusto.map((entry, i) => (
+                        <Cell key={i} fill={entry.centroCusto.cor} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{ background: cores.tooltipFundo, border: `1px solid ${cores.tooltipBorda}`, borderRadius: 8 }}
+                      formatter={(v) => fmt(Number(v))}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="space-y-1 self-center">
+                  {data.despesasPorCentroCusto.map(({ centroCusto, total, percentual }) => (
+                    <div key={centroCusto.id}
+                      className="flex items-center gap-3 px-3 py-2 rounded-xl transition-colors hover:bg-superficie-2 group cursor-default">
+                      <div className="w-2.5 h-2.5 rounded-full shrink-0 transition-transform group-hover:scale-125"
+                        style={{ background: centroCusto.cor }} />
+                      <span className="text-sm text-conteudo-suave w-24 md:w-32 truncate group-hover:text-conteudo transition-colors">
+                        {centroCusto.nome}
+                      </span>
+                      <div className="flex-1 bg-superficie-2 rounded-full h-2">
+                        <div className="h-2 rounded-full transition-all group-hover:brightness-125"
+                          style={{ width: `${percentual}%`, background: centroCusto.cor }} />
+                      </div>
+                      <span className="text-sm text-conteudo w-14 md:w-20 text-right font-medium transition-colors">
+                        {fmt(total)}
+                      </span>
+                      <span className="hidden sm:block text-xs text-conteudo-suave w-10 text-right transition-colors">
+                        {percentual.toFixed(0)}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
     </div>
   )
 }
