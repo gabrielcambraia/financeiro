@@ -100,10 +100,24 @@ export interface Categoria {
   entidadeId?: number | null
 }
 
+export interface CentroCusto {
+  id: number
+  nome: string
+  cor: string
+  entidadeId?: number | null
+}
+
+export interface ResumoCentroCusto {
+  centroCusto: CentroCusto
+  total: number
+  percentual: number
+}
+
 export interface Transacao {
   id: number
   conta: Conta
   categoria?: Categoria
+  centroCusto?: CentroCusto | null
   contaId: number
   categoriaId?: number
   tipo: TipoTransacao
@@ -116,6 +130,7 @@ export interface Transacao {
   dataCancelamento?: string
   status: StatusTransacao
   fixa: boolean
+  debitoAutomatico?: boolean
   totalParcelas?: number
   numeroParcela?: number
   grupoParcelaId?: string
@@ -124,6 +139,7 @@ export interface Transacao {
   direcaoTransferencia?: DirecaoTransferencia
   multa?: number
   entidadeId?: number | null
+  centroCustoId?: number | null
   origemDerivada?: 'META' | 'ATIVO' | 'DIVIDA'
 }
 
@@ -141,6 +157,7 @@ export interface DadosPainel {
   pendente: ResumoFluxo
   despesasPorCategoria: ResumoCategoria[]
   receitasPorCategoria: ResumoCategoria[]
+  despesasPorCentroCusto: ResumoCentroCusto[]
   tendenciaMensal: TendenciaMensal[]
   saldosContas: SaldoConta[]
   saldoDiario: SaldoDiario[]
@@ -214,6 +231,7 @@ export interface ItemFatura {
   cartaoId: number
   categoriaId?: number
   categoria?: Categoria
+  centroCusto?: CentroCusto | null
   valor: number
   descricao?: string
   data: string
@@ -231,6 +249,7 @@ export interface ItemFatura {
   fixa: boolean
   origemFixaId?: number
   faturaStatus?: string
+  centroCustoId?: number | null
 }
 
 export interface ConversaoParaCartaoPayload {

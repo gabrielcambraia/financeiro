@@ -65,6 +65,10 @@ public class Transacao {
     private boolean fixa;
 
     @Builder.Default
+    @Column(name = "debito_automatico", nullable = false)
+    private boolean debitoAutomatico = false;
+
+    @Builder.Default
     @Column(name = "saldo_ajustado", nullable = false)
     private boolean saldoAjustado = true;
 
@@ -110,6 +114,13 @@ public class Transacao {
 
     @Column(name = "entidade_id")
     private Long entidadeId;
+
+    @Column(name = "centro_custo_id")
+    private Long centroCustoId;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "centro_custo_id", insertable = false, updatable = false)
+    private CentroCusto centroCusto;
 
     // Identificador da série de transações fixas: aponta para o id da linha
     // mais antiga do grupo ("cabeça"). A própria cabeça aponta para si mesma.

@@ -81,6 +81,13 @@ public class ItemFatura {
     @Column(name = "usuario_id", nullable = false)
     private Long usuarioId;
 
+    @Column(name = "centro_custo_id")
+    private Long centroCustoId;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "centro_custo_id", insertable = false, updatable = false)
+    private CentroCusto centroCusto;
+
     @PrePersist
     public void prePersist() {
         if (this.criadoEm == null) {

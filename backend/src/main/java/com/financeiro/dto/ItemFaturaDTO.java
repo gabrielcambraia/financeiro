@@ -43,6 +43,11 @@ public class ItemFaturaDTO {
     private Long contaPagamentoId;
     private String contaPagamentoNome;
 
+    private Long centroCustoId;
+
+    // campos de resposta
+    private CentroCustoDTO centroCusto;
+
     // Campos de série fixa (espelhando Transacao)
     private boolean fixa;
     private Long origemFixaId;

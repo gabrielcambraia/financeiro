@@ -47,9 +47,14 @@ function ItemLinha({ item, onEdit, onExcluir, onCancelar, editavel }: {
         <div className={`text-sm font-medium text-conteudo truncate ${item.cancelado ? 'line-through' : ''}`}>
           {item.descricao || item.categoria?.nome || '—'}
         </div>
-        <div className="text-xs text-conteudo-suave mt-0.5">
-          {item.categoria?.nome ?? 'Sem categoria'}
-          {item.totalParcelas ? ` · ${item.numeroParcela}/${item.totalParcelas}x` : ''}
+        <div className="text-xs text-conteudo-suave mt-0.5 flex items-center gap-2 flex-wrap">
+          <span>{item.categoria?.nome ?? 'Sem categoria'}{item.totalParcelas ? ` · ${item.numeroParcela}/${item.totalParcelas}x` : ''}</span>
+          {item.centroCusto && (
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: item.centroCusto.cor }} />
+              <span>{item.centroCusto.nome}</span>
+            </span>
+          )}
         </div>
       </div>
       <div className="text-right shrink-0">

@@ -18,6 +18,7 @@ public class PainelDTO {
     private ResumoFluxo pendente;
     private List<ResumoCategoria> despesasPorCategoria;
     private List<ResumoCategoria> receitasPorCategoria;
+    private List<ResumoCentroCusto> despesasPorCentroCusto;
     private List<TendenciaMensal> tendenciaMensal;
     private List<SaldoConta> saldosContas;
     private List<SaldoDiario> saldoDiario;
@@ -35,6 +36,14 @@ public class PainelDTO {
     @Builder
     public static class ResumoCategoria {
         private CategoriaDTO categoria;
+        private BigDecimal total;
+        private double percentual;
+    }
+
+    @Data
+    @Builder
+    public static class ResumoCentroCusto {
+        private CentroCustoDTO centroCusto;
         private BigDecimal total;
         private double percentual;
     }
