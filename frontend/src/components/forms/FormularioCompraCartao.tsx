@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { X } from 'lucide-react'
 import { format } from 'date-fns'
 import { buscarCategorias } from '../../api/categorias'
+import { buscarCentrosCusto } from '../../api/centrosCusto'
 import { criarItemFatura, atualizarItemFatura } from '../../api/itensFatura'
 import SobreposicaoModal from '../SobreposicaoModal'
 import type { ItemFatura } from '../../types'
@@ -27,11 +28,17 @@ export default function FormularioCompraCartao({ cartaoId, onClose, editing }: P
     descricao: editing?.descricao ?? '',
     data: editing?.data ?? format(new Date(), 'yyyy-MM-dd'),
     totalParcelas: editing?.totalParcelas ?? '',
+    centroCustoId: (editing?.centroCustoId ?? '') as number | '',
   })
 
   const { data: categorias = [] } = useQuery({
     queryKey: ['categorias', 'DESPESA'],
     queryFn: () => buscarCategorias('DESPESA'),
+  })
+
+  const { data: centrosCusto = [] } = useQuery({
+    queryKey: ['centros-custo'],
+    queryFn: buscarCentrosCusto,
   })
 
   const mutation = useMutation({
@@ -59,6 +66,7 @@ export default function FormularioCompraCartao({ cartaoId, onClose, editing }: P
       descricao: form.descricao || undefined,
       data: form.data,
       totalParcelas: form.totalParcelas ? Number(form.totalParcelas) : undefined,
+      centroCustoId: form.centroCustoId ? Number(form.centroCustoId) : null,
     })
   }
 
@@ -97,6 +105,18 @@ export default function FormularioCompraCartao({ cartaoId, onClose, editing }: P
               {[...categorias].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
             </select>
           </div>
+
+          {centrosCusto.length > 0 && (
+            <div>
+              <label className="label">Centro de Custo</label>
+              <select className="select" value={form.centroCustoId} onChange={e => set('centroCustoId', e.target.value ? Number(e.target.value) : '')}>
+                <option value="">Sem centro de custo</option>
+                {[...centrosCusto].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(cc => (
+                  <option key={cc.id} value={cc.id}>{cc.nome}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <label className="label">Descrição</label>

@@ -12,6 +12,7 @@ import {
 import { buscarItensFatura, excluirItemFatura, cancelarItemFatura } from '../api/itensFatura'
 import { buscarFaturas } from '../api/faturas'
 import { buscarCategorias } from '../api/categorias'
+import { buscarCentrosCusto } from '../api/centrosCusto'
 import { buscarContas } from '../api/contas'
 import { buscarCartoes } from '../api/cartoes'
 import { useLojaFiltro } from '../store/lojaFiltro'
@@ -86,9 +87,11 @@ export default function Transacoes() {
   const [vencimentoAberto, setVencimentoAberto] = useState(!!dataVencimentoInicio)
 
   const [filtroCategoria, setFiltroCategoria] = useState<number | ''>('')
+  const [filtroCentroCusto, setFiltroCentroCusto] = useState<number | ''>('')
   const [filtroStatus, setFiltroStatus] = useState<StatusTransacao | ''>('')
   const [filtroCartao, setFiltroCartao] = useState<number | ''>('')
   const [modoCartao, setModoCartao] = useState(false)
+  const [exibirCartao, setExibirCartao] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<EdicaoLancamento | undefined>()
   const [deleteModal, setDeleteModal] = useState<{ tx: Transacao; impacto: RespostaImpacto | null; carregando: boolean; erro?: string } | null>(null)
@@ -98,7 +101,7 @@ export default function Transacoes() {
 
   // Paginação
   const [pagina, setPagina] = useState(1)
-  useEffect(() => { setPagina(1) }, [mes, contaId, filtroTipo, filtroCategoria, filtroCartao, modoCartao, filtroDataInicio, filtroDataFim, filtroStatus])
+  useEffect(() => { setPagina(1) }, [mes, contaId, filtroTipo, filtroCategoria, filtroCentroCusto, filtroCartao, modoCartao, exibirCartao, filtroDataInicio, filtroDataFim, filtroStatus])
 
   const abrirDeleteModal = async (tx: Transacao) => {
     setDeleteModal({ tx, impacto: null, carregando: true })
@@ -124,12 +127,13 @@ export default function Transacoes() {
   // cartão (compras em aberto + faturas fechadas) — nada de lançamentos de
   // débito da conta, mesmo que a conta de pagamento do cartão seja a mesma.
   const { data: transacoes = [], isLoading } = useQuery({
-    queryKey: ['transacoes', mes, contaId, filtroTipo, filtroCategoria, filtroDataInicio, filtroDataFim],
+    queryKey: ['transacoes', mes, contaId, filtroTipo, filtroCategoria, filtroCentroCusto, filtroDataInicio, filtroDataFim],
     queryFn: () => buscarTransacoes({
       month: mes,
       contaId,
       tipo: filtroTipo || undefined,
       categoriaId: filtroCategoria || undefined,
+      centroCustoId: filtroCentroCusto || undefined,
       dataVencimentoInicio: filtroDataInicio,
       dataVencimentoFim: filtroDataFim,
     }),
@@ -139,16 +143,15 @@ export default function Transacoes() {
   // Itens de fatura em aberto não têm vencimento nem "tipo" formal — sempre
   // são despesa. Não busca quando o filtro de tipo exclui despesas, nem
   // quando a navegação veio filtrada por vencimento (não se aplica a eles).
-  const buscaItensHabilitada = modoCartao || !!filtroCartao || filtroTipo === ''
+  const buscaItensHabilitada = (modoCartao || !!filtroCartao || filtroTipo === '') && (exibirCartao || modoCartao || !!filtroCartao)
   const { data: itensFaturaRaw = [] } = useQuery({
-    queryKey: ['itensFatura', 'lancamentos', mes, contaId, filtroCartao],
-    queryFn: () => buscarItensFatura({ month: mes, contaId, cartaoId: filtroCartao || undefined }),
+    queryKey: ['itensFatura', 'lancamentos', mes, contaId, filtroCartao, filtroCentroCusto],
+    queryFn: () => buscarItensFatura({ month: mes, contaId, cartaoId: filtroCartao || undefined, centroCustoId: filtroCentroCusto || undefined }),
     enabled: buscaItensHabilitada,
   })
   // Sem suporte a filtro de categoria no endpoint de itens em aberto — filtra no cliente.
-  const itensFatura = filtroCategoria
-    ? itensFaturaRaw.filter(i => i.categoriaId === filtroCategoria)
-    : itensFaturaRaw
+  const itensFatura = itensFaturaRaw
+    .filter(i => !filtroCategoria || i.categoriaId === filtroCategoria)
 
   // Faturas fechadas do cartão selecionado, no mesmo mês de competência dos
   // demais lançamentos da tela — sem isso, apareceriam faturas de qualquer
@@ -164,6 +167,7 @@ export default function Transacoes() {
   const faturasCartao = filtroCategoria ? [] : faturasCartaoRaw
 
   const { data: categorias = [] } = useQuery({ queryKey: ['categorias'], queryFn: () => buscarCategorias() })
+  const { data: centrosCusto = [] } = useQuery({ queryKey: ['centros-custo'], queryFn: buscarCentrosCusto })
   const { data: contas = [] } = useQuery({ queryKey: ['contas'], queryFn: buscarContas })
   const { data: cartoes = [] } = useQuery({ queryKey: ['cartoes'], queryFn: buscarCartoes })
 
@@ -227,7 +231,7 @@ export default function Transacoes() {
       ]
     : [
         ...transacoes.map(tx => ({ origem: 'TRANSACAO' as const, id: `tx-${tx.id}`, data: tx.data, tx })),
-        ...(filtroTipo === '' ? itensFatura.map(item => ({ origem: 'ITEM_FATURA' as const, id: `item-${item.id}`, data: item.data, item })) : []),
+        ...(filtroTipo === '' && exibirCartao ? itensFatura.map(item => ({ origem: 'ITEM_FATURA' as const, id: `item-${item.id}`, data: item.data, item })) : []),
       ]
 
   // Itens de fatura não têm status formal — somem quando um status específico é filtrado.
@@ -373,6 +377,19 @@ export default function Transacoes() {
               .map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
           </select>
 
+          {/* Select de centro de custo estilizado como chip */}
+          {centrosCusto.length > 0 && (
+            <select
+              className="text-xs px-3 py-1.5 rounded-full font-medium border border-borda bg-superficie text-conteudo-suave focus:border-acento focus:outline-none cursor-pointer"
+              value={filtroCentroCusto}
+              onChange={e => setFiltroCentroCusto(e.target.value ? Number(e.target.value) : '')}>
+              <option value="">Centro de Custo</option>
+              {[...centrosCusto].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(cc => (
+                <option key={cc.id} value={cc.id}>{cc.nome}</option>
+              ))}
+            </select>
+          )}
+
           {/* Select de cartão estilizado como chip */}
           <select
             className="text-xs px-3 py-1.5 rounded-full font-medium border border-borda bg-superficie text-conteudo-suave focus:border-acento focus:outline-none cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
@@ -395,6 +412,17 @@ export default function Transacoes() {
               <option key={status} value={status}>{rotulo}</option>
             ))}
           </select>
+
+          {/* Select cartão sim/não — controla se itens de fatura aparecem na lista mista */}
+          {!modoCartao && !filtroCartao && filtroTipo !== 'RECEITA' && filtroTipo !== 'TRANSFERENCIA' && (
+            <select
+              className={`text-xs px-3 py-1.5 rounded-full font-medium border focus:outline-none cursor-pointer ${exibirCartao ? 'border-borda bg-superficie text-conteudo-suave focus:border-acento' : 'border-acento bg-acento/10 text-acento'}`}
+              value={exibirCartao ? 'sim' : 'nao'}
+              onChange={e => setExibirCartao(e.target.value === 'sim')}>
+              <option value="sim">Cartão: Sim</option>
+              <option value="nao">Cartão: Não</option>
+            </select>
+          )}
 
           {/* Chip de vencimento — não se aplica a itens de cartão */}
           {!modoCartao && (
@@ -487,6 +515,7 @@ export default function Transacoes() {
                     <th className="px-4 py-3 text-left text-xs font-semibold text-conteudo-suave uppercase tracking-wide w-[110px]">Data</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-conteudo-suave uppercase tracking-wide">Descrição</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-conteudo-suave uppercase tracking-wide">Categoria</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-conteudo-suave uppercase tracking-wide">Centro de Custo</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-conteudo-suave uppercase tracking-wide">Conta</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-conteudo-suave uppercase tracking-wide">Status</th>
                     <th className="px-4 py-3 text-right text-xs font-semibold text-conteudo-suave uppercase tracking-wide">Valor</th>
@@ -505,6 +534,7 @@ export default function Transacoes() {
                           {lanc.fatura.cartao.contaPagamento.nome} · vence {format(parseISO(lanc.fatura.dataVencimento), 'dd/MM/yyyy')}
                         </div>
                       </td>
+                      <td className="px-4 py-3 text-xs text-conteudo-suave">—</td>
                       <td className="px-4 py-3 text-xs text-conteudo-suave">—</td>
                       <td className="px-4 py-3 text-sm text-conteudo-suave">{lanc.fatura.cartao.contaPagamento.nome}</td>
                       <td className="px-4 py-3"><BadgeStatus status={lanc.fatura.status} /></td>
@@ -565,6 +595,14 @@ export default function Transacoes() {
                           <div className="flex items-center gap-1.5">
                             <div className="w-2 h-2 rounded-full shrink-0" style={{ background: lanc.tx.categoria.cor }} />
                             <span className="text-xs text-conteudo whitespace-nowrap">{lanc.tx.categoria.nome}</span>
+                          </div>
+                        ) : <span className="text-xs text-conteudo-suave">—</span>}
+                      </td>
+                      <td className="px-4 py-3">
+                        {lanc.tx.centroCusto ? (
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-2 h-2 rounded-full shrink-0" style={{ background: lanc.tx.centroCusto.cor }} />
+                            <span className="text-xs text-conteudo whitespace-nowrap">{lanc.tx.centroCusto.nome}</span>
                           </div>
                         ) : <span className="text-xs text-conteudo-suave">—</span>}
                       </td>
@@ -643,6 +681,14 @@ export default function Transacoes() {
                           <div className="flex items-center gap-1.5">
                             <div className="w-2 h-2 rounded-full shrink-0" style={{ background: lanc.item.categoria.cor }} />
                             <span className="text-xs text-conteudo whitespace-nowrap">{lanc.item.categoria.nome}</span>
+                          </div>
+                        ) : <span className="text-xs text-conteudo-suave">—</span>}
+                      </td>
+                      <td className="px-4 py-3">
+                        {lanc.item.centroCusto ? (
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-2 h-2 rounded-full shrink-0" style={{ background: lanc.item.centroCusto.cor }} />
+                            <span className="text-xs text-conteudo whitespace-nowrap">{lanc.item.centroCusto.nome}</span>
                           </div>
                         ) : <span className="text-xs text-conteudo-suave">—</span>}
                       </td>

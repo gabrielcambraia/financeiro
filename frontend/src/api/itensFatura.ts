@@ -5,6 +5,7 @@ interface FiltrosItemFatura {
   cartaoId?: number
   contaId?: number
   month?: string
+  centroCustoId?: number
 }
 
 interface PayloadCriarItem {
@@ -15,6 +16,7 @@ interface PayloadCriarItem {
   data: string
   totalParcelas?: number
   fixa?: boolean
+  centroCustoId?: number | null
 }
 
 export const buscarItensFatura = (filtros: FiltrosItemFatura) =>

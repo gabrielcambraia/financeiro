@@ -3,7 +3,9 @@ package com.financeiro.service;
 import com.financeiro.context.ContextoEntidade;
 import com.financeiro.context.ContextoEspaco;
 import com.financeiro.dto.CategoriaDTO;
+import com.financeiro.dto.CentroCustoDTO;
 import com.financeiro.dto.PainelDTO;
+import com.financeiro.entity.CentroCusto;
 import com.financeiro.entity.Transacao;
 import com.financeiro.entity.enums.DirecaoTransferencia;
 import com.financeiro.entity.enums.TipoTransacao;
@@ -64,6 +66,7 @@ public class PainelService {
                 .pendente(buildResumoFluxo(pendentesTx))
                 .despesasPorCategoria(buildResumoCategoria(ativasTx, TipoTransacao.DESPESA, totalDespesas))
                 .receitasPorCategoria(buildResumoCategoria(ativasTx, TipoTransacao.RECEITA, totalReceitas))
+                .despesasPorCentroCusto(buildResumoCentroCusto(ativasTx, totalDespesas))
                 .tendenciaMensal(buildTendenciaMensal(espacoId, ym, contaId))
                 .saldosContas(buildSaldosContas(espacoId, contaId))
                 .saldoDiario(buildSaldoDiario(ativasTx, ym))
@@ -133,6 +136,31 @@ public class PainelService {
             return PainelDTO.ResumoCategoria.builder()
                     .categoria(catDTO).total(totalCategoria).percentual(pct).build();
         }).sorted(Comparator.comparing(PainelDTO.ResumoCategoria::getTotal).reversed()).toList();
+    }
+
+    private List<PainelDTO.ResumoCentroCusto> buildResumoCentroCusto(
+            List<Transacao> transacoes, BigDecimal totalDespesas) {
+
+        Map<Long, List<Transacao>> agrupado = transacoes.stream()
+                .filter(t -> t.getTipo() == TipoTransacao.DESPESA && t.getCentroCusto() != null)
+                .collect(Collectors.groupingBy(Transacao::getCentroCustoId));
+
+        return agrupado.entrySet().stream().map(entry -> {
+            CentroCusto cc = entry.getValue().get(0).getCentroCusto();
+            BigDecimal totalCC = entry.getValue().stream()
+                    .map(Transacao::getValor).reduce(BigDecimal.ZERO, BigDecimal::add);
+            double pct = totalDespesas.compareTo(BigDecimal.ZERO) == 0 ? 0
+                    : totalCC.divide(totalDespesas, 4, RoundingMode.HALF_UP).doubleValue() * 100;
+
+            CentroCustoDTO ccDTO = new CentroCustoDTO();
+            ccDTO.setId(cc.getId());
+            ccDTO.setNome(cc.getNome());
+            ccDTO.setCor(cc.getCor());
+            ccDTO.setEntidadeId(cc.getEntidadeId());
+
+            return PainelDTO.ResumoCentroCusto.builder()
+                    .centroCusto(ccDTO).total(totalCC).percentual(pct).build();
+        }).sorted(Comparator.comparing(PainelDTO.ResumoCentroCusto::getTotal).reversed()).toList();
     }
 
     private List<PainelDTO.TendenciaMensal> buildTendenciaMensal(Long espacoId, YearMonth atual, Long contaId) {
