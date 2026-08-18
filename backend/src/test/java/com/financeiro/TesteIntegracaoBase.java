@@ -22,7 +22,7 @@ import com.financeiro.repository.PlanoRepository;
 import com.financeiro.seguranca.LimitadorTaxa;
 import com.financeiro.service.ServicoConsultaExterna;
 import com.financeiro.service.ServicoIndiceEconomico;
-import com.financeiro.service.notificacao.EnviadorNotificacao;
+import com.financeiro.service.notificacao.EnviadorEmailResend;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -115,7 +115,7 @@ public abstract class TesteIntegracaoBase {
     protected ServicoIndiceEconomico servicoIndiceEconomico;
 
     @MockBean
-    protected EnviadorNotificacao enviadorEmailResend;
+    protected EnviadorEmailResend enviadorEmailResend;
 
     // ServicoConsultaExterna chama BrasilAPI externamente — mockado para evitar
     // chamadas reais de rede em qualquer teste da suíte.
