@@ -1,3 +1,7 @@
+# Console do Windows usa codepage legada por padrão (850/1252); o Java escreve
+# os logs em UTF-8, e sem isso os acentos saem como mojibake ("├º├úo").
+chcp 65001 > $null
+
 $envFile = Join-Path $PSScriptRoot ".env.local"
 
 if (-not (Test-Path $envFile)) {
