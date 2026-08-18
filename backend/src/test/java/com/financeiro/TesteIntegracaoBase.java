@@ -22,6 +22,7 @@ import com.financeiro.repository.PlanoRepository;
 import com.financeiro.seguranca.LimitadorTaxa;
 import com.financeiro.service.ServicoConsultaExterna;
 import com.financeiro.service.ServicoIndiceEconomico;
+import com.financeiro.service.notificacao.EnviadorEmailResend;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -34,7 +35,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -89,8 +89,6 @@ public abstract class TesteIntegracaoBase {
         registry.add("financeiro.cookie.seguro", () -> "false");
         registry.add("financeiro.cifragem.chave", () -> CHAVE_TESTE);
         registry.add("financeiro.cifragem.chave-hmac", () -> CHAVE_TESTE);
-        registry.add("spring.mail.host", () -> "localhost");
-        registry.add("management.health.mail.enabled", () -> "false");
     }
 
     @LocalServerPort
@@ -117,7 +115,7 @@ public abstract class TesteIntegracaoBase {
     protected ServicoIndiceEconomico servicoIndiceEconomico;
 
     @MockBean
-    protected JavaMailSender mailSender;
+    protected EnviadorEmailResend enviadorEmailResend;
 
     // ServicoConsultaExterna chama BrasilAPI externamente — mockado para evitar
     // chamadas reais de rede em qualquer teste da suíte.

@@ -4,6 +4,14 @@
 
 Antes de implementar qualquer sugestão, avaliar criticamente se ela faz sentido. Se houver problema — técnico, de segurança, de arquitetura, de consistência com o restante do projeto ou de UX — apontar diretamente e discutir antes de prosseguir. Não concordar por padrão; concordar só quando a proposta for de fato a melhor opção. Se houver alternativa melhor, propô-la com justificativa curta.
 
+Isso vale inclusive pra soluções minhas: se um fix já implementado funciona mas não é a melhor forma arquiteturalmente (ex.: resolve o sintoma introduzindo uma segunda convenção paralela pra fazer algo que já tinha um jeito estabelecido), dizer isso proativamente em vez de deixar como está só porque já compila e passa no teste manual. Caso de referência: `TratadorGlobalExcecoes` ganhou um `@ExceptionHandler(AuthenticationException.class)` pra corrigir login quebrado, funcionou, mas era redundante com o `ResponseStatusException` que já existia — a solução final foi alinhar `ServicoAutenticacao` à convenção existente e remover o handler novo (ver "Convenção de tratamento de erros" abaixo).
+
+## Convenção de tratamento de erros
+
+Serviços sinalizam erro HTTP lançando `ResponseStatusException(status, mensagem)` — é o único mecanismo usado no projeto pra isso (`ServicoTokenAtualizacao`, `ServicoAutenticacao.renovar()`, conflito de e-mail em `registrar()`), e `TratadorGlobalExcecoes` já tem um `@ExceptionHandler(ResponseStatusException.class)` que cobre todos os casos.
+
+**Não usar exceções do `org.springframework.security.*` (`BadCredentialsException`, etc.) em código de autenticação manual.** Esse projeto não usa `AuthenticationManager`/`AuthenticationProvider` do Spring Security — login é verificação de hash feita à mão em `ServicoAutenticacao`. Emprestar o nome de uma exceção do Security sem usar o mecanismo do Security que a trata (o `authenticationEntryPoint` da cadeia de filtros) faz a exceção vazar de forma inconsistente: às vezes cai no `@ExceptionHandler(Exception.class)` genérico (500 "Erro interno"), às vezes escapa pro `authenticationEntryPoint` do Spring Security e vira um 401 cru do Spring, sem nunca passar pela resposta customizada da API. Foi exatamente esse bug (login rejeitando credenciais corretas com mensagens sem sentido) que motivou documentar essa convenção.
+
 ## Convenção de idioma
 
 Todo código novo (métodos, variáveis, classes, DTOs, comentários, mensagens) deve ser escrito em português. Não usar nomes em inglês para identificadores novos, mesmo que o restante do ecossistema (Spring, React) use termos em inglês.

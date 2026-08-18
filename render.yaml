@@ -19,13 +19,7 @@ services:
         sync: false
       - key: FINANCEIRO_CHAVE_HMAC_DOC
         sync: false
-      - key: SPRING_MAIL_HOST
-        sync: false
-      - key: SPRING_MAIL_PORT
-        sync: false
-      - key: SPRING_MAIL_USERNAME
-        sync: false
-      - key: SPRING_MAIL_PASSWORD
+      - key: RESEND_API_KEY
         sync: false
       - key: FINANCEIRO_REMETENTE_EMAIL
         sync: false

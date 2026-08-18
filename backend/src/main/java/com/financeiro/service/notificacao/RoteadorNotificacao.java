@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class RoteadorNotificacao {
 
-    private final EnviadorEmailSmtp enviadorEmail;
+    private final EnviadorEmailResend enviadorEmail;
     private final EnviadorSmsStub enviadorSms;
 
     @Async

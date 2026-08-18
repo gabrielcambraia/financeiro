@@ -25,7 +25,6 @@ import com.financeiro.repository.UsuarioRepository;
 import com.financeiro.seguranca.ServicoJwt;
 import com.financeiro.seguranca.ServicoTokenAtualizacao;
 import com.financeiro.seguranca.TokenRenovado;
-import org.springframework.security.authentication.BadCredentialsException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -158,10 +157,10 @@ public class ServicoAutenticacao {
     @Transactional
     public ResultadoAutenticacao login(RequisicaoLogin requisicao, String userAgent) {
         Usuario usuario = usuarioRepository.findByEmail(requisicao.getEmail())
-                .orElseThrow(() -> new BadCredentialsException("Credenciais inválidas"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciais inválidas"));
 
         if (usuario.getSenhaHash() == null || !passwordEncoder.matches(requisicao.getSenha(), usuario.getSenhaHash())) {
-            throw new BadCredentialsException("Credenciais inválidas");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciais inválidas");
         }
 
         UsuarioEspaco vinculo = usuarioEspacoRepository.findByIdUsuarioId(usuario.getId()).stream()
@@ -184,7 +183,7 @@ public class ServicoAutenticacao {
                 .orElseThrow(() -> new IllegalStateException("Usuário autenticado não encontrado"));
 
         if (usuario.getSenhaHash() == null || !passwordEncoder.matches(requisicao.getSenhaAtual(), usuario.getSenhaHash())) {
-            throw new BadCredentialsException("Senha atual incorreta");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Senha atual incorreta");
         }
 
         usuario.setSenhaHash(passwordEncoder.encode(requisicao.getNovaSenha()));
