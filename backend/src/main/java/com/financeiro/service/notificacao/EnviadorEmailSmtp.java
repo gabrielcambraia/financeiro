@@ -29,7 +29,7 @@ public class EnviadorEmailSmtp implements EnviadorNotificacao {
             mailSender.send(msg);
             log.info("E-mail de verificação enviado para {} (proposito={})", destinatario, proposito);
         } catch (Exception e) {
-            log.error("Falha ao enviar e-mail para {} (proposito={}): {}", destinatario, proposito, e.getMessage());
+            log.error("Falha ao enviar e-mail para {} (proposito={})", destinatario, proposito, e);
         }
     }
 
