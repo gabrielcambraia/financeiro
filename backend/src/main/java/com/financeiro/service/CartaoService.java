@@ -58,7 +58,6 @@ public class CartaoService {
                 .icone(dto.getIcone())
                 .banco(resolverBanco(dto.getBancoId()))
                 .espacoId(espacoId)
-                .entidadeId(dto.getEntidadeId())
                 .build();
         return toDTO(repository.save(cartao));
     }
@@ -138,7 +137,6 @@ public class CartaoService {
         }
         dto.setFaturaAtualTotal(faturaAtualTotal);
         dto.setLimiteDisponivel(c.getLimite().subtract(comprometido));
-        dto.setEntidadeId(c.getEntidadeId());
         return dto;
     }
 }

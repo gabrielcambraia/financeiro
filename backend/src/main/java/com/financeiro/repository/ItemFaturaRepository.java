@@ -73,4 +73,8 @@ public interface ItemFaturaRepository extends JpaRepository<ItemFatura, Long> {
     @Query("UPDATE ItemFatura i SET i.serieAtiva = false WHERE i.espacoId = :espacoId AND i.origemFixaId = :origemFixaId AND i.data < :dataCorte")
     void encerrarTrilhoAntigo(@Param("espacoId") Long espacoId, @Param("origemFixaId") Long origemFixaId,
                                @Param("dataCorte") LocalDate dataCorte);
+
+    // --- recorrência ---
+
+    boolean existsByOrigemRecorrenciaIdAndDataBetween(Long origemRecorrenciaId, LocalDate inicio, LocalDate fim);
 }

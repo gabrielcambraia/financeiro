@@ -264,7 +264,7 @@ class ConversaoDebitoTest extends TesteIntegracaoBase {
                 "/api/itens-fatura", dtoFixo, u.token(),
                 new ParameterizedTypeReference<List<ItemFaturaDTO>>() {});
         assertThat(respostaCriacao.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        assertThat(respostaCriacao.getBody()).hasSize(12);
+        assertThat(respostaCriacao.getBody()).hasSize(1);
 
         Long cabecaId = respostaCriacao.getBody().get(0).getId();
         long totalItensAntes = itemFaturaRepository.findAll().stream()
@@ -283,7 +283,7 @@ class ConversaoDebitoTest extends TesteIntegracaoBase {
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(resposta.getBody()).hasSize(1);
 
-        // 11 itens restantes ainda devem existir
+        // 0 itens restantes (foi o único criado; UNICA remove apenas este)
         long totalItensDepois = itemFaturaRepository.findAll().stream()
                 .filter(i -> u.espacoId().equals(i.getEspacoId())).count();
         assertThat(totalItensDepois).isEqualTo(totalItensAntes - 1);
@@ -309,7 +309,7 @@ class ConversaoDebitoTest extends TesteIntegracaoBase {
                 "/api/itens-fatura", dtoFixo, u.token(),
                 new ParameterizedTypeReference<List<ItemFaturaDTO>>() {});
         assertThat(respostaCriacao.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        assertThat(respostaCriacao.getBody()).hasSize(12);
+        assertThat(respostaCriacao.getBody()).hasSize(1);
 
         Long cabecaId = respostaCriacao.getBody().get(0).getId();
 
@@ -324,7 +324,7 @@ class ConversaoDebitoTest extends TesteIntegracaoBase {
                 new ParameterizedTypeReference<List<TransacaoDTO>>() {});
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        assertThat(resposta.getBody().size()).isGreaterThanOrEqualTo(12);
+        assertThat(resposta.getBody().size()).isEqualTo(1);
 
         // todos os itens fixos do espaço devem ter sido excluídos
         long itensFixosRestantes = itemFaturaRepository.findAll().stream()

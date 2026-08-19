@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { X } from 'lucide-react'
+import { X, Repeat } from 'lucide-react'
 import { format } from 'date-fns'
 import { buscarContas } from '../../api/contas'
 import { buscarCategorias } from '../../api/categorias'
@@ -10,7 +11,6 @@ import { buscarCartoes } from '../../api/cartoes'
 import { criarTransacao, atualizarTransacao, converterTransacaoParaCartao, type EscopoAtualizacao } from '../../api/transacoes'
 import { criarItemFatura, atualizarItemFatura, converterItemParaDebito } from '../../api/itensFatura'
 import SobreposicaoModal from '../SobreposicaoModal'
-import CampoEntidade from './CampoEntidade'
 import type { Transacao, ItemFatura, TipoTransacao, TipoPagamento } from '../../types'
 
 // A tela de Lançamentos mescla dois tipos de registro (ver Transacoes.tsx):
@@ -35,6 +35,7 @@ interface Props {
 
 export default function FormularioTransacao({ onClose, editing }: Props) {
   const qc = useQueryClient()
+  const navigate = useNavigate()
   const editingTx = editing?.origem === 'TRANSACAO' ? editing.tx : undefined
   const editingItem = editing?.origem === 'ITEM_FATURA' ? editing.item : undefined
 
@@ -63,10 +64,8 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
     // Vazio = pendente. Ao criar, nasce preenchida se a data já chegou (mantém
     // o fluxo leve de hoje); o usuário pode desmarcar para deixar a pagar.
     dataPagamento: editingTx ? (editingTx.dataPagamento ?? '') : (dataInicial <= hoje ? dataInicial : ''),
-    fixa: editingTx?.fixa ?? false,
     debitoAutomatico: editingTx?.debitoAutomatico ?? false,
     totalParcelas: editingTx?.totalParcelas ?? editingItem?.totalParcelas ?? '',
-    entidadeId: (editingTx?.entidadeId ?? null) as number | null | undefined,
     centroCustoId: (editingTx?.centroCustoId ?? editingItem?.centroCustoId ?? '') as number | '',
   })
   const paga = form.dataPagamento !== ''
@@ -148,14 +147,14 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
       if (convertendoParaCredito) {
         await converterTransacaoParaCartao(editingTx!.id, {
           cartaoId: Number(form.cartaoId),
-          escopo: editingTx!.fixa ? escopoEdicao : 'UNICA',
+          escopo: editingTx!.grupoParcelaId ? escopoEdicao : 'UNICA',
         })
         return 'convertido'
       }
       if (convertendoParaDebito) {
         await converterItemParaDebito(editingItem!.id, {
           contaId: Number(form.contaId),
-          escopo: editingItem!.fixa ? escopoEdicao : 'UNICA',
+          escopo: editingItem!.grupoParcelaId ? escopoEdicao : 'UNICA',
           quitarNaCriacao: paga,
           dataPagamento: paga ? (form.dataPagamento || form.data) : undefined,
         })
@@ -169,7 +168,6 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
           descricao: form.descricao || undefined,
           data: form.data,
           totalParcelas: editingItem ? undefined : (form.totalParcelas ? Number(form.totalParcelas) : undefined),
-          fixa: editingItem ? undefined : form.fixa,
           centroCustoId: form.centroCustoId ? Number(form.centroCustoId) : null,
         }
         if (editingItem) { await atualizarItemFatura(editingItem.id, payload); return 'salvo' }
@@ -188,13 +186,12 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
         dataVencimento: form.dataVencimento || form.data,
         dataPagamento: paga ? (form.dataPagamento || form.data) : undefined,
         quitarNaCriacao: paga,
-        fixa: tipo === 'TRANSFERENCIA' ? false : form.fixa,
+        fixa: false,
         debitoAutomatico: tipo === 'DESPESA' ? form.debitoAutomatico : false,
         totalParcelas: tipo === 'TRANSFERENCIA' ? undefined : (form.totalParcelas ? Number(form.totalParcelas) : undefined),
-        entidadeId: form.entidadeId ?? null,
         centroCustoId: tipo !== 'TRANSFERENCIA' && form.centroCustoId ? Number(form.centroCustoId) : null,
       }
-      if (editingTx) { await atualizarTransacao(editingTx.id, payload, editingTx.fixa ? escopoEdicao : 'UNICA'); return 'salvo' }
+      if (editingTx) { await atualizarTransacao(editingTx.id, payload, editingTx.grupoParcelaId ? escopoEdicao : 'UNICA'); return 'salvo' }
       await criarTransacao(payload)
       return 'salvo'
     },
@@ -235,7 +232,18 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
         </div>
 
         <form onSubmit={handleSubmit} className="cartao-modal-corpo">
-          <CampoEntidade value={form.entidadeId} onChange={v => set('entidadeId', v)} />
+          {(editingTx?.origemRecorrenciaId || editingItem?.origemRecorrenciaId) && (
+            <div className="flex items-start gap-2 p-3 rounded-xl bg-acento/10 border border-acento/30">
+              <Repeat size={14} className="text-acento shrink-0 mt-0.5" />
+              <span className="text-sm text-conteudo flex-1">
+                Lançamento gerado por uma recorrência. Editar aqui altera <strong>apenas este mês</strong>.
+              </span>
+              <button type="button" onClick={() => { onClose(); navigate('/lancamentos/recorrencias') }}
+                className="text-xs text-acento hover:opacity-80 shrink-0 font-medium whitespace-nowrap">
+                Ir para recorrências →
+              </button>
+            </div>
+          )}
 
           {/* Tipo */}
           <div className="flex rounded-xl overflow-hidden border border-borda">
@@ -423,36 +431,19 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
           </div>
           )}
 
-          {/* Fixa / Parcelada — não se aplica a transferências nem à edição de
-              uma compra já no cartão (parcelamento só se decide na criação) */}
+          {/* Parcelada — não se aplica a transferências nem à edição de uma compra já no cartão */}
           {!editing && tipo !== 'TRANSFERENCIA' && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-superficie-2">
-                <input
-                  id="fixa" type="checkbox"
-                  checked={form.fixa}
-                  onChange={e => { set('fixa', e.target.checked); if (e.target.checked) set('totalParcelas', '') }}
-                  className="w-4 h-4 accent-acento"
-                />
-                <label htmlFor="fixa" className="text-sm text-conteudo">
-                  Repetir todo mês (fixa)
-                </label>
-              </div>
-
-              {!form.fixa && (
-                <div>
-                  <label className="label">Parcelar em quantas vezes? (deixe em branco = à vista)</label>
-                  <input
-                    className="input" type="number" min="2" max="60" placeholder="Ex: 3"
-                    value={form.totalParcelas}
-                    onChange={e => set('totalParcelas', e.target.value)}
-                  />
-                  {!!form.totalParcelas && Number(form.totalParcelas) > 1 && (
-                    <p className="text-xs text-conteudo-suave mt-1">
-                      O valor acima é o total da compra — cada parcela fica em {fmtParcela(form.valor, form.totalParcelas)}.
-                    </p>
-                  )}
-                </div>
+            <div>
+              <label className="label">Parcelar em quantas vezes? (deixe em branco = à vista)</label>
+              <input
+                className="input" type="number" min="2" max="60" placeholder="Ex: 3"
+                value={form.totalParcelas}
+                onChange={e => set('totalParcelas', e.target.value)}
+              />
+              {!!form.totalParcelas && Number(form.totalParcelas) > 1 && (
+                <p className="text-xs text-conteudo-suave mt-1">
+                  O valor acima é o total da compra — cada parcela fica em {fmtParcela(form.valor, form.totalParcelas)}.
+                </p>
               )}
             </div>
           )}
@@ -471,7 +462,7 @@ export default function FormularioTransacao({ onClose, editing }: Props) {
             </div>
           )}
 
-          {(editingTx?.fixa || (editingItem?.fixa && convertendoParaDebito)) && (
+          {(editingTx?.grupoParcelaId || (editingItem?.grupoParcelaId && convertendoParaDebito)) && (
             <div className="space-y-2 p-3 rounded-xl bg-superficie-2">
               <label className="text-sm font-medium text-conteudo">
                 {convertendoParaCredito || convertendoParaDebito ? 'Converter em:' : 'Aplicar alteração em:'}

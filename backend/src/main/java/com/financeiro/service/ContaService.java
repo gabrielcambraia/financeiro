@@ -22,6 +22,7 @@ public class ContaService {
     private final BancoService bancoService;
     private final ContextoEspaco contextoEspaco;
     private final ContextoEntidade contextoEntidade;
+    private final ServicoEntidade servicoEntidade;
 
     public List<ContaDTO> findAll() {
         Long espacoId = contextoEspaco.espacoAtual();
@@ -33,6 +34,7 @@ public class ContaService {
     }
 
     public ContaDTO create(ContaDTO dto) {
+        Long espacoId = contextoEspaco.espacoAtual();
         Conta conta = Conta.builder()
                 .nome(dto.getNome())
                 .tipo(dto.getTipo())
@@ -41,8 +43,8 @@ public class ContaService {
                 .cor(dto.getCor())
                 .icone(dto.getIcone())
                 .banco(resolverBanco(dto.getBancoId()))
-                .espacoId(contextoEspaco.espacoAtual())
-                .entidadeId(dto.getEntidadeId())
+                .espacoId(espacoId)
+                .entidadeId(servicoEntidade.resolverParaCadastro(dto.getEntidadeId(), espacoId))
                 .build();
         return toDTO(repository.save(conta));
     }

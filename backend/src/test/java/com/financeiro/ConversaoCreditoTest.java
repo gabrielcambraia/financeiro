@@ -345,8 +345,8 @@ class ConversaoCreditoTest extends TesteIntegracaoBase {
                 new ParameterizedTypeReference<List<ItemFaturaDTO>>() {});
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        // deve ter criado múltiplos itens (pelo menos 12)
-        assertThat(resposta.getBody().size()).isGreaterThanOrEqualTo(12);
+        // apenas 1 item criado — pré-criação de meses futuros removida (substituída por Recorrências)
+        assertThat(resposta.getBody().size()).isEqualTo(1);
 
         // todas as transações fixas do espaço devem ter sido excluídas
         long txFixasRestantes = transacaoRepository.findAll().stream()

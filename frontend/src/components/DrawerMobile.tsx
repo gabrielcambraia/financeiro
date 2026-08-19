@@ -36,7 +36,7 @@ export default function DrawerMobile({ aberto, fechar }: Props) {
           {itensSecundarios.map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}
-              to={to}
+              to={to!}
               end={to === '/'}
               onClick={fechar}
               className={({ isActive }) =>

@@ -9,7 +9,7 @@ export default function NavegacaoInferior() {
 
   const itensEsquerda = [
     { to: '/', icon: LayoutDashboard, label: 'Painel', end: true },
-    { to: '/transacoes', icon: ArrowLeftRight, label: 'Lançamentos', end: false },
+    { to: '/lancamentos/a-pagar', icon: ArrowLeftRight, label: 'Lançamentos', end: false },
   ]
   const itensDireita = [
     { to: '/cartoes', icon: CreditCard, label: 'Cartões', end: false },
@@ -38,7 +38,7 @@ export default function NavegacaoInferior() {
         ))}
 
         <button
-          onClick={() => navigate('/transacoes')}
+          onClick={() => navigate('/lancamentos/a-pagar')}
           className="flex-1 flex flex-col items-center justify-center"
           aria-label="Novo lançamento"
         >

@@ -151,6 +151,18 @@ public class ServicoEntidade {
                 assinatura.getVigenciaFim());
     }
 
+    /**
+     * Resolve o entidadeId para um cadastro raiz (Conta, Categoria, etc.).
+     * Se o payload já traz um id, usa direto. Se não traz e o espaço tem
+     * exatamente 1 entidade, atribui automaticamente. Caso contrário, nulo
+     * (cadastro "global", sem entidade específica).
+     */
+    public Long resolverParaCadastro(Long entidadeIdDoDto, Long espacoId) {
+        if (entidadeIdDoDto != null) return entidadeIdDoDto;
+        List<Entidade> lista = entidadeRepository.findByEspacoId(espacoId);
+        return lista.size() == 1 ? lista.get(0).getId() : null;
+    }
+
     private Entidade buscarPorIdEEspaco(Long id, Long espacoId) {
         Entidade e = entidadeRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Entidade não encontrada"));

@@ -1,13 +1,30 @@
 import { LayoutDashboard, ArrowLeftRight, Wallet, Tags, CreditCard, Landmark, PiggyBank, Target, Calendar, HandCoins, TrendingUp, LineChart, Building2, Users, Layers } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 
-export const itensPrincipais = [
+export interface ItemNavegacao {
+  to?: string
+  icon: LucideIcon
+  label: string
+  filhos?: { to: string; label: string }[]
+}
+
+export const itensPrincipais: ItemNavegacao[] = [
   { to: '/', icon: LayoutDashboard, label: 'Painel' },
-  { to: '/transacoes', icon: ArrowLeftRight, label: 'Lançamentos' },
+  {
+    icon: ArrowLeftRight,
+    label: 'Lançamentos',
+    filhos: [
+      { to: '/lancamentos/a-pagar', label: 'Pagamentos' },
+      { to: '/lancamentos/a-receber', label: 'Recebimentos' },
+      { to: '/lancamentos/recorrencias', label: 'Recorrências' },
+      { to: '/lancamentos/faturas', label: 'Faturas' },
+    ],
+  },
   { to: '/contas', icon: Wallet, label: 'Contas' },
   { to: '/cartoes', icon: CreditCard, label: 'Cartões' },
 ]
 
-export const itensSecundarios = [
+export const itensSecundarios: ItemNavegacao[] = [
   { to: '/calendario', icon: Calendar, label: 'Calendário' },
   { to: '/simulacao', icon: LineChart, label: 'Previsão' },
   { to: '/orcamentos', icon: PiggyBank, label: 'Orçamento' },
@@ -19,14 +36,12 @@ export const itensSecundarios = [
   { to: '/entidades', icon: Users, label: 'Entidades' },
 ]
 
-const itensAdmin = [
+const itensAdmin: ItemNavegacao[] = [
   { to: '/admin/bancos', icon: Landmark, label: 'Bancos' },
   { to: '/admin/espacos', icon: Building2, label: 'Espaços' },
 ]
 
-export const itensNavegacao = (admin: boolean) =>
+export const itensNavegacao = (admin: boolean): ItemNavegacao[] =>
   admin
     ? [...itensPrincipais, ...itensSecundarios, ...itensAdmin]
     : [...itensPrincipais, ...itensSecundarios]
-
-export const itensNavegacaoInferior = () => itensPrincipais

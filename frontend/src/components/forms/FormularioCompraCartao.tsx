@@ -1,6 +1,7 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { X } from 'lucide-react'
+import { X, Repeat } from 'lucide-react'
 import { format } from 'date-fns'
 import { buscarCategorias } from '../../api/categorias'
 import { buscarCentrosCusto } from '../../api/centrosCusto'
@@ -22,6 +23,7 @@ interface Props {
 
 export default function FormularioCompraCartao({ cartaoId, onClose, editing }: Props) {
   const qc = useQueryClient()
+  const navigate = useNavigate()
   const [form, setForm] = useState({
     categoriaId: editing?.categoriaId ?? '',
     valor: editing?.valor ?? '',
@@ -81,6 +83,18 @@ export default function FormularioCompraCartao({ cartaoId, onClose, editing }: P
         </div>
 
         <form onSubmit={handleSubmit} className="cartao-modal-corpo">
+          {editing?.origemRecorrenciaId && (
+            <div className="flex items-start gap-2 p-3 rounded-xl bg-acento/10 border border-acento/30">
+              <Repeat size={14} className="text-acento shrink-0 mt-0.5" />
+              <span className="text-sm text-conteudo flex-1">
+                Compra gerada por uma recorrência. Editar aqui altera <strong>apenas este mês</strong>.
+              </span>
+              <button type="button" onClick={() => { onClose(); navigate('/lancamentos/recorrencias') }}
+                className="text-xs text-acento hover:opacity-80 shrink-0 font-medium whitespace-nowrap">
+                Ir para recorrências →
+              </button>
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="label">Valor (R$)</label>

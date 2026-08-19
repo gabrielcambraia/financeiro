@@ -75,6 +75,11 @@ public class ItemFatura {
     @Column(name = "serie_ativa", nullable = false)
     private boolean serieAtiva = true;
 
+    // Aponta para a Recorrencia que gerou este item. Permanece preenchido
+    // mesmo quando o item é editado localmente.
+    @Column(name = "origem_recorrencia_id")
+    private Long origemRecorrenciaId;
+
     @Column(name = "espaco_id", nullable = false)
     private Long espacoId;
 

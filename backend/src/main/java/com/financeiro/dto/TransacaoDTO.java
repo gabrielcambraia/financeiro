@@ -54,8 +54,6 @@ public class TransacaoDTO {
 
     private Integer totalParcelas;
 
-    private Long entidadeId;
-
     private Long centroCustoId;
 
     // campos de resposta
@@ -76,4 +74,7 @@ public class TransacaoDTO {
     // "META", "ATIVO" ou "DIVIDA" quando a transação é derivada de um desses
     // fluxos e não pode ser editada; null para transações comuns.
     private String origemDerivada;
+
+    // ID da Recorrencia que gerou este lançamento; null se avulso.
+    private Long origemRecorrenciaId;
 }

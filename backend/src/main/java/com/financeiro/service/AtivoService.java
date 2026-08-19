@@ -95,7 +95,6 @@ public class AtivoService {
                 .taxa(dto.getTaxa())
                 .inicioRendimento(dto.getInicioRendimento())
                 .isentoIr(dto.isIsentoIr())
-                .entidadeId(dto.getEntidadeId())
                 .build();
         ativo = repository.save(ativo);
 
@@ -407,7 +406,6 @@ public class AtivoService {
             dto.setPercentualCarteira(a.getValorAtual().divide(totalCarteira, 4, RoundingMode.HALF_UP).doubleValue() * 100);
         }
         aplicarCamposDerivados(dto, movimentos);
-        dto.setEntidadeId(a.getEntidadeId());
         return dto;
     }
 

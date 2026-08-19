@@ -1,6 +1,8 @@
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, LogOut } from 'lucide-react'
-import { useState } from 'react'
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { createPortal } from 'react-dom'
+import { ChevronDown, ChevronLeft, ChevronRight, LogOut } from 'lucide-react'
+import { useState, useRef } from 'react'
+import type { LucideIcon } from 'lucide-react'
 import { useLojaAutenticacao } from '../store/lojaAutenticacao'
 import { sair } from '../api/autenticacao'
 import { iniciaisDoNome } from '../utils/formatadores'
@@ -8,7 +10,126 @@ import AlternadorTema from './AlternadorTema'
 import NavegacaoInferior from './NavegacaoInferior'
 import SeletorEntidade from './SeletorEntidade'
 import LogoNexo360 from './LogoNexo360'
-import { itensNavegacao } from '../config/navegacao'
+import { type ItemNavegacao, itensNavegacao } from '../config/navegacao'
+
+interface PropsGrupo {
+  item: { icon: LucideIcon; label: string; filhos: { to: string; label: string }[] }
+  recolhido: boolean
+}
+
+function GrupoNavegacao({ item, recolhido }: PropsGrupo) {
+  const location = useLocation()
+  const [aberto, setAberto] = useState(false)
+  const [popoverTop, setPopoverTop] = useState(0)
+  const [hovering, setHovering] = useState(false)
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const Icon = item.icon
+
+  const grupoAtivo = item.filhos.some(f => location.pathname.startsWith(f.to))
+
+  const iniciarHover = () => {
+    if (timerRef.current) clearTimeout(timerRef.current)
+    if (btnRef.current) setPopoverTop(btnRef.current.getBoundingClientRect().top)
+    setHovering(true)
+  }
+
+  const encerrarHover = () => {
+    timerRef.current = setTimeout(() => setHovering(false), 150)
+  }
+
+  if (recolhido) {
+    return (
+      <>
+        <button
+          ref={btnRef}
+          onMouseEnter={iniciarHover}
+          onMouseLeave={encerrarHover}
+          className={`relative w-full flex items-center justify-center px-3 py-2.5 rounded-xl transition-colors font-medium text-sm
+                      ${grupoAtivo ? 'bg-sb-ativo text-sb-texto' : 'text-sb-suave hover:text-sb-texto hover:bg-sb-hover'}`}
+        >
+          {grupoAtivo && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-full bg-sb-ativo-barra" />}
+          <Icon size={18} className="shrink-0" />
+        </button>
+        {hovering && createPortal(
+          <div
+            onMouseEnter={iniciarHover}
+            onMouseLeave={encerrarHover}
+            style={{ top: popoverTop, left: 64 }}
+            className="fixed z-50 bg-sb-fundo border border-sb-borda rounded-xl py-1.5 w-44 shadow-xl"
+          >
+            <p className="px-3 py-1 text-xs font-semibold text-sb-suave uppercase tracking-wider">{item.label}</p>
+            {item.filhos.map(f => (
+              <NavLink key={f.to} to={f.to}
+                className={({ isActive }) =>
+                  `block mx-1 px-3 py-2 rounded-lg text-sm transition-colors
+                   ${isActive ? 'text-sb-texto bg-sb-ativo' : 'text-sb-suave hover:text-sb-texto hover:bg-sb-hover'}`
+                }
+              >
+                {f.label}
+              </NavLink>
+            ))}
+          </div>,
+          document.body
+        )}
+      </>
+    )
+  }
+
+  return (
+    <div>
+      <button
+        onClick={() => setAberto(a => !a)}
+        className={`relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors font-medium text-sm
+                    ${grupoAtivo ? 'bg-sb-ativo text-sb-texto' : 'text-sb-suave hover:text-sb-texto hover:bg-sb-hover'}`}
+      >
+        {grupoAtivo && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-full bg-sb-ativo-barra" />}
+        <Icon size={18} className="shrink-0" />
+        <span className="flex-1 text-left">{item.label}</span>
+        <ChevronDown
+          size={14}
+          className={`transition-transform duration-200 shrink-0 ${(aberto || grupoAtivo) ? 'rotate-180' : ''}`}
+        />
+      </button>
+      {(aberto || grupoAtivo) && (
+        <div className="ml-7 mt-0.5 space-y-0.5">
+          {item.filhos.map(f => (
+            <NavLink key={f.to} to={f.to}
+              className={({ isActive }) =>
+                `block px-3 py-2 rounded-xl text-sm font-medium transition-colors
+                 ${isActive ? 'bg-sb-ativo text-sb-texto' : 'text-sb-suave hover:text-sb-texto hover:bg-sb-hover'}`
+              }
+            >
+              {f.label}
+            </NavLink>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ItemNavegacaoSimples({ item, recolhido }: { item: ItemNavegacao; recolhido: boolean }) {
+  const Icon = item.icon
+  return (
+    <NavLink
+      to={item.to!}
+      end={item.to === '/'}
+      className={({ isActive }) =>
+        `relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors font-medium text-sm
+         ${isActive ? 'bg-sb-ativo text-sb-texto' : 'text-sb-suave hover:text-sb-texto hover:bg-sb-hover'}`
+      }
+    >
+      {({ isActive }) => (
+        <>
+          {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-full bg-sb-ativo-barra" />}
+          <Icon size={18} className="shrink-0" />
+          {!recolhido && <span>{item.label}</span>}
+        </>
+      )}
+    </NavLink>
+  )
+}
 
 export default function Estrutura() {
   const [recolhido, setRecolhido] = useState(false)
@@ -24,6 +145,8 @@ export default function Estrutura() {
       navigate('/login')
     }
   }
+
+  const itens = itensNavegacao(sessao?.nivelAcesso === 'ADMIN')
 
   return (
     <div className="flex h-screen overflow-hidden bg-fundo">
@@ -66,29 +189,17 @@ export default function Estrutura() {
         <SeletorEntidade recolhido={recolhido} nasSidebar />
 
         <nav className="flex-1 min-h-0 overflow-y-auto px-2 py-1 space-y-0.5">
-          {itensNavegacao(sessao?.nivelAcesso === 'ADMIN').map(({ to, icon: Icon, label }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === '/'}
-              className={({ isActive }) =>
-                `relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors font-medium text-sm
-                 ${isActive
-                  ? 'bg-sb-ativo text-sb-texto'
-                  : 'text-sb-suave hover:text-sb-texto hover:bg-sb-hover'}`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  {isActive && (
-                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-full bg-sb-ativo-barra" />
-                  )}
-                  <Icon size={18} className="shrink-0" />
-                  {!recolhido && <span>{label}</span>}
-                </>
-              )}
-            </NavLink>
-          ))}
+          {itens.map(item =>
+            item.filhos ? (
+              <GrupoNavegacao
+                key={item.label}
+                item={{ icon: item.icon, label: item.label, filhos: item.filhos }}
+                recolhido={recolhido}
+              />
+            ) : (
+              <ItemNavegacaoSimples key={item.to} item={item} recolhido={recolhido} />
+            )
+          )}
         </nav>
 
         {/* Rodapé da sidebar: avatar + nome + sair */}

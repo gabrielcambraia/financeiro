@@ -32,6 +32,7 @@ public class OrcamentoService {
     private final TransacaoRepository transacaoRepository;
     private final ContextoEspaco contextoEspaco;
     private final ContextoEntidade contextoEntidade;
+    private final ServicoEntidade servicoEntidade;
 
     public List<OrcamentoDTO> findByMes(String mes) {
         Long espacoId = contextoEspaco.espacoAtual();
@@ -57,7 +58,7 @@ public class OrcamentoService {
                 .mes(dto.getMes())
                 .limite(dto.getLimite())
                 .espacoId(espacoId)
-                .entidadeId(dto.getEntidadeId())
+                .entidadeId(servicoEntidade.resolverParaCadastro(dto.getEntidadeId(), espacoId))
                 .build();
         return toDTO(repository.save(orcamento));
     }
