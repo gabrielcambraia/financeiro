@@ -328,13 +328,13 @@ export default function Transacoes() {
           </button>
           <button
             className={`${chipBase} ${!modoCartao && filtroTipo === 'RECEITA' ? chipAtivo : chipInativo}`}
-            onClick={() => { setFiltroTipo('RECEITA'); setFiltroCategoria(''); setModoCartao(false), setFiltroCartao('') }}>
+            onClick={() => { setFiltroTipo('RECEITA'); setFiltroCategoria(''); setModoCartao(false); setFiltroCartao('') }}>
             <TrendingUp size={11} />
             Receita
           </button>
           <button
             className={`${chipBase} ${!modoCartao && filtroTipo === 'DESPESA' ? chipAtivo : chipInativo}`}
-            onClick={() => { setFiltroTipo('DESPESA'); setFiltroCategoria(''); setModoCartao(false), setFiltroCartao('') }}>
+            onClick={() => { setFiltroTipo('DESPESA'); setFiltroCategoria(''); setModoCartao(false); setFiltroCartao('') }}>
             <TrendingDown size={11} />
             Despesa
           </button>

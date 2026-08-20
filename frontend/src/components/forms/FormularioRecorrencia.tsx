@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { X } from 'lucide-react'
 import { format } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 import { buscarContas } from '../../api/contas'
 import { buscarCategorias } from '../../api/categorias'
 import { buscarCentrosCusto } from '../../api/centrosCusto'
@@ -12,6 +13,11 @@ import SobreposicaoModal from '../SobreposicaoModal'
 import SeletorFormaPagamento from './SeletorFormaPagamento'
 import type { Recorrencia, TipoTransacao, TipoPagamento } from '../../types'
 
+// Nomes dos meses (pt-BR) para os dropdowns de início/fim — value "01".."12".
+const NOMES_MESES = Array.from({ length: 12 }, (_, i) => format(new Date(2000, i, 1), 'MMMM', { locale: ptBR }))
+const MES_PARA_NUM = (mes: string) => Number(mes.slice(5, 7))
+const ANO_PARA_NUM = (mes: string) => Number(mes.slice(0, 4))
+
 interface Props {
   onClose: () => void
   editing?: Recorrencia
@@ -20,6 +26,11 @@ interface Props {
 export default function FormularioRecorrencia({ onClose, editing }: Props) {
   const qc = useQueryClient()
   const hoje = format(new Date(), 'yyyy-MM-dd')
+  // Recorrência opera em granularidade de mês (o backend só olha
+  // YearMonth.from(dataInicio/dataFim) — ver RecorrenciaService) — os inputs
+  // abaixo são type="month" e guardam só "yyyy-MM"; o dia é fixado em "-01"
+  // só na hora de montar o payload.
+  const mesAtual = hoje.substring(0, 7)
 
   const [tipo, setTipo] = useState<TipoTransacao>(editing?.tipo ?? 'DESPESA')
   const [tipoPagamento, setTipoPagamento] = useState<TipoPagamento>(editing?.tipoPagamento ?? 'DEBITO')
@@ -33,10 +44,69 @@ export default function FormularioRecorrencia({ onClose, editing }: Props) {
     diaCompetencia: editing?.diaCompetencia ?? '',
     diaVencimento: (editing?.diaVencimento ?? '') as number | '',
     debitoAutomatico: editing?.debitoAutomatico ?? false,
-    dataInicio: editing?.dataInicio ?? hoje.substring(0, 7) + '-01',
-    dataFim: editing?.dataFim ?? '',
     ativa: editing?.ativa ?? true,
   })
+
+  // Início é obrigatório: sempre um mês+ano válido, nunca em branco. Ao editar
+  // uma recorrência que já começou no passado, o mês de início continua
+  // selecionável mesmo abaixo do mês atual — só recorrências NOVAS são
+  // obrigadas a começar no mês atual ou depois.
+  const inicioPadrao = editing?.dataInicio ? editing.dataInicio.substring(0, 7) : mesAtual
+  const [inicioMinimo] = useState(() => (inicioPadrao < mesAtual ? inicioPadrao : mesAtual))
+  const [inicioAno, setInicioAno] = useState(String(ANO_PARA_NUM(inicioPadrao)))
+  const [inicioMes, setInicioMes] = useState(String(MES_PARA_NUM(inicioPadrao)).padStart(2, '0'))
+
+  // Fim é opcional: os dois dropdowns começam em branco juntos, ou os dois
+  // preenchidos juntos — nunca um só (validado em handleSubmit).
+  const fimPadrao = editing?.dataFim ? editing.dataFim.substring(0, 7) : ''
+  const [fimAno, setFimAno] = useState(fimPadrao ? String(ANO_PARA_NUM(fimPadrao)) : '')
+  const [fimMes, setFimMes] = useState(fimPadrao ? String(MES_PARA_NUM(fimPadrao)).padStart(2, '0') : '')
+
+  const anoMinimoInicio = ANO_PARA_NUM(inicioMinimo)
+  const mesMinimoInicio = MES_PARA_NUM(inicioMinimo)
+  // Máximo de 5 anos à frente do mínimo permitido.
+  const opcoesAnoInicio = Array.from({ length: 6 }, (_, i) => String(anoMinimoInicio + i))
+  const opcoesMesInicio = NOMES_MESES
+    .map((nome, i) => ({ value: String(i + 1).padStart(2, '0'), label: nome }))
+    .filter(m => Number(inicioAno) > anoMinimoInicio || Number(m.value) >= mesMinimoInicio)
+
+  const anoMinimoFim = Number(inicioAno)
+  const mesMinimoFim = Number(inicioMes)
+  const opcoesAnoFim = Array.from({ length: 6 }, (_, i) => String(anoMinimoFim + i))
+  const opcoesMesFim = NOMES_MESES
+    .map((nome, i) => ({ value: String(i + 1).padStart(2, '0'), label: nome }))
+    .filter(m => fimAno === '' || Number(fimAno) > anoMinimoFim || Number(m.value) >= mesMinimoFim)
+
+  // Se o fim ficar anterior ao novo início, limpa os dois — evita persistir
+  // uma seleção inconsistente feita antes de o usuário mudar o início.
+  const limparFimSeAnteriorA = (novoInicioAno: string, novoInicioMes: string) => {
+    if (fimAno && fimMes && `${fimAno}-${fimMes}` < `${novoInicioAno}-${novoInicioMes}`) {
+      setFimAno('')
+      setFimMes('')
+    }
+  }
+
+  const handleInicioAnoChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const novoAno = e.target.value
+    const novoMes = Number(novoAno) === anoMinimoInicio && Number(inicioMes) < mesMinimoInicio
+      ? String(mesMinimoInicio).padStart(2, '0')
+      : inicioMes
+    setInicioAno(novoAno)
+    setInicioMes(novoMes)
+    limparFimSeAnteriorA(novoAno, novoMes)
+  }
+  const handleInicioMesChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setInicioMes(e.target.value)
+    limparFimSeAnteriorA(inicioAno, e.target.value)
+  }
+  const handleFimAnoChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const novoAno = e.target.value
+    setFimAno(novoAno)
+    if (novoAno !== '' && Number(novoAno) === anoMinimoFim && fimMes !== '' && Number(fimMes) < mesMinimoFim) {
+      setFimMes(String(mesMinimoFim).padStart(2, '0'))
+    }
+  }
+  const handleFimMesChange = (e: React.ChangeEvent<HTMLSelectElement>) => setFimMes(e.target.value)
 
   const credito = tipo === 'DESPESA' && tipoPagamento === 'CREDITO'
   const debitoAutomaticoHabilitado = tipo === 'DESPESA' && tipoPagamento === 'DEBITO'
@@ -60,13 +130,20 @@ export default function FormularioRecorrencia({ onClose, editing }: Props) {
     entidadeRef == null || cc.entidadeId == null || cc.entidadeId === entidadeRef
   )
 
-  useEffect(() => {
-    if (entidadeRef == null) return
-    const cat = categorias.find(c => c.id === Number(form.categoriaId))
-    if (cat?.entidadeId != null && cat.entidadeId !== entidadeRef) set('categoriaId', '')
-    const cc = centrosCusto.find(c => c.id === Number(form.centroCustoId))
-    if (cc?.entidadeId != null && cc.entidadeId !== entidadeRef) set('centroCustoId', '')
-  }, [form.contaId, form.cartaoId, credito])
+  // Limpa categoria/centro de custo ao trocar de entidade (conta ou cartão) se
+  // a seleção atual pertencer a outra entidade — ajuste feito durante a
+  // renderização (não em useEffect) seguindo o padrão do React para "resetar
+  // estado quando algo muda": https://react.dev/learn/you-might-not-need-an-effect
+  const [entidadeRefAnterior, setEntidadeRefAnterior] = useState(entidadeRef)
+  if (entidadeRef !== entidadeRefAnterior) {
+    setEntidadeRefAnterior(entidadeRef)
+    if (entidadeRef != null) {
+      const cat = categorias.find(c => c.id === Number(form.categoriaId))
+      if (cat?.entidadeId != null && cat.entidadeId !== entidadeRef) set('categoriaId', '')
+      const cc = centrosCusto.find(c => c.id === Number(form.centroCustoId))
+      if (cc?.entidadeId != null && cc.entidadeId !== entidadeRef) set('centroCustoId', '')
+    }
+  }
 
   const mutation = useMutation({
     mutationFn: (payload: Parameters<typeof criarRecorrencia>[0]) =>
@@ -88,6 +165,10 @@ export default function FormularioRecorrencia({ onClose, editing }: Props) {
       toast.error('Dia de competência deve ser entre 1 e 31')
       return
     }
+    if ((fimAno === '') !== (fimMes === '')) {
+      toast.error('Preencha mês e ano de fim juntos, ou deixe os dois em branco')
+      return
+    }
     mutation.mutate({
       tipo,
       tipoPagamento,
@@ -101,8 +182,8 @@ export default function FormularioRecorrencia({ onClose, editing }: Props) {
       diaVencimento: vencimentoHabilitado && form.diaVencimento ? Number(form.diaVencimento) : null,
       debitoAutomatico: debitoAutomaticoHabilitado ? form.debitoAutomatico : false,
       ativa: form.ativa,
-      dataInicio: form.dataInicio,
-      dataFim: form.dataFim || null,
+      dataInicio: `${inicioAno}-${inicioMes}-01`,
+      dataFim: fimAno && fimMes ? `${fimAno}-${fimMes}-01` : null,
     })
   }
 
@@ -236,14 +317,32 @@ export default function FormularioRecorrencia({ onClose, editing }: Props) {
           {/* Período */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">Data de início</label>
-              <input className="input" type="date"
-                value={form.dataInicio} onChange={e => set('dataInicio', e.target.value)} required />
+              <label className="label">Início</label>
+              <div className="flex gap-2">
+                <select className="select capitalize flex-1" value={inicioMes} onChange={handleInicioMesChange} required>
+                  {opcoesMesInicio.map(m => (
+                    <option key={m.value} value={m.value} className="capitalize">{m.label}</option>
+                  ))}
+                </select>
+                <select className="select w-24" value={inicioAno} onChange={handleInicioAnoChange} required>
+                  {opcoesAnoInicio.map(a => <option key={a} value={a}>{a}</option>)}
+                </select>
+              </div>
             </div>
             <div>
-              <label className="label">Data de fim (opcional)</label>
-              <input className="input" type="date" min={form.dataInicio}
-                value={form.dataFim} onChange={e => set('dataFim', e.target.value)} />
+              <label className="label">Fim (opcional)</label>
+              <div className="flex gap-2">
+                <select className="select capitalize flex-1" value={fimMes} onChange={handleFimMesChange}>
+                  <option value="">—</option>
+                  {opcoesMesFim.map(m => (
+                    <option key={m.value} value={m.value} className="capitalize">{m.label}</option>
+                  ))}
+                </select>
+                <select className="select w-24" value={fimAno} onChange={handleFimAnoChange}>
+                  <option value="">—</option>
+                  {opcoesAnoFim.map(a => <option key={a} value={a}>{a}</option>)}
+                </select>
+              </div>
             </div>
           </div>
 

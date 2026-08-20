@@ -1,8 +1,12 @@
 package com.financeiro;
 
 import com.financeiro.dto.CartaoDTO;
+import com.financeiro.dto.ContaDTO;
 import com.financeiro.dto.FaturaDTO;
 import com.financeiro.dto.ItemFaturaDTO;
+import com.financeiro.dto.RespostaAutenticacao;
+import com.financeiro.entity.enums.TipoConta;
+import com.financeiro.entity.enums.TipoPessoa;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.ParameterizedTypeReference;
@@ -14,6 +18,7 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -275,6 +280,107 @@ class CartaoFaturaTest extends TesteIntegracaoBase {
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
+    @Test
+    void itensFatura_defaultOmiteFaturados_incluirFaturadosTrazAmbos() {
+        String token = registrar();
+        Long contaId = criarConta(token, BigDecimal.valueOf(1000));
+        int diaFechamentoHoje = LocalDate.now().getDayOfMonth();
+        Long cartaoId = criarCartao(token, contaId, diaFechamentoHoje, 5, BigDecimal.valueOf(500));
+
+        Long itemFaturadoId = criarItem(token, cartaoId, BigDecimal.valueOf(100), LocalDate.now()).get(0).getId();
+        agendadorFatura.onDailyCheck();
+        // Criado depois do fechamento de hoje: POST sempre nasce em aberto,
+        // mesmo que a data caia num ciclo já fechado (ver ItemFaturaService.create).
+        Long itemAbertoId = criarItem(token, cartaoId, BigDecimal.valueOf(30), LocalDate.now()).get(0).getId();
+
+        String mes = YearMonth.now().toString();
+        assertThat(listarItensFatura(token, cartaoId, mes, null))
+                .extracting(ItemFaturaDTO::getId).containsExactly(itemAbertoId);
+        assertThat(listarItensFatura(token, cartaoId, mes, false))
+                .extracting(ItemFaturaDTO::getId).containsExactly(itemAbertoId);
+        assertThat(listarItensFatura(token, cartaoId, mes, true))
+                .extracting(ItemFaturaDTO::getId).containsExactlyInAnyOrder(itemFaturadoId, itemAbertoId);
+    }
+
+    @Test
+    void faturaDataFechamento_itemFaturado_igualAoFechamentoDaFatura() {
+        String token = registrar();
+        Long contaId = criarConta(token, BigDecimal.valueOf(1000));
+        int diaFechamentoHoje = LocalDate.now().getDayOfMonth();
+        Long cartaoId = criarCartao(token, contaId, diaFechamentoHoje, 5, BigDecimal.valueOf(500));
+
+        Long itemId = criarItem(token, cartaoId, BigDecimal.valueOf(100), LocalDate.now()).get(0).getId();
+        agendadorFatura.onDailyCheck();
+
+        FaturaDTO fatura = listarFaturas(token, cartaoId).get(0);
+        ItemFaturaDTO item = listarItensFatura(token, cartaoId, YearMonth.now().toString(), true).stream()
+                .filter(i -> i.getId().equals(itemId)).findFirst().orElseThrow();
+
+        assertThat(item.getFaturaDataFechamento()).isEqualTo(fatura.getDataFechamento());
+    }
+
+    @Test
+    void faturaDataFechamento_itemAberto_ehProjecaoDoProximoFechamento() {
+        String token = registrar();
+        Long contaId = criarConta(token, BigDecimal.valueOf(1000));
+        LocalDate hoje = LocalDate.now();
+        org.junit.jupiter.api.Assumptions.assumeTrue(hoje.getDayOfMonth() < hoje.lengthOfMonth() - 3,
+                "precisa de folga no mês pra representar o cenário");
+        int diaFechamento = hoje.getDayOfMonth() + 1;
+        Long cartaoId = criarCartao(token, contaId, diaFechamento, Math.min(diaFechamento + 3, 28), BigDecimal.valueOf(5000));
+
+        // Ainda dentro do ciclo que fecha amanhã.
+        Long itemCicloAtualId = criarItem(token, cartaoId, BigDecimal.valueOf(50), hoje).get(0).getId();
+        // Depois do fechamento de amanhã: projeta pro fechamento do mês seguinte.
+        Long itemCicloSeguinteId = criarItem(token, cartaoId, BigDecimal.valueOf(30), hoje.plusDays(3)).get(0).getId();
+
+        YearMonth mesAtual = YearMonth.now();
+        LocalDate fechamentoAtual = mesAtual.atDay(Math.min(diaFechamento, mesAtual.lengthOfMonth()));
+        YearMonth mesSeguinte = mesAtual.plusMonths(1);
+        LocalDate fechamentoSeguinte = mesSeguinte.atDay(Math.min(diaFechamento, mesSeguinte.lengthOfMonth()));
+
+        List<ItemFaturaDTO> itens = listarItensFatura(token, cartaoId, mesAtual.toString(), true);
+        ItemFaturaDTO itemCicloAtual = itens.stream().filter(i -> i.getId().equals(itemCicloAtualId)).findFirst().orElseThrow();
+        ItemFaturaDTO itemCicloSeguinte = itens.stream().filter(i -> i.getId().equals(itemCicloSeguinteId)).findFirst().orElseThrow();
+
+        assertThat(itemCicloAtual.getFaturaDataFechamento()).isEqualTo(fechamentoAtual);
+        assertThat(itemCicloSeguinte.getFaturaDataFechamento()).isEqualTo(fechamentoSeguinte);
+    }
+
+    @Test
+    void itensFatura_filtraPorEntidade_globalApareceEmTodosOsFiltros() {
+        RespostaAutenticacao auth = registrarCompleto("Teste Entidade Cartão", "cartao-entidade" + UUID.randomUUID() + "@teste.com");
+        String token = auth.getToken();
+        ativarPlanoEmpresa(auth.getEspacoId());
+
+        ResponseEntity<List<Map>> entidades = get("/api/entidades", token, new ParameterizedTypeReference<List<Map>>() {});
+        Long entidadePfId = ((Number) entidades.getBody().get(0).get("id")).longValue();
+        Long entidadePjId = criarEntidade(token, "PJ Cartão Teste", TipoPessoa.JURIDICA);
+
+        Long contaPfId = criarContaComEntidade(token, entidadePfId);
+        Long contaPjId = criarContaComEntidade(token, entidadePjId);
+        Long contaGlobalId = criarContaComEntidade(token, null);
+
+        Long cartaoPfId = criarCartao(token, contaPfId, 10, 20);
+        Long cartaoPjId = criarCartao(token, contaPjId, 10, 20);
+        Long cartaoGlobalId = criarCartao(token, contaGlobalId, 10, 20);
+
+        Long itemPfId = criarItem(token, cartaoPfId, BigDecimal.valueOf(10), LocalDate.now()).get(0).getId();
+        Long itemPjId = criarItem(token, cartaoPjId, BigDecimal.valueOf(10), LocalDate.now()).get(0).getId();
+        Long itemGlobalId = criarItem(token, cartaoGlobalId, BigDecimal.valueOf(10), LocalDate.now()).get(0).getId();
+
+        assertThat(extrairIds(listarItensFaturaComEntidade(token, null)))
+                .contains(itemPfId, itemPjId, itemGlobalId);
+
+        List<Long> filtroPf = extrairIds(listarItensFaturaComEntidade(token, entidadePfId));
+        assertThat(filtroPf).contains(itemPfId, itemGlobalId);
+        assertThat(filtroPf).doesNotContain(itemPjId);
+
+        List<Long> filtroPj = extrairIds(listarItensFaturaComEntidade(token, entidadePjId));
+        assertThat(filtroPj).contains(itemPjId, itemGlobalId);
+        assertThat(filtroPj).doesNotContain(itemPfId);
+    }
+
     // ---------- helpers ----------
 
     private CartaoDTO cartao(Long contaPagamentoId, int diaFechamento, int diaVencimento) {
@@ -336,6 +442,43 @@ class CartaoFaturaTest extends TesteIntegracaoBase {
                 });
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         return resposta.getBody();
+    }
+
+    // incluirFaturados nulo = parâmetro omitido da URL, pra testar o default do controller.
+    private List<ItemFaturaDTO> listarItensFatura(String token, Long cartaoId, String month, Boolean incluirFaturados) {
+        StringBuilder caminho = new StringBuilder("/api/itens-fatura?cartaoId=" + cartaoId);
+        if (month != null) caminho.append("&month=").append(month);
+        if (incluirFaturados != null) caminho.append("&incluirFaturados=").append(incluirFaturados);
+        ResponseEntity<List<ItemFaturaDTO>> resposta = get(caminho.toString(), token,
+                new ParameterizedTypeReference<List<ItemFaturaDTO>>() {
+                });
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        return resposta.getBody();
+    }
+
+    private List<ItemFaturaDTO> listarItensFaturaComEntidade(String token, Long entidadeId) {
+        ResponseEntity<List<ItemFaturaDTO>> resposta = entidadeId != null
+                ? get("/api/itens-fatura", token, entidadeId, new ParameterizedTypeReference<List<ItemFaturaDTO>>() {})
+                : get("/api/itens-fatura", token, new ParameterizedTypeReference<List<ItemFaturaDTO>>() {});
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        return resposta.getBody();
+    }
+
+    private Long criarContaComEntidade(String token, Long entidadeId) {
+        ContaDTO dto = new ContaDTO();
+        dto.setNome("Conta Teste");
+        dto.setTipo(TipoConta.CORRENTE);
+        dto.setSaldoInicial(BigDecimal.valueOf(1000));
+        dto.setCor("#6366f1");
+        dto.setIcone("wallet");
+        dto.setEntidadeId(entidadeId);
+        ResponseEntity<ContaDTO> resposta = post("/api/contas", dto, token, ContaDTO.class);
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        return resposta.getBody().getId();
+    }
+
+    private List<Long> extrairIds(List<ItemFaturaDTO> itens) {
+        return itens.stream().map(ItemFaturaDTO::getId).toList();
     }
 
 }

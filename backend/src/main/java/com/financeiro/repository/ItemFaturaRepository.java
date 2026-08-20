@@ -34,24 +34,28 @@ public interface ItemFaturaRepository extends JpaRepository<ItemFatura, Long> {
     List<ItemFatura> findByCartaoIdAndFaturaIdIsNullAndDataCancelamentoIsNullAndDataLessThanEqual(
             Long cartaoId, LocalDate dataFechamento);
 
-    // Usado pela tela de Lançamentos: compras em aberto (ainda não faturadas)
-    // dentro do mês de competência, filtráveis por conta de pagamento do
-    // cartão e/ou pelo próprio cartão. Inclui canceladas (ficam visíveis no
-    // histórico, mesmo padrão de Transacao) — quem some da lista são só as
-    // já faturadas, pois quem as representa a partir daí é a despesa
-    // consolidada da fatura.
+    // Usado pela tela de Lançamentos: compras dentro do mês de competência,
+    // filtráveis por conta de pagamento do cartão e/ou pelo próprio cartão e
+    // pela entidade (mesmo padrão de FaturaRepository). Inclui canceladas
+    // (ficam visíveis no histórico, mesmo padrão de Transacao). Por padrão só
+    // traz as ainda não faturadas — quem as representa a partir do fechamento
+    // é a despesa consolidada da fatura — mas incluirFaturados=true permite
+    // trazer também as já fechadas (ex.: tela "Compras no Cartão").
     @Query("""
         SELECT i FROM ItemFatura i
         WHERE i.espacoId = :espacoId
-          AND i.fatura IS NULL
+          AND (:incluirFaturados = true OR i.fatura IS NULL)
           AND i.data BETWEEN :inicio AND :fim
           AND (:contaId IS NULL OR i.cartao.contaPagamento.id = :contaId)
           AND (:cartaoId IS NULL OR i.cartao.id = :cartaoId)
+          AND (:entidadeId IS NULL OR i.cartao.contaPagamento.entidadeId = :entidadeId
+            OR i.cartao.contaPagamento.entidadeId IS NULL)
         ORDER BY i.data DESC
         """)
-    List<ItemFatura> buscarAbertosPorFiltro(@Param("espacoId") Long espacoId, @Param("inicio") LocalDate inicio,
-                                             @Param("fim") LocalDate fim, @Param("contaId") Long contaId,
-                                             @Param("cartaoId") Long cartaoId);
+    List<ItemFatura> buscarPorFiltro(@Param("espacoId") Long espacoId, @Param("inicio") LocalDate inicio,
+                                      @Param("fim") LocalDate fim, @Param("contaId") Long contaId,
+                                      @Param("cartaoId") Long cartaoId, @Param("incluirFaturados") boolean incluirFaturados,
+                                      @Param("entidadeId") Long entidadeId);
 
     // --- série de fixas (itens de fatura) ---
 

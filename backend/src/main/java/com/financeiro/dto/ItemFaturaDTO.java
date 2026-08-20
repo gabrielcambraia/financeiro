@@ -58,4 +58,9 @@ public class ItemFaturaDTO {
     // Status derivado da fatura fechada, quando existir — usado pelo frontend
     // para saber se a conversão para débito está bloqueada (PAGA/CANCELADA).
     private String faturaStatus;
+
+    // Data de fechamento do ciclo a que este item pertence — da fatura já
+    // fechada, ou (se ainda em aberto) a projeção de quando vai fechar.
+    // Sempre preenchido; usado pelo frontend para indicar "fatura de mês/ano".
+    private LocalDate faturaDataFechamento;
 }
