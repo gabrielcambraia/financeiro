@@ -97,7 +97,7 @@ export default function Recebimentos() {
     }
   }
 
-  const ordenados = [...transacoes].sort((a, b) => b.data.localeCompare(a.data))
+  const ordenados = transacoes
   const totalPaginas = Math.max(1, Math.ceil(ordenados.length / ITENS_POR_PAGINA))
   const paginados = ordenados.slice((pagina - 1) * ITENS_POR_PAGINA, pagina * ITENS_POR_PAGINA)
 

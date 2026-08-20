@@ -4,7 +4,6 @@ import com.financeiro.context.ContextoEntidade;
 import com.financeiro.context.ContextoEspaco;
 import com.financeiro.context.ContextoUsuario;
 import com.financeiro.dto.CategoriaDTO;
-import com.financeiro.dto.CentroCustoDTO;
 import com.financeiro.dto.ContaDTO;
 import com.financeiro.dto.RespostaImpacto;
 import com.financeiro.dto.TransacaoDTO;
@@ -277,7 +276,7 @@ public class TransacaoService {
         existente.setDataVencimento(dto.getDataVencimento() != null ? dto.getDataVencimento() : dto.getData());
         existente.setDataPagamento(novaPaga ? dto.getDataPagamento() : null);
         existente.setFixa(dto.isFixa());
-        existente.setDebitoAutomatico(dto.getTipo() == TipoTransacao.DESPESA && dto.getTipoPagamento() == TipoPagamento.DEBITO && dto.isDebitoAutomatico());
+        existente.setDebitoAutomatico(resolverDebitoAutomatico(dto));
         existente.setSaldoAjustado(novaPaga);
         existente.setCentroCustoId(dto.getCentroCustoId());
         repository.save(existente);
@@ -497,6 +496,12 @@ public class TransacaoService {
         return toDTO(repository.findByIdAndEspacoId(id, espacoId).orElseThrow());
     }
 
+    private boolean resolverDebitoAutomatico(TransacaoDTO dto) {
+        return dto.getTipo() == TipoTransacao.DESPESA
+                && dto.getTipoPagamento() == TipoPagamento.DEBITO
+                && dto.isDebitoAutomatico();
+    }
+
     private void validarTipoPagamento(TipoTransacao tipo, TipoPagamento tipoPagamento) {
         if (tipo == TipoTransacao.RECEITA && tipoPagamento == TipoPagamento.CREDITO) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Receita não pode ser em crédito");
@@ -698,7 +703,7 @@ public class TransacaoService {
                 .data(dto.getData())
                 .dataVencimento(dto.getDataVencimento() != null ? dto.getDataVencimento() : dto.getData())
                 .fixa(dto.isFixa())
-                .debitoAutomatico(dto.getTipo() == TipoTransacao.DESPESA && dto.getTipoPagamento() == TipoPagamento.DEBITO && dto.isDebitoAutomatico())
+                .debitoAutomatico(resolverDebitoAutomatico(dto))
                 .espacoId(espacoId)
                 .usuarioId(usuarioId)
                 .centroCustoId(dto.getCentroCustoId())
@@ -782,13 +787,6 @@ public class TransacaoService {
         }
 
         dto.setCentroCustoId(t.getCentroCustoId());
-        if (t.getCentroCusto() != null) {
-            CentroCustoDTO ccDTO = new CentroCustoDTO();
-            ccDTO.setId(t.getCentroCusto().getId());
-            ccDTO.setNome(t.getCentroCusto().getNome());
-            ccDTO.setCor(t.getCentroCusto().getCor());
-            dto.setCentroCusto(ccDTO);
-        }
         dto.setOrigemRecorrenciaId(t.getOrigemRecorrenciaId());
         return dto;
     }

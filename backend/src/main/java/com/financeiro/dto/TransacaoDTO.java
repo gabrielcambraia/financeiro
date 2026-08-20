@@ -59,7 +59,6 @@ public class TransacaoDTO {
     // campos de resposta
     private ContaDTO conta;
     private CategoriaDTO categoria;
-    private CentroCustoDTO centroCusto;
     private Integer numeroParcela;
     private String grupoParcelaId;
     private Long usuarioId;
