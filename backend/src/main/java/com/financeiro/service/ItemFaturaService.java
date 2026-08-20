@@ -1,5 +1,6 @@
 package com.financeiro.service;
 
+import com.financeiro.context.ContextoEntidade;
 import com.financeiro.context.ContextoEspaco;
 import com.financeiro.context.ContextoUsuario;
 import com.financeiro.dto.CategoriaDTO;
@@ -36,6 +37,7 @@ public class ItemFaturaService {
     private final ResolvedorFaturaAlvo resolvedorFaturaAlvo;
     private final ContextoEspaco contextoEspaco;
     private final ContextoUsuario contextoUsuario;
+    private final ContextoEntidade contextoEntidade;
 
     // Usado pela tela do cartão: itens em aberto (ainda não faturados) do
     // CICLO DE FECHAMENTO que cai no mês informado — não o mês corrido da
@@ -59,18 +61,18 @@ public class ItemFaturaService {
                 .stream().map(this::toDTO).toList();
     }
 
-    // Usado pela tela de Lançamentos: itens de fatura ainda em aberto,
-    // filtráveis por conta de pagamento do cartão (cartaoId continua
-    // aceito para reaproveitar a mesma tela em contextos específicos de
-    // um cartão). Sem cartaoId nem contaId, traz de todos os cartões do espaço.
-    public List<ItemFaturaDTO> buscarAbertosPorFiltro(String month, Long contaId, Long cartaoId) {
-        return buscarAbertosPorFiltro(month, contaId, cartaoId, null);
-    }
-
-    public List<ItemFaturaDTO> buscarAbertosPorFiltro(String month, Long contaId, Long cartaoId, Long centroCustoId) {
+    // Usado pela tela de Lançamentos: itens de fatura filtráveis por conta de
+    // pagamento do cartão (cartaoId continua aceito para reaproveitar a mesma
+    // tela em contextos específicos de um cartão). Sem cartaoId nem contaId,
+    // traz de todos os cartões do espaço. incluirFaturados=true traz também
+    // os itens já fechados em fatura (ex.: tela "Compras no Cartão").
+    public List<ItemFaturaDTO> buscarPorFiltro(String month, Long contaId, Long cartaoId, Long centroCustoId,
+                                                boolean incluirFaturados) {
         Long espacoId = contextoEspaco.espacoAtual();
+        Long entidadeId = contextoEntidade.entidadeAtual();
         YearMonth ym = month != null ? YearMonth.parse(month) : YearMonth.now();
-        return repository.buscarAbertosPorFiltro(espacoId, ym.atDay(1), ym.atEndOfMonth(), contaId, cartaoId)
+        return repository.buscarPorFiltro(espacoId, ym.atDay(1), ym.atEndOfMonth(), contaId, cartaoId,
+                        incluirFaturados, entidadeId)
                 .stream()
                 .filter(i -> centroCustoId == null || centroCustoId.equals(i.getCentroCustoId()))
                 .map(this::toDTO).toList();
@@ -186,6 +188,13 @@ public class ItemFaturaService {
         dto.setCancelado(i.getDataCancelamento() != null);
         dto.setFaturaId(i.getFatura() != null ? i.getFatura().getId() : null);
         dto.setFaturado(i.getFatura() != null);
+        // Sempre preenchido — se ainda não faturado, é o fechamento futuro que
+        // vai levar o item, calculado do mesmo jeito que o AgendadorFatura vai
+        // fechar (ver CalculadoraFechamentoCartao). Usado pelo frontend para
+        // indicar "a qual fatura (mês) esta compra pertence" mesmo em aberto.
+        dto.setFaturaDataFechamento(i.getFatura() != null
+                ? i.getFatura().getDataFechamento()
+                : proximoFechamento(i));
         dto.setFixa(i.isFixa());
         dto.setOrigemFixaId(i.getOrigemFixaId());
         dto.setOrigemRecorrenciaId(i.getOrigemRecorrenciaId());
@@ -223,5 +232,18 @@ public class ItemFaturaService {
         }
 
         return dto;
+    }
+
+    // Fechamento do ciclo que este item (ainda em aberto) vai integrar: o
+    // primeiro fechamento >= a data do item — mesma regra usada pelo
+    // AgendadorFatura para decidir se um item entra na fatura de hoje ou some
+    // para o próximo ciclo.
+    private LocalDate proximoFechamento(ItemFatura item) {
+        Cartao cartao = item.getCartao();
+        YearMonth mesCompra = YearMonth.from(item.getData());
+        LocalDate fechamentoMes = CalculadoraFechamentoCartao.fechamentoDoMes(cartao, mesCompra);
+        return !item.getData().isAfter(fechamentoMes)
+                ? fechamentoMes
+                : CalculadoraFechamentoCartao.fechamentoDoMes(cartao, mesCompra.plusMonths(1));
     }
 }

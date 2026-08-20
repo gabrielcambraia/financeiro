@@ -1,4 +1,4 @@
-import { LayoutDashboard, ArrowLeftRight, Wallet, Tags, CreditCard, Landmark, PiggyBank, Target, Calendar, HandCoins, TrendingUp, LineChart, Building2, Users, Layers, ArrowDownCircle, ArrowUpCircle, Repeat2, Receipt, BarChart3, Database } from 'lucide-react'
+import { LayoutDashboard, ArrowLeftRight, Wallet, Tags, CreditCard, Landmark, PiggyBank, Target, Calendar, HandCoins, TrendingUp, LineChart, Building2, Users, Layers, ArrowDownCircle, ArrowUpCircle, Repeat2, Receipt, BarChart3, Database, List } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 export interface ItemNavegacao {
@@ -14,9 +14,11 @@ const itensBase: ItemNavegacao[] = [
     icon: ArrowLeftRight,
     label: 'Lançamentos',
     filhos: [
+      { to: '/lancamentos/transacoes',    label: 'Transações',   icon: List },
       { to: '/lancamentos/a-pagar',       label: 'Pagamentos',   icon: ArrowDownCircle },
       { to: '/lancamentos/a-receber',     label: 'Recebimentos', icon: ArrowUpCircle },
       { to: '/lancamentos/recorrencias',  label: 'Recorrências', icon: Repeat2 },
+      { to: '/lancamentos/compras-cartao', label: 'Compras no cartão', icon: CreditCard },
       { to: '/lancamentos/faturas',       label: 'Faturas',      icon: Receipt },
     ],
   },
@@ -38,6 +40,7 @@ const itensBase: ItemNavegacao[] = [
     label: 'Cadastros',
     filhos: [
       { to: '/contas',        label: 'Contas',           icon: Wallet },
+      { to: '/cartoes',       label: 'Cartões',          icon: CreditCard },
       { to: '/centros-custo', label: 'Centros de Custo', icon: Layers },
       { to: '/categorias',    label: 'Categorias',       icon: Tags },
       { to: '/entidades',     label: 'Entidades',        icon: Users },

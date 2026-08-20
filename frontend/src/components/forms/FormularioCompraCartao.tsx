@@ -5,6 +5,7 @@ import { X, Repeat } from 'lucide-react'
 import { format } from 'date-fns'
 import { buscarCategorias } from '../../api/categorias'
 import { buscarCentrosCusto } from '../../api/centrosCusto'
+import { buscarCartoes } from '../../api/cartoes'
 import { criarItemFatura, atualizarItemFatura } from '../../api/itensFatura'
 import SobreposicaoModal from '../SobreposicaoModal'
 import type { ItemFatura } from '../../types'
@@ -16,7 +17,9 @@ const fmtParcela = (valor: string | number, totalParcelas: string | number) => {
 }
 
 interface Props {
-  cartaoId: number
+  // Ausente quando o formulário é aberto de uma tela sem cartão fixo (ex.:
+  // "Compras no Cartão") — nesse caso o próprio formulário exibe o seletor.
+  cartaoId?: number
   entidadeId?: number | null
   onClose: () => void
   editing?: ItemFatura
@@ -26,6 +29,7 @@ export default function FormularioCompraCartao({ cartaoId, entidadeId, onClose, 
   const qc = useQueryClient()
   const navigate = useNavigate()
   const [form, setForm] = useState({
+    cartaoId: editing?.cartaoId ?? cartaoId ?? '',
     categoriaId: editing?.categoriaId ?? '',
     valor: editing?.valor ?? '',
     descricao: editing?.descricao ?? '',
@@ -33,6 +37,16 @@ export default function FormularioCompraCartao({ cartaoId, entidadeId, onClose, 
     totalParcelas: editing?.totalParcelas ?? '',
     centroCustoId: (editing?.centroCustoId ?? '') as number | '',
   })
+
+  const precisaEscolherCartao = !editing && cartaoId == null
+
+  // Sempre carregada (não só quando precisaEscolherCartao) para resolver a
+  // entidade do cartão ao editar um item aberto pela tela sem cartão fixo
+  // ("Compras no Cartão"), onde `entidadeId` não vem pronto via prop.
+  const { data: cartoes = [] } = useQuery({ queryKey: ['cartoes'], queryFn: buscarCartoes })
+
+  const cartaoSelecionado = cartoes.find(c => c.id === Number(form.cartaoId))
+  const entidadeAtual = entidadeId ?? cartaoSelecionado?.contaPagamento?.entidadeId
 
   const { data: categorias = [] } = useQuery({
     queryKey: ['categorias', 'DESPESA'],
@@ -45,10 +59,10 @@ export default function FormularioCompraCartao({ cartaoId, entidadeId, onClose, 
   })
 
   const categoriasFiltradas = categorias.filter(c =>
-    entidadeId == null || c.entidadeId == null || c.entidadeId === entidadeId
+    entidadeAtual == null || c.entidadeId == null || c.entidadeId === entidadeAtual
   )
   const centrosCustoFiltrados = centrosCusto.filter(cc =>
-    entidadeId == null || cc.entidadeId == null || cc.entidadeId === entidadeId
+    entidadeAtual == null || cc.entidadeId == null || cc.entidadeId === entidadeAtual
   )
 
   const mutation = useMutation({
@@ -70,7 +84,7 @@ export default function FormularioCompraCartao({ cartaoId, entidadeId, onClose, 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     mutation.mutate({
-      cartaoId,
+      cartaoId: Number(form.cartaoId),
       categoriaId: form.categoriaId ? Number(form.categoriaId) : undefined,
       valor: Number(form.valor),
       descricao: form.descricao || undefined,
@@ -101,6 +115,17 @@ export default function FormularioCompraCartao({ cartaoId, entidadeId, onClose, 
                 className="text-xs text-acento hover:opacity-80 shrink-0 font-medium whitespace-nowrap">
                 Ir para recorrências →
               </button>
+            </div>
+          )}
+          {precisaEscolherCartao && (
+            <div>
+              <label className="label">Cartão</label>
+              <select className="select" value={form.cartaoId} onChange={e => set('cartaoId', e.target.value)} required>
+                <option value="">Selecione um cartão</option>
+                {[...cartoes].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(c => (
+                  <option key={c.id} value={c.id}>{c.nome}</option>
+                ))}
+              </select>
             </div>
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

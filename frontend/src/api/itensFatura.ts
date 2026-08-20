@@ -6,6 +6,7 @@ interface FiltrosItemFatura {
   contaId?: number
   month?: string
   centroCustoId?: number
+  incluirFaturados?: boolean
 }
 
 interface PayloadCriarItem {

@@ -9,9 +9,11 @@ import FaviconPlataforma from './components/FaviconPlataforma'
 import RotaAdmin from './components/RotaAdmin'
 
 const Painel = lazy(() => import('./pages/Painel'))
+const Transacoes = lazy(() => import('./pages/Transacoes'))
 const Pagamentos = lazy(() => import('./pages/Lancamentos/Pagamentos'))
 const Recebimentos = lazy(() => import('./pages/Lancamentos/Recebimentos'))
 const Recorrencias = lazy(() => import('./pages/Lancamentos/Recorrencias'))
+const ComprasCartao = lazy(() => import('./pages/Lancamentos/ComprasCartao'))
 const FaturasLancamentos = lazy(() => import('./pages/Lancamentos/Faturas'))
 const Contas = lazy(() => import('./pages/Contas'))
 const Cartoes = lazy(() => import('./pages/Cartoes'))
@@ -55,9 +57,11 @@ export default function App() {
             <Route element={<RotaProtegida />}>
               <Route path="/" element={<Estrutura />}>
                 <Route index element={<Painel />} />
+                <Route path="lancamentos/transacoes" element={<Transacoes />} />
                 <Route path="lancamentos/a-pagar" element={<Pagamentos />} />
                 <Route path="lancamentos/a-receber" element={<Recebimentos />} />
                 <Route path="lancamentos/recorrencias" element={<Recorrencias />} />
+                <Route path="lancamentos/compras-cartao" element={<ComprasCartao />} />
                 <Route path="lancamentos/faturas" element={<FaturasLancamentos />} />
                 <Route path="contas" element={<Contas />} />
                 <Route path="cartoes" element={<Cartoes />} />
