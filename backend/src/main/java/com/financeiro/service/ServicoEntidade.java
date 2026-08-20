@@ -158,7 +158,10 @@ public class ServicoEntidade {
      * (cadastro "global", sem entidade específica).
      */
     public Long resolverParaCadastro(Long entidadeIdDoDto, Long espacoId) {
-        if (entidadeIdDoDto != null) return entidadeIdDoDto;
+        if (entidadeIdDoDto != null) {
+            buscarPorIdEEspaco(entidadeIdDoDto, espacoId);
+            return entidadeIdDoDto;
+        }
         List<Entidade> lista = entidadeRepository.findByEspacoId(espacoId);
         return lista.size() == 1 ? lista.get(0).getId() : null;
     }

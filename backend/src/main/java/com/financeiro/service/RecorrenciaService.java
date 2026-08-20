@@ -7,6 +7,10 @@ import com.financeiro.dto.RecorrenciaDTO;
 import com.financeiro.entity.Recorrencia;
 import com.financeiro.entity.enums.TipoPagamento;
 import com.financeiro.erro.ExcecaoRecursoNaoEncontrado;
+import com.financeiro.repository.CartaoRepository;
+import com.financeiro.repository.CategoriaRepository;
+import com.financeiro.repository.CentroCustoRepository;
+import com.financeiro.repository.ContaRepository;
 import com.financeiro.repository.RecorrenciaRepository;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +33,10 @@ public class RecorrenciaService {
     private final ContextoUsuario contextoUsuario;
     private final ContextoEntidade contextoEntidade;
     private final EntityManager entityManager;
+    private final ContaRepository contaRepository;
+    private final CartaoRepository cartaoRepository;
+    private final CategoriaRepository categoriaRepository;
+    private final CentroCustoRepository centroCustoRepository;
 
     public List<RecorrenciaDTO> listar() {
         Long espacoId = contextoEspaco.espacoAtual();
@@ -46,6 +54,7 @@ public class RecorrenciaService {
         Long espacoId = contextoEspaco.espacoAtual();
         Long usuarioId = contextoUsuario.usuarioAtual();
         validar(dto);
+        validarPosseDosVinculos(dto, espacoId);
 
         Recorrencia r = Recorrencia.builder()
                 .espacoId(espacoId)
@@ -83,6 +92,7 @@ public class RecorrenciaService {
     public RecorrenciaDTO atualizar(Long id, RecorrenciaDTO dto) {
         Recorrencia r = carregar(id);
         validar(dto);
+        validarPosseDosVinculos(dto, r.getEspacoId());
 
         r.setTipo(dto.getTipo());
         r.setTipoPagamento(dto.getTipoPagamento());
@@ -97,8 +107,15 @@ public class RecorrenciaService {
         r.setDebitoAutomatico(dto.isDebitoAutomatico());
         r.setDataInicio(dto.getDataInicio());
         r.setDataFim(dto.getDataFim());
+        r = repository.save(r);
 
-        return toDTO(repository.save(r));
+        // Edição não retroage sobre o lançamento já gerado no mês corrente
+        // (origemRecorrenciaId) — vale a partir da próxima geração. flush()
+        // antes do refresh() é necessário: refresh() não força o UPDATE pendente
+        // primeiro, então sem o flush ele recarregaria os valores antigos do banco.
+        entityManager.flush();
+        entityManager.refresh(r);
+        return toDTO(r);
     }
 
     @Transactional
@@ -133,6 +150,27 @@ public class RecorrenciaService {
         }
         if (dto.getTipoPagamento() == TipoPagamento.CREDITO && dto.getCartaoId() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cartão é obrigatório para recorrência em crédito");
+        }
+    }
+
+    // Impede vincular a recorrência a conta/cartão/categoria/centro de custo de outro espaço
+    // (os ids vêm do cliente e, sem essa checagem, um usuário poderia referenciar recursos alheios).
+    private void validarPosseDosVinculos(RecorrenciaDTO dto, Long espacoId) {
+        if (dto.getContaId() != null) {
+            contaRepository.findByIdAndEspacoId(dto.getContaId(), espacoId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Conta não encontrada"));
+        }
+        if (dto.getCartaoId() != null) {
+            cartaoRepository.findByIdAndEspacoId(dto.getCartaoId(), espacoId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cartão não encontrado"));
+        }
+        if (dto.getCategoriaId() != null) {
+            categoriaRepository.findByIdAndEspacoId(dto.getCategoriaId(), espacoId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Categoria não encontrada"));
+        }
+        if (dto.getCentroCustoId() != null) {
+            centroCustoRepository.findByIdAndEspacoId(dto.getCentroCustoId(), espacoId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Centro de custo não encontrado"));
         }
     }
 

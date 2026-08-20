@@ -190,7 +190,7 @@ export default function Recebimentos() {
       ) : transacoes.length === 0 ? (
         <div className="card text-center py-12 text-conteudo-suave">
           <p>Nenhuma receita encontrada neste período.</p>
-          <button onClick={() => setShowForm(true)} className="mt-3 text-acento hover:opacity-80 text-sm">
+          <button onClick={() => { setEditing(undefined); setShowForm(true) }} className="mt-3 text-acento hover:opacity-80 text-sm">
             + Adicionar lançamento
           </button>
         </div>
@@ -334,6 +334,7 @@ export default function Recebimentos() {
 
       {showForm && (
         <FormularioTransacao
+          tipo="RECEITA"
           onClose={() => { setShowForm(false); setEditing(undefined) }}
           editing={editing}
         />

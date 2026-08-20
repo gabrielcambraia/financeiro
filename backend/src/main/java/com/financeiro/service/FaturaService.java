@@ -56,18 +56,10 @@ public class FaturaService {
         List<Fatura> faturas;
         if (month != null) {
             YearMonth ym = YearMonth.parse(month);
-            faturas = repository.findByEspacoIdAndDataFechamentoBetweenOrderByDataFechamentoDesc(
-                    espacoId, ym.atDay(1), ym.atEndOfMonth());
+            faturas = repository.findByEspacoIdAndDataFechamentoBetweenFiltradoPorEntidade(
+                    espacoId, ym.atDay(1), ym.atEndOfMonth(), entidadeId);
         } else {
-            faturas = repository.findByEspacoIdOrderByDataFechamentoDesc(espacoId);
-        }
-        if (entidadeId != null) {
-            faturas = faturas.stream()
-                    .filter(f -> {
-                        Long contaEntidade = f.getCartao().getContaPagamento().getEntidadeId();
-                        return contaEntidade == null || contaEntidade.equals(entidadeId);
-                    })
-                    .toList();
+            faturas = repository.findByEspacoIdFiltradoPorEntidade(espacoId, entidadeId);
         }
         return faturas.stream().map(f -> toDTO(f, false)).toList();
     }

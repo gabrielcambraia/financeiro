@@ -9,6 +9,7 @@ import { buscarCentrosCusto } from '../../api/centrosCusto'
 import { buscarCartoes } from '../../api/cartoes'
 import { criarRecorrencia, atualizarRecorrencia } from '../../api/recorrencias'
 import SobreposicaoModal from '../SobreposicaoModal'
+import SeletorFormaPagamento from './SeletorFormaPagamento'
 import type { Recorrencia, TipoTransacao, TipoPagamento } from '../../types'
 
 interface Props {
@@ -88,6 +89,12 @@ export default function FormularioRecorrencia({ onClose, editing }: Props) {
 
   const categoriasDoTipo = categorias.filter(c => c.tipo === tipo)
 
+  const trocarTipo = (t: TipoTransacao) => {
+    setTipo(t)
+    if (t === 'RECEITA') setTipoPagamento('DEBITO')
+    set('categoriaId', '')
+  }
+
   return (
     <SobreposicaoModal aoFechar={onClose}>
       <div className="cartao-modal max-w-lg">
@@ -101,30 +108,28 @@ export default function FormularioRecorrencia({ onClose, editing }: Props) {
         </div>
 
         <form onSubmit={handleSubmit} className="cartao-modal-corpo">
-          {/* Tipo */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">Tipo</label>
-              <select className="input w-full" value={tipo}
-                onChange={e => {
-                  const t = e.target.value as TipoTransacao
-                  setTipo(t)
-                  if (t === 'RECEITA') setTipoPagamento('DEBITO')
-                }}>
-                <option value="DESPESA">Despesa</option>
-                <option value="RECEITA">Receita</option>
-              </select>
-            </div>
-            <div>
-              <label className="label">Forma de pagamento</label>
-              <select className="input w-full" value={tipoPagamento}
-                onChange={e => setTipoPagamento(e.target.value as TipoPagamento)}
-                disabled={tipo === 'RECEITA'}>
-                <option value="DEBITO">Débito (conta)</option>
-                {tipo === 'DESPESA' && <option value="CREDITO">Crédito (cartão)</option>}
-              </select>
-            </div>
+          {/* Tipo — mesmo toggle segmentado do popup de lançamento, sem a
+              opção Transferência (recorrência não suporta). */}
+          <div className="flex rounded-xl overflow-hidden border border-borda">
+            {(['DESPESA', 'RECEITA'] as TipoTransacao[]).map(t => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => trocarTipo(t)}
+                className={`flex-1 py-2.5 text-sm font-medium transition-colors
+                  ${tipo === t
+                    ? t === 'DESPESA' ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white'
+                    : 'text-conteudo-suave hover:text-conteudo'}`}
+              >
+                {t === 'DESPESA' ? 'Despesa' : 'Receita'}
+              </button>
+            ))}
           </div>
+
+          {/* Forma de pagamento — só se aplica a despesa. */}
+          {tipo === 'DESPESA' && (
+            <SeletorFormaPagamento valor={tipoPagamento} aoTrocar={setTipoPagamento} />
+          )}
 
           {/* Conta ou Cartão */}
           {credito ? (

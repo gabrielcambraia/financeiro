@@ -4,7 +4,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, AreaChart, Area, Legend
 } from 'recharts'
-import { TrendingUp, TrendingDown, Wallet, ArrowLeftRight, ArrowUp, ArrowDown, Minus, CheckCircle2 } from 'lucide-react'
+import { TrendingUp, TrendingDown, Wallet, ArrowLeftRight, ArrowUp, ArrowDown, Minus, Plus, CheckCircle2 } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Link } from 'react-router-dom'
@@ -12,6 +12,7 @@ import { buscarPainel } from '../api/painel'
 import { useLojaFiltro } from '../store/lojaFiltro'
 import Spinner from '../components/Spinner'
 import SeletorMes from '../components/SeletorMes'
+import FormularioTransacao from '../components/forms/FormularioTransacao'
 import { buscarContas } from '../api/contas'
 import { useLojaTema } from '../store/lojaTema'
 import { useLojaAutenticacao } from '../store/lojaAutenticacao'
@@ -56,6 +57,7 @@ export default function Painel() {
   const cores = coresGrafico(tema)
   const sessao = useLojaAutenticacao(s => s.sessao)
   const [abaVencimento, setAbaVencimento] = useState<'todos' | 'avencer' | 'vencidas'>('todos')
+  const [novoLancamento, setNovoLancamento] = useState<'DESPESA' | 'RECEITA' | null>(null)
 
   const { data: contas = [] } = useQuery({ queryKey: ['contas'], queryFn: buscarContas })
   const { data, isLoading } = useQuery({
@@ -124,15 +126,31 @@ export default function Painel() {
           <p className="text-sm text-conteudo-suave mt-0.5">Bem-vindo(a) de volta ao seu app de gestão financeira.</p>
         </div>
         <div className="flex flex-col gap-3 md:flex-row md:items-center">
-          <select
-            className="select w-full md:w-44"
-            value={contaId ?? ''}
-            onChange={e => definirContaId(e.target.value ? Number(e.target.value) : undefined)}
-          >
-            <option value="">Todas as contas</option>
-            {contas.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-          </select>
-          <SeletorMes />
+          <div className="flex items-center gap-3">
+            <select
+              className="select w-full md:w-44"
+              value={contaId ?? ''}
+              onChange={e => definirContaId(e.target.value ? Number(e.target.value) : undefined)}
+            >
+              <option value="">Todas as contas</option>
+              {contas.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+            </select>
+            <SeletorMes />
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setNovoLancamento('DESPESA')}
+              className="flex-1 md:flex-none text-xs font-medium py-2 px-3 rounded-lg bg-red-600 text-white hover:opacity-90 transition-opacity flex items-center justify-center gap-1"
+            >
+              <Minus size={14} /> Nova despesa
+            </button>
+            <button
+              onClick={() => setNovoLancamento('RECEITA')}
+              className="flex-1 md:flex-none text-xs font-medium py-2 px-3 rounded-lg bg-emerald-600 text-white hover:opacity-90 transition-opacity flex items-center justify-center gap-1"
+            >
+              <Plus size={14} /> Nova receita
+            </button>
+          </div>
         </div>
       </div>
 
@@ -254,7 +272,7 @@ export default function Painel() {
                 </button>
               ))}
             </div>
-            <Link to="/transacoes" className="text-xs text-acento hover:underline shrink-0">Ver todos</Link>
+            <Link to="/lancamentos/a-pagar" className="text-xs text-acento hover:underline shrink-0">Ver todos</Link>
           </div>
         </div>
 
@@ -445,6 +463,9 @@ export default function Painel() {
         </>
       )}
 
+      {novoLancamento && (
+        <FormularioTransacao tipo={novoLancamento} onClose={() => setNovoLancamento(null)} />
+      )}
     </div>
   )
 }

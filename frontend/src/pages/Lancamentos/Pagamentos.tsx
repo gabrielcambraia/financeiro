@@ -221,7 +221,7 @@ export default function Pagamentos() {
       ) : transacoes.length === 0 ? (
         <div className="card text-center py-12 text-conteudo-suave">
           <p>Nenhuma despesa encontrada neste período.</p>
-          <button onClick={() => setShowForm(true)} className="mt-3 text-acento hover:opacity-80 text-sm">
+          <button onClick={() => { setEditing(undefined); setShowForm(true) }} className="mt-3 text-acento hover:opacity-80 text-sm">
             + Adicionar lançamento
           </button>
         </div>
@@ -375,6 +375,7 @@ export default function Pagamentos() {
 
       {showForm && (
         <FormularioTransacao
+          tipo="DESPESA"
           onClose={() => { setShowForm(false); setEditing(undefined) }}
           editing={editing}
         />
@@ -453,9 +454,7 @@ export default function Pagamentos() {
             </div>
             <div className="cartao-modal-corpo space-y-3">
               <p className="text-sm text-conteudo-suave">
-                {cancelModal.tx.tipo === 'TRANSFERENCIA'
-                  ? 'As duas pontas da transferência ficam canceladas e o saldo é revertido.'
-                  : 'O lançamento fica marcado como cancelado (saldo revertido se já pago), mas continua no histórico.'}
+                O lançamento fica marcado como cancelado (saldo revertido se já pago), mas continua no histórico.
               </p>
               {cancelModal.carregando && <p className="text-sm text-conteudo-suave animate-pulse">Verificando impacto...</p>}
               {cancelModal.impacto?.bloqueado && (

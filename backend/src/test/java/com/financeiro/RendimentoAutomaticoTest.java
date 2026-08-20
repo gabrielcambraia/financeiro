@@ -80,7 +80,7 @@ class RendimentoAutomaticoTest extends TesteIntegracaoBase {
         agendador.onStartup();
         int totalAposPrimeiraRodada = movimentacoesRendimento(u.espacoId(), ativo.getId()).size();
 
-        agendador.onFirstOfMonth();
+        agendador.diariamente();
         int totalAposSegundaRodada = movimentacoesRendimento(u.espacoId(), ativo.getId()).size();
 
         assertThat(totalAposSegundaRodada).isEqualTo(totalAposPrimeiraRodada);
@@ -125,7 +125,7 @@ class RendimentoAutomaticoTest extends TesteIntegracaoBase {
 
         // completando o índice que faltava e rodando de novo, o mês intermediário é processado
         seedIndice(ServicoIndiceEconomico.CDI, mesIntermediario, BigDecimal.valueOf(0.9));
-        agendador.onFirstOfMonth();
+        agendador.diariamente();
 
         List<MovimentacaoAtivo> movimentosApos = movimentacoesRendimento(u.espacoId(), ativo.getId());
         assertThat(movimentosApos).hasSize(2);

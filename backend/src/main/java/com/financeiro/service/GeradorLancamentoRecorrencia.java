@@ -34,6 +34,7 @@ public class GeradorLancamentoRecorrencia {
     private final CategoriaRepository categoriaRepository;
     private final ContaService contaService;
     private final ResolvedorFaturaAlvo resolvedorFaturaAlvo;
+    private final ConversaoLancamentoService conversaoLancamentoService;
 
     /**
      * Gera o lançamento do mês alvo para a recorrência informada.
@@ -61,14 +62,14 @@ public class GeradorLancamentoRecorrencia {
     }
 
     private void gerarTransacao(Recorrencia r, YearMonth mes) {
-        Conta conta = contaRepository.findById(r.getContaId()).orElse(null);
+        Conta conta = contaRepository.findByIdAndEspacoId(r.getContaId(), r.getEspacoId()).orElse(null);
         if (conta == null) {
             log.warn("Recorrência {}: conta {} não encontrada, pulando geração em {}", r.getId(), r.getContaId(), mes);
             return;
         }
 
         Categoria categoria = r.getCategoriaId() != null
-                ? categoriaRepository.findById(r.getCategoriaId()).orElse(null) : null;
+                ? categoriaRepository.findByIdAndEspacoId(r.getCategoriaId(), r.getEspacoId()).orElse(null) : null;
 
         int dia = Math.min(r.getDiaCompetencia(), mes.lengthOfMonth());
         LocalDate data = mes.atDay(dia);
@@ -99,14 +100,14 @@ public class GeradorLancamentoRecorrencia {
     }
 
     private void gerarItemFatura(Recorrencia r, YearMonth mes) {
-        Cartao cartao = cartaoRepository.findById(r.getCartaoId()).orElse(null);
+        Cartao cartao = cartaoRepository.findByIdAndEspacoId(r.getCartaoId(), r.getEspacoId()).orElse(null);
         if (cartao == null) {
             log.warn("Recorrência {}: cartão {} não encontrado, pulando geração em {}", r.getId(), r.getCartaoId(), mes);
             return;
         }
 
         Categoria categoria = r.getCategoriaId() != null
-                ? categoriaRepository.findById(r.getCategoriaId()).orElse(null) : null;
+                ? categoriaRepository.findByIdAndEspacoId(r.getCategoriaId(), r.getEspacoId()).orElse(null) : null;
 
         int dia = Math.min(r.getDiaCompetencia(), mes.lengthOfMonth());
         LocalDate data = mes.atDay(dia);
@@ -131,10 +132,10 @@ public class GeradorLancamentoRecorrencia {
 
         itemFaturaRepository.save(item);
 
-        // Se caiu em fatura já fechada, adiciona ao valor da despesa consolidada
+        // Se caiu em fatura já fechada, reconcilia a despesa consolidada (reverte e
+        // reaplica o saldo se a fatura já estava paga) em vez de somar o valor direto.
         if (fatura != null) {
-            Transacao despesa = fatura.getTransacaoDespesa();
-            despesa.setValor(despesa.getValor().add(r.getValor()));
+            conversaoLancamentoService.reconciliarFaturaFechadaAdicao(fatura, r.getValor());
         }
 
         log.info("Recorrência {}: item de fatura gerado para {} (cartão={})", r.getId(), mes, cartao.getId());

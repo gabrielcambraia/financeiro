@@ -9,7 +9,7 @@ export interface ItemNavegacao {
 }
 
 export const itensPrincipais: ItemNavegacao[] = [
-  { to: '/', icon: LayoutDashboard, label: 'Painel' },
+  { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   {
     icon: ArrowLeftRight,
     label: 'Lançamentos',

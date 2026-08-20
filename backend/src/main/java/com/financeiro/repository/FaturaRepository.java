@@ -42,4 +42,20 @@ public interface FaturaRepository extends JpaRepository<Fatura, Long> {
             Long espacoId, LocalDate inicio, LocalDate fim);
 
     List<Fatura> findByEspacoIdOrderByDataFechamentoDesc(Long espacoId);
+
+    @Query("SELECT f FROM Fatura f WHERE f.espacoId = :espacoId " +
+           "AND (:entidadeId IS NULL OR f.cartao.contaPagamento.entidadeId = :entidadeId " +
+           "  OR f.cartao.contaPagamento.entidadeId IS NULL) " +
+           "ORDER BY f.dataFechamento DESC")
+    List<Fatura> findByEspacoIdFiltradoPorEntidade(@Param("espacoId") Long espacoId,
+                                                   @Param("entidadeId") Long entidadeId);
+
+    @Query("SELECT f FROM Fatura f WHERE f.espacoId = :espacoId " +
+           "AND f.dataFechamento BETWEEN :inicio AND :fim " +
+           "AND (:entidadeId IS NULL OR f.cartao.contaPagamento.entidadeId = :entidadeId " +
+           "  OR f.cartao.contaPagamento.entidadeId IS NULL) " +
+           "ORDER BY f.dataFechamento DESC")
+    List<Fatura> findByEspacoIdAndDataFechamentoBetweenFiltradoPorEntidade(
+            @Param("espacoId") Long espacoId, @Param("inicio") LocalDate inicio,
+            @Param("fim") LocalDate fim, @Param("entidadeId") Long entidadeId);
 }
