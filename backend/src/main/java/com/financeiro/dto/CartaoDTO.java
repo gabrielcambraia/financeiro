@@ -37,8 +37,6 @@ public class CartaoDTO {
 
     private Long bancoId;
 
-    private Long entidadeId;
-
     // campos de resposta
     private ContaDTO contaPagamento;
     private BancoDTO banco;

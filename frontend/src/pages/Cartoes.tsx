@@ -11,7 +11,6 @@ import SeletorBanco from '../components/SeletorBanco'
 import SeletorCor from '../components/SeletorCor'
 import LogoBanco from '../components/LogoBanco'
 import AcaoNova from '../components/AcaoNova'
-import CampoEntidade from '../components/forms/CampoEntidade'
 import Spinner from '../components/Spinner'
 import type { Cartao } from '../types'
 
@@ -23,7 +22,6 @@ const CORES = ['#ef4444','#f97316','#eab308','#22c55e','#10b981','#06b6d4','#3b8
 const formPadrao = {
   nome: '', limite: '', diaFechamento: '', diaVencimento: '', contaPagamentoId: '',
   cor: '#6366f1', icone: 'credit-card', bancoId: undefined as number | undefined,
-  entidadeId: undefined as number | null | undefined,
 }
 
 export default function Cartoes() {
@@ -62,7 +60,7 @@ export default function Cartoes() {
     setForm({
       nome: c.nome, limite: String(c.limite), diaFechamento: String(c.diaFechamento),
       diaVencimento: String(c.diaVencimento), contaPagamentoId: String(c.contaPagamentoId),
-      cor: c.cor, icone: c.icone, bancoId: c.bancoId, entidadeId: c.entidadeId,
+      cor: c.cor, icone: c.icone, bancoId: c.bancoId,
     })
     setShowForm(true)
   }
@@ -79,7 +77,6 @@ export default function Cartoes() {
       cor: form.cor,
       icone: form.icone,
       bancoId: form.bancoId,
-      entidadeId: form.entidadeId ?? null,
     })
   }
 
@@ -221,7 +218,6 @@ export default function Cartoes() {
               <button onClick={closeForm} className="btn-ghost p-1.5 text-sm">✕</button>
             </div>
             <form onSubmit={handleSubmit} className="cartao-modal-corpo">
-              <CampoEntidade value={form.entidadeId} onChange={v => setForm(f => ({ ...f, entidadeId: v }))} />
               <div>
                 <label className="label">Banco</label>
                 <SeletorBanco bancoSelecionado={form.bancoId} aoSelecionar={b => setForm(f => ({ ...f, bancoId: b }))} />

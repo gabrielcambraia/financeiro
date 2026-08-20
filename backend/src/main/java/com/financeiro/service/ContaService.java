@@ -9,7 +9,9 @@ import com.financeiro.erro.ExcecaoRecursoNaoEncontrado;
 import com.financeiro.repository.BancoRepository;
 import com.financeiro.repository.ContaRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -22,6 +24,7 @@ public class ContaService {
     private final BancoService bancoService;
     private final ContextoEspaco contextoEspaco;
     private final ContextoEntidade contextoEntidade;
+    private final ServicoEntidade servicoEntidade;
 
     public List<ContaDTO> findAll() {
         Long espacoId = contextoEspaco.espacoAtual();
@@ -33,6 +36,10 @@ public class ContaService {
     }
 
     public ContaDTO create(ContaDTO dto) {
+        if (dto.getSaldoInicial() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "saldoInicial é obrigatório");
+        }
+        Long espacoId = contextoEspaco.espacoAtual();
         Conta conta = Conta.builder()
                 .nome(dto.getNome())
                 .tipo(dto.getTipo())
@@ -41,8 +48,8 @@ public class ContaService {
                 .cor(dto.getCor())
                 .icone(dto.getIcone())
                 .banco(resolverBanco(dto.getBancoId()))
-                .espacoId(contextoEspaco.espacoAtual())
-                .entidadeId(dto.getEntidadeId())
+                .espacoId(espacoId)
+                .entidadeId(servicoEntidade.resolverParaCadastro(dto.getEntidadeId(), espacoId))
                 .build();
         return toDTO(repository.save(conta));
     }
@@ -56,6 +63,7 @@ public class ContaService {
         conta.setCor(dto.getCor());
         conta.setIcone(dto.getIcone());
         conta.setBanco(resolverBanco(dto.getBancoId()));
+        conta.setEntidadeId(dto.getEntidadeId());
         return toDTO(repository.save(conta));
     }
 

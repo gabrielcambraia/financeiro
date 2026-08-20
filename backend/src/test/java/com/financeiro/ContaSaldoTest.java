@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -70,6 +71,26 @@ class ContaSaldoTest extends TesteIntegracaoBase {
         assertThat(depoisDoUpdate.getNome()).isEqualTo("Conta renomeada");
         assertThat(depoisDoUpdate.getSaldo()).isEqualByComparingTo("70");
         assertThat(depoisDoUpdate.getSaldoInicial()).isEqualByComparingTo("100");
+    }
+
+    @Test
+    void atualizar_semEnviarSaldoInicial_naoQuebra() {
+        // Regressão: o frontend não envia saldoInicial no PUT (é imutável), então
+        // o payload chega ao backend com esse campo nulo — não pode ser rejeitado
+        // por bean validation (ver ContaDTO.saldoInicial).
+        String token = registrar();
+        Long contaId = criarConta(token, BigDecimal.valueOf(150));
+
+        Map<String, Object> alteracao = new java.util.HashMap<>();
+        alteracao.put("nome", "Conta sem saldoInicial no payload");
+        alteracao.put("tipo", "CORRENTE");
+        alteracao.put("cor", "#654321");
+        alteracao.put("icone", "wallet");
+
+        ResponseEntity<ContaDTO> resposta = put("/api/contas/" + contaId, alteracao, token, ContaDTO.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resposta.getBody().getSaldoInicial()).isEqualByComparingTo("150");
     }
 
     private ContaDTO buscarConta(String token, Long contaId) {

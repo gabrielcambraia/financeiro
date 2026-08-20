@@ -1,15 +1,16 @@
 import { useState } from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
 import { LayoutDashboard, ArrowLeftRight, Plus, CreditCard, MoreHorizontal } from 'lucide-react'
 import DrawerMobile from './DrawerMobile'
+import FormularioTransacao from './forms/FormularioTransacao'
 
 export default function NavegacaoInferior() {
   const [drawerAberto, setDrawerAberto] = useState(false)
-  const navigate = useNavigate()
+  const [novoLancamento, setNovoLancamento] = useState(false)
 
   const itensEsquerda = [
-    { to: '/', icon: LayoutDashboard, label: 'Painel', end: true },
-    { to: '/transacoes', icon: ArrowLeftRight, label: 'Lançamentos', end: false },
+    { to: '/', icon: LayoutDashboard, label: 'Dashboard', end: true },
+    { to: '/lancamentos/a-pagar', icon: ArrowLeftRight, label: 'Lançamentos', end: false },
   ]
   const itensDireita = [
     { to: '/cartoes', icon: CreditCard, label: 'Cartões', end: false },
@@ -38,9 +39,9 @@ export default function NavegacaoInferior() {
         ))}
 
         <button
-          onClick={() => navigate('/transacoes')}
+          onClick={() => setNovoLancamento(true)}
           className="flex-1 flex flex-col items-center justify-center"
-          aria-label="Novo lançamento"
+          aria-label="Nova despesa"
         >
           <div className="bg-acento text-white rounded-full p-3 -mt-5 shadow-lg shadow-acento/30">
             <Plus size={22} />
@@ -70,6 +71,10 @@ export default function NavegacaoInferior() {
           <span>Mais</span>
         </button>
       </nav>
+
+      {novoLancamento && (
+        <FormularioTransacao tipo="DESPESA" onClose={() => setNovoLancamento(false)} />
+      )}
     </>
   )
 }

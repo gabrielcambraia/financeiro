@@ -52,6 +52,9 @@ public class ItemFaturaDTO {
     private boolean fixa;
     private Long origemFixaId;
 
+    // ID da Recorrencia que gerou este item; null se avulso.
+    private Long origemRecorrenciaId;
+
     // Status derivado da fatura fechada, quando existir — usado pelo frontend
     // para saber se a conversão para débito está bloqueada (PAGA/CANCELADA).
     private String faturaStatus;

@@ -1,6 +1,7 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { X } from 'lucide-react'
+import { X, Repeat } from 'lucide-react'
 import { format } from 'date-fns'
 import { buscarCategorias } from '../../api/categorias'
 import { buscarCentrosCusto } from '../../api/centrosCusto'
@@ -16,12 +17,14 @@ const fmtParcela = (valor: string | number, totalParcelas: string | number) => {
 
 interface Props {
   cartaoId: number
+  entidadeId?: number | null
   onClose: () => void
   editing?: ItemFatura
 }
 
-export default function FormularioCompraCartao({ cartaoId, onClose, editing }: Props) {
+export default function FormularioCompraCartao({ cartaoId, entidadeId, onClose, editing }: Props) {
   const qc = useQueryClient()
+  const navigate = useNavigate()
   const [form, setForm] = useState({
     categoriaId: editing?.categoriaId ?? '',
     valor: editing?.valor ?? '',
@@ -40,6 +43,13 @@ export default function FormularioCompraCartao({ cartaoId, onClose, editing }: P
     queryKey: ['centros-custo'],
     queryFn: buscarCentrosCusto,
   })
+
+  const categoriasFiltradas = categorias.filter(c =>
+    entidadeId == null || c.entidadeId == null || c.entidadeId === entidadeId
+  )
+  const centrosCustoFiltrados = centrosCusto.filter(cc =>
+    entidadeId == null || cc.entidadeId == null || cc.entidadeId === entidadeId
+  )
 
   const mutation = useMutation({
     mutationFn: async (payload: Parameters<typeof criarItemFatura>[0]) => {
@@ -81,6 +91,18 @@ export default function FormularioCompraCartao({ cartaoId, onClose, editing }: P
         </div>
 
         <form onSubmit={handleSubmit} className="cartao-modal-corpo">
+          {editing?.origemRecorrenciaId && (
+            <div className="flex items-start gap-2 p-3 rounded-xl bg-acento/10 border border-acento/30">
+              <Repeat size={14} className="text-acento shrink-0 mt-0.5" />
+              <span className="text-sm text-conteudo flex-1">
+                Compra gerada por uma recorrência. Editar aqui altera <strong>apenas este mês</strong>.
+              </span>
+              <button type="button" onClick={() => { onClose(); navigate('/lancamentos/recorrencias') }}
+                className="text-xs text-acento hover:opacity-80 shrink-0 font-medium whitespace-nowrap">
+                Ir para recorrências →
+              </button>
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="label">Valor (R$)</label>
@@ -102,16 +124,16 @@ export default function FormularioCompraCartao({ cartaoId, onClose, editing }: P
             <label className="label">Categoria</label>
             <select className="select" value={form.categoriaId} onChange={e => set('categoriaId', e.target.value)}>
               <option value="">Sem categoria</option>
-              {[...categorias].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+              {[...categoriasFiltradas].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
             </select>
           </div>
 
-          {centrosCusto.length > 0 && (
+          {centrosCustoFiltrados.length > 0 && (
             <div>
               <label className="label">Centro de Custo</label>
               <select className="select" value={form.centroCustoId} onChange={e => set('centroCustoId', e.target.value ? Number(e.target.value) : '')}>
                 <option value="">Sem centro de custo</option>
-                {[...centrosCusto].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(cc => (
+                {[...centrosCustoFiltrados].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(cc => (
                   <option key={cc.id} value={cc.id}>{cc.nome}</option>
                 ))}
               </select>

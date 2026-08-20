@@ -1,0 +1,19 @@
+-- ServicoIndiceEconomico gravava o mês CORRENTE das séries 4391 (CDI) e 4390
+-- (Selic), que o SGS/Banco Central publica com valor ACUMULADO PARCIAL do mês
+-- em curso. Como a persistência só insere meses ausentes (skip se já existe),
+-- esses valores parciais nunca eram corrigidos quando o mês fechava,
+-- subcreditando rendimento de todo ativo POS_CDI/POS_SELIC.
+--
+-- Apaga as duas séries por inteiro (não só o último mês: se o app rodou em
+-- mais de um mês, há vários meses parciais contíguos, e raciocinar sobre
+-- quais estão contaminados é mais frágil que refazer). O backfill de 5 anos
+-- em ServicoIndiceEconomico.atualizarIndice reconstrói tudo na próxima
+-- execução, agora limitado ao último mês FECHADO.
+--
+-- IPCA (433) não é afetado — o SGS só publica esta série já fechada.
+--
+-- Não recredita a diferença nos ativos já processados: rendimento automático
+-- e manual são indistinguíveis em movimentacoes_ativo (mesmo
+-- TipoMovimentacaoAtivo.RENDIMENTO), então um replay apagaria lançamentos do
+-- usuário. Ver CLAUDE.md, seção de dívidas conhecidas.
+DELETE FROM indices_economicos WHERE codigo IN ('4391', '4390');

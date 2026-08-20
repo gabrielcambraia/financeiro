@@ -19,6 +19,7 @@ public class CategoriaService {
     private final CategoriaRepository repository;
     private final ContextoEspaco contextoEspaco;
     private final ContextoEntidade contextoEntidade;
+    private final ServicoEntidade servicoEntidade;
 
     public List<CategoriaDTO> findAll(TipoTransacao tipo) {
         Long espacoId = contextoEspaco.espacoAtual();
@@ -37,13 +38,14 @@ public class CategoriaService {
     }
 
     public CategoriaDTO create(CategoriaDTO dto) {
+        Long espacoId = contextoEspaco.espacoAtual();
         Categoria cat = Categoria.builder()
                 .nome(dto.getNome())
                 .tipo(dto.getTipo())
                 .cor(dto.getCor())
                 .icone(dto.getIcone())
-                .espacoId(contextoEspaco.espacoAtual())
-                .entidadeId(dto.getEntidadeId())
+                .espacoId(espacoId)
+                .entidadeId(servicoEntidade.resolverParaCadastro(dto.getEntidadeId(), espacoId))
                 .build();
         return toDTO(repository.save(cat));
     }
@@ -55,6 +57,7 @@ public class CategoriaService {
         cat.setTipo(dto.getTipo());
         cat.setCor(dto.getCor());
         cat.setIcone(dto.getIcone());
+        cat.setEntidadeId(dto.getEntidadeId());
         return toDTO(repository.save(cat));
     }
 

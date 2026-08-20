@@ -17,7 +17,7 @@ public interface DividaRepository extends JpaRepository<Divida, Long> {
     Optional<Divida> findByIdAndEspacoId(Long id, Long espacoId);
 
     @Query("SELECT d FROM Divida d WHERE d.espacoId = :espacoId " +
-           "AND (:entidadeId IS NULL OR d.entidadeId = :entidadeId OR d.entidadeId IS NULL) " +
+           "AND (:entidadeId IS NULL OR d.conta.entidadeId = :entidadeId OR d.conta.entidadeId IS NULL) " +
            "ORDER BY d.criadoEm DESC")
     List<Divida> findByEspacoIdFiltradoPorEntidade(@Param("espacoId") Long espacoId,
                                                    @Param("entidadeId") Long entidadeId);

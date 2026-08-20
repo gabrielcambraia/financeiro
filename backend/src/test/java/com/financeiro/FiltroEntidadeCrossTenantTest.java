@@ -65,6 +65,22 @@ class FiltroEntidadeCrossTenantTest extends TesteIntegracaoBase {
     }
 
     @Test
+    void criarContaComEntidadeIdDeOutroEspaco_rejeitada() {
+        // B tenta criar conta apontando pra entidade que pertence ao espaço de A
+        com.financeiro.dto.ContaDTO dto = new com.financeiro.dto.ContaDTO();
+        dto.setNome("Conta suspeita");
+        dto.setTipo(com.financeiro.entity.enums.TipoConta.CORRENTE);
+        dto.setSaldoInicial(java.math.BigDecimal.TEN);
+        dto.setCor("#000");
+        dto.setIcone("wallet");
+        dto.setEntidadeId(entidadeDeA);
+
+        ResponseEntity<Map> resp = postComCorpoDeErro("/api/contas", dto, tokenB);
+
+        assertThat(resp.getStatusCode()).isIn(HttpStatus.NOT_FOUND, HttpStatus.FORBIDDEN);
+    }
+
+    @Test
     void rotaDeEntidadesIgnoraOHeader() {
         // /api/entidades não deve ser filtrada por X-Entidade-Id
         // (o filtro do backend pula rotas que começam com /api/entidades)

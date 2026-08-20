@@ -13,7 +13,6 @@ type PayloadAtivo = {
   isentoIr?: boolean
   valorInicial?: number | null
   dataInicial?: string | null
-  entidadeId?: number | null
 }
 
 type PayloadMovimento = {

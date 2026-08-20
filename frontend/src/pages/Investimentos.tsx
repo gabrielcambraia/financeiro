@@ -15,7 +15,6 @@ import SobreposicaoModal from '../components/SobreposicaoModal'
 import ModalConfirmacao from '../components/ModalConfirmacao'
 import SeletorCor from '../components/SeletorCor'
 import AcaoNova from '../components/AcaoNova'
-import CampoEntidade from '../components/forms/CampoEntidade'
 import Spinner from '../components/Spinner'
 import type { Ativo, TipoAtivo, TipoRemuneracao, RespostaImpacto } from '../types'
 
@@ -52,7 +51,6 @@ const formPadrao = {
   nome: '', tipo: 'RENDA_FIXA' as TipoAtivo, contaId: '', cor: CORES[0], icone: 'trending-up',
   remuneracaoTipo: 'NENHUMA' as TipoRemuneracao, taxa: '', inicioRendimento: '', isentoIr: false,
   valorInicial: '', dataInicial: format(new Date(), 'yyyy-MM-dd'),
-  entidadeId: undefined as number | null | undefined,
 }
 const movimentoPadrao = { valor: '', contaId: '', data: format(new Date(), 'yyyy-MM-dd') }
 
@@ -91,7 +89,7 @@ export default function Investimentos() {
     mutationFn: (data: {
       nome: string; tipo: TipoAtivo; contaId: number; cor: string; icone: string
       remuneracaoTipo: TipoRemuneracao; taxa: number | null; inicioRendimento: string | null; isentoIr: boolean
-      valorInicial?: number | null; dataInicial?: string | null; entidadeId?: number | null
+      valorInicial?: number | null; dataInicial?: string | null
     }) =>
       editing ? atualizarAtivo(editing.id, data) : criarAtivo(data),
     onSuccess: async () => { await invalidar(); toast.success('Ativo salvo'); closeForm() },
@@ -124,7 +122,6 @@ export default function Investimentos() {
       inicioRendimento: a.inicioRendimento ?? '',
       isentoIr: a.isentoIr ?? false,
       valorInicial: '', dataInicial: format(new Date(), 'yyyy-MM-dd'),
-      entidadeId: a.entidadeId,
     })
     setShowForm(true)
   }
@@ -138,7 +135,6 @@ export default function Investimentos() {
       taxa: form.remuneracaoTipo !== 'NENHUMA' && form.taxa !== '' ? Number(form.taxa) : null,
       inicioRendimento: form.remuneracaoTipo !== 'NENHUMA' && form.inicioRendimento ? form.inicioRendimento : null,
       isentoIr: form.isentoIr,
-      entidadeId: form.entidadeId ?? null,
       ...(!editing && form.valorInicial !== '' ? { valorInicial: Number(form.valorInicial), dataInicial: form.dataInicial } : {}),
     })
   }
@@ -331,7 +327,6 @@ export default function Investimentos() {
               <button onClick={closeForm} className="btn-ghost p-1.5 text-sm">✕</button>
             </div>
             <form onSubmit={handleSubmit} className="cartao-modal-corpo">
-              <CampoEntidade value={form.entidadeId} onChange={v => setForm(f => ({ ...f, entidadeId: v }))} />
               <div>
                 <label className="label">Nome</label>
                 <input className="input" placeholder="Ex: Tesouro Selic, PETR4..." required

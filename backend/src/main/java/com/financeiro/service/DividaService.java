@@ -117,7 +117,6 @@ public class DividaService {
                 .dataInicio(dto.getDataInicio())
                 .espacoId(espacoId)
                 .usuarioId(usuarioId)
-                .entidadeId(dto.getEntidadeId())
                 .build();
         return toDTO(repository.save(divida));
     }
@@ -265,7 +264,6 @@ public class DividaService {
             dto.setCategoria(catDTO);
         }
 
-        dto.setEntidadeId(d.getEntidadeId());
         return dto;
     }
 }

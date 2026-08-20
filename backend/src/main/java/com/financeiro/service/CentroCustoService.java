@@ -21,6 +21,7 @@ public class CentroCustoService {
     private final CentroCustoRepository repository;
     private final ContextoEspaco contextoEspaco;
     private final ContextoEntidade contextoEntidade;
+    private final ServicoEntidade servicoEntidade;
 
     public List<CentroCustoDTO> findAll() {
         Long espacoId = contextoEspaco.espacoAtual();
@@ -34,12 +35,13 @@ public class CentroCustoService {
     @PreAuthorize("@autorizacaoEspaco.exigirDono('Somente o dono do espaço pode criar centros de custo')")
     public CentroCustoDTO create(CentroCustoDTO dto) {
         Long espacoId = contextoEspaco.espacoAtual();
-        validarNomeUnico(espacoId, dto.getNome(), dto.getEntidadeId(), null);
+        Long entidadeId = servicoEntidade.resolverParaCadastro(dto.getEntidadeId(), espacoId);
+        validarNomeUnico(espacoId, dto.getNome(), entidadeId, null);
         CentroCusto cc = CentroCusto.builder()
                 .nome(dto.getNome())
                 .cor(dto.getCor())
                 .espacoId(espacoId)
-                .entidadeId(dto.getEntidadeId())
+                .entidadeId(entidadeId)
                 .build();
         return toDTO(repository.save(cc));
     }

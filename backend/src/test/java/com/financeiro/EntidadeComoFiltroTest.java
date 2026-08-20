@@ -1,8 +1,10 @@
 package com.financeiro;
 
+import com.financeiro.dto.CategoriaDTO;
 import com.financeiro.dto.ContaDTO;
 import com.financeiro.entity.enums.TipoConta;
 import com.financeiro.entity.enums.TipoPessoa;
+import com.financeiro.entity.enums.TipoTransacao;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.ParameterizedTypeReference;
@@ -119,6 +121,91 @@ class EntidadeComoFiltroTest extends TesteIntegracaoBase {
         assertThat(contaGlobal.get("entidadeId")).isNull();
     }
 
+    // ---------- atualização de entidadeId ----------
+
+    @Test
+    void atualizarConta_alteraEntidadeId_filtroRefleteMudanca() {
+        // Cria com entidade PF
+        Long contaId = criarContaComEntidade(token, "Conta Migrada", entidadePfId);
+        assertThat(extrairIds(listarContas(token, entidadePfId))).contains(contaId);
+        assertThat(extrairIds(listarContas(token, entidadePjId))).doesNotContain(contaId);
+
+        // Atualiza para entidade PJ
+        ContaDTO update = new ContaDTO();
+        update.setNome("Conta Migrada");
+        update.setTipo(TipoConta.CORRENTE);
+        update.setCor("#6366f1");
+        update.setIcone("wallet");
+        update.setEntidadeId(entidadePjId);
+
+        ResponseEntity<ContaDTO> resp = put("/api/contas/" + contaId, update, token, ContaDTO.class);
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resp.getBody().getEntidadeId()).isEqualTo(entidadePjId);
+
+        // Filtro deve refletir a mudança
+        assertThat(extrairIds(listarContas(token, entidadePjId))).contains(contaId);
+        assertThat(extrairIds(listarContas(token, entidadePfId))).doesNotContain(contaId);
+    }
+
+    @Test
+    void atualizarConta_paraGlobal_apareceTodosOsFiltros() {
+        Long contaId = criarContaComEntidade(token, "Conta Tornando Global", entidadePfId);
+
+        ContaDTO update = new ContaDTO();
+        update.setNome("Conta Tornando Global");
+        update.setTipo(TipoConta.CORRENTE);
+        update.setCor("#6366f1");
+        update.setIcone("wallet");
+        update.setEntidadeId(null);
+
+        ResponseEntity<ContaDTO> resp = put("/api/contas/" + contaId, update, token, ContaDTO.class);
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resp.getBody().getEntidadeId()).isNull();
+
+        assertThat(extrairIds(listarContas(token, entidadePfId))).contains(contaId);
+        assertThat(extrairIds(listarContas(token, entidadePjId))).contains(contaId);
+    }
+
+    @Test
+    void atualizarCategoria_alteraEntidadeId_filtroRefleteMudanca() {
+        Long catId = criarCategoriaComEntidade(token, "Categoria Migrada", entidadePfId);
+        assertThat(extrairIds(listarCategorias(token, entidadePfId))).contains(catId);
+        assertThat(extrairIds(listarCategorias(token, entidadePjId))).doesNotContain(catId);
+
+        CategoriaDTO update = new CategoriaDTO();
+        update.setNome("Categoria Migrada");
+        update.setTipo(TipoTransacao.DESPESA);
+        update.setCor("#6366f1");
+        update.setIcone("tag");
+        update.setEntidadeId(entidadePjId);
+
+        ResponseEntity<CategoriaDTO> resp = put("/api/categorias/" + catId, update, token, CategoriaDTO.class);
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resp.getBody().getEntidadeId()).isEqualTo(entidadePjId);
+
+        assertThat(extrairIds(listarCategorias(token, entidadePjId))).contains(catId);
+        assertThat(extrairIds(listarCategorias(token, entidadePfId))).doesNotContain(catId);
+    }
+
+    @Test
+    void atualizarCategoria_paraGlobal_apareceTodosOsFiltros() {
+        Long catId = criarCategoriaComEntidade(token, "Categoria Tornando Global", entidadePfId);
+
+        CategoriaDTO update = new CategoriaDTO();
+        update.setNome("Categoria Tornando Global");
+        update.setTipo(TipoTransacao.DESPESA);
+        update.setCor("#6366f1");
+        update.setIcone("tag");
+        update.setEntidadeId(null);
+
+        ResponseEntity<CategoriaDTO> resp = put("/api/categorias/" + catId, update, token, CategoriaDTO.class);
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resp.getBody().getEntidadeId()).isNull();
+
+        assertThat(extrairIds(listarCategorias(token, entidadePfId))).contains(catId);
+        assertThat(extrairIds(listarCategorias(token, entidadePjId))).contains(catId);
+    }
+
     // ---------- helpers ----------
 
     private Long criarContaComEntidade(String token, String nome, Long entidadeId) {
@@ -140,6 +227,28 @@ class EntidadeComoFiltroTest extends TesteIntegracaoBase {
         ResponseEntity<List<Map>> resp = entidadeId != null
                 ? get("/api/contas", token, entidadeId, new ParameterizedTypeReference<List<Map>>() {})
                 : get("/api/contas", token, new ParameterizedTypeReference<List<Map>>() {});
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
+        return resp.getBody();
+    }
+
+    private Long criarCategoriaComEntidade(String token, String nome, Long entidadeId) {
+        CategoriaDTO dto = new CategoriaDTO();
+        dto.setNome(nome);
+        dto.setTipo(TipoTransacao.DESPESA);
+        dto.setCor("#6366f1");
+        dto.setIcone("tag");
+        dto.setEntidadeId(entidadeId);
+
+        ResponseEntity<CategoriaDTO> resp = post("/api/categorias", dto, token, CategoriaDTO.class);
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        return resp.getBody().getId();
+    }
+
+    @SuppressWarnings("rawtypes")
+    private List<Map> listarCategorias(String token, Long entidadeId) {
+        ResponseEntity<List<Map>> resp = entidadeId != null
+                ? get("/api/categorias", token, entidadeId, new ParameterizedTypeReference<List<Map>>() {})
+                : get("/api/categorias", token, new ParameterizedTypeReference<List<Map>>() {});
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
         return resp.getBody();
     }

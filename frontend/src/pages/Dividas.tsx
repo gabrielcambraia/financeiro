@@ -10,7 +10,6 @@ import { pagarTransacao, estornarTransacao } from '../api/transacoes'
 import SobreposicaoModal from '../components/SobreposicaoModal'
 import ModalConfirmacao from '../components/ModalConfirmacao'
 import AcaoNova from '../components/AcaoNova'
-import CampoEntidade from '../components/forms/CampoEntidade'
 import Spinner from '../components/Spinner'
 import type { Divida, StatusTransacao, StatusDivida, RespostaImpacto } from '../types'
 
@@ -35,7 +34,7 @@ const corStatusTx: Record<StatusTransacao, string> = {
 
 const formPadrao = {
   descricao: '', credor: '', valorTotal: '', totalParcelas: '2', contaId: '', categoriaId: '',
-  dataInicio: format(new Date(), 'yyyy-MM-dd'), entidadeId: undefined as number | null | undefined,
+  dataInicio: format(new Date(), 'yyyy-MM-dd'),
 }
 
 export default function Dividas() {
@@ -117,7 +116,6 @@ export default function Dividas() {
       contaId: Number(form.contaId),
       categoriaId: form.categoriaId ? Number(form.categoriaId) : undefined,
       dataInicio: form.dataInicio,
-      entidadeId: form.entidadeId ?? null,
     })
   }
 
@@ -253,7 +251,6 @@ export default function Dividas() {
               <button onClick={closeForm} className="btn-ghost p-1.5 text-sm">✕</button>
             </div>
             <form onSubmit={handleSubmit} className="cartao-modal-corpo">
-              <CampoEntidade value={form.entidadeId} onChange={v => setForm(f => ({ ...f, entidadeId: v }))} />
               <div>
                 <label className="label">Descrição</label>
                 <input className="input" placeholder="Ex: Acordo cartão antigo" required

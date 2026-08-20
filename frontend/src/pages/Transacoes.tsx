@@ -570,7 +570,7 @@ export default function Transacoes() {
                           {lanc.tx.tipo === 'TRANSFERENCIA'
                             ? (lanc.tx.descricao || 'Transferência')
                             : (lanc.tx.descricao || lanc.tx.categoria?.nome || '—')}
-                          {lanc.tx.fixa && <Repeat size={11} className="text-acento shrink-0" aria-label="Fixa" />}
+                          {lanc.tx.origemRecorrenciaId && <Repeat size={11} className="text-acento shrink-0" aria-label="Recorrente" />}
                           {lanc.tx.totalParcelas && (
                             <span className="text-xs text-conteudo-suave flex items-center gap-0.5">
                               <Layers size={10} />{lanc.tx.numeroParcela}/{lanc.tx.totalParcelas}
@@ -667,7 +667,7 @@ export default function Transacoes() {
                       <td className="px-4 py-3">
                         <div className={`flex items-center gap-1.5 font-medium text-conteudo ${lanc.item.cancelado ? 'line-through text-conteudo-suave' : ''}`}>
                           {lanc.item.descricao || lanc.item.categoria?.nome || '—'}
-                          {lanc.item.fixa && <Repeat size={11} className="text-acento shrink-0" aria-label="Fixa" />}
+                          {lanc.item.origemRecorrenciaId && <Repeat size={11} className="text-acento shrink-0" aria-label="Recorrente" />}
                           {lanc.item.totalParcelas && (
                             <span className="text-xs text-conteudo-suave flex items-center gap-0.5">
                               <Layers size={10} />{lanc.item.numeroParcela}/{lanc.item.totalParcelas}
@@ -789,7 +789,7 @@ export default function Transacoes() {
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-conteudo text-sm truncate flex items-center gap-1.5">
                     {lanc.tx.tipo === 'TRANSFERENCIA' ? (lanc.tx.descricao || 'Transferência') : (lanc.tx.descricao || lanc.tx.categoria?.nome || '—')}
-                    {lanc.tx.fixa && <Repeat size={11} className="text-acento shrink-0" aria-label="Fixa" />}
+                    {lanc.tx.origemRecorrenciaId && <Repeat size={11} className="text-acento shrink-0" aria-label="Recorrente" />}
                   </div>
                   <div className="text-xs text-conteudo-suave mt-0.5">
                     {format(parseISO(lanc.tx.data), 'dd/MM')} · {lanc.tx.conta.nome}
@@ -815,7 +815,7 @@ export default function Transacoes() {
                 <div className="flex-1 min-w-0">
                   <div className={`font-medium text-conteudo text-sm truncate flex items-center gap-1.5 ${lanc.item.cancelado ? 'line-through text-conteudo-suave' : ''}`}>
                     {lanc.item.descricao || lanc.item.categoria?.nome || '—'}
-                    {lanc.item.fixa && <Repeat size={11} className="text-acento shrink-0" aria-label="Fixa" />}
+                    {lanc.item.origemRecorrenciaId && <Repeat size={11} className="text-acento shrink-0" aria-label="Recorrente" />}
                   </div>
                   <div className="text-xs text-conteudo-suave mt-0.5">
                     {format(parseISO(lanc.item.data), 'dd/MM')} · {lanc.item.cartaoNome}
@@ -911,9 +911,7 @@ export default function Transacoes() {
                   ? 'Isso exclui as duas pontas da transferência (saída e entrada).'
                   : deleteModal.tx.grupoParcelaId
                     ? 'Este lançamento faz parte de um parcelamento.'
-                    : deleteModal.tx.fixa
-                      ? 'Este é um lançamento fixo.'
-                      : 'Tem certeza que deseja excluir?'}
+                    : 'Tem certeza que deseja excluir?'}
               </p>
               {deleteModal.carregando && (
                 <p className="text-sm text-conteudo-suave animate-pulse">Verificando impacto...</p>
@@ -950,12 +948,6 @@ export default function Transacoes() {
                       <button onClick={() => deleteMutation.mutate({ id: deleteModal.tx.id, scope: 'GRUPO' })}
                         className="w-full py-2.5 rounded-lg border border-red-800 text-red-500 hover:bg-red-900/20 transition-colors text-sm font-medium">
                         Excluir todas as parcelas
-                      </button>
-                    )}
-                    {deleteModal.tx.fixa && (
-                      <button onClick={() => deleteMutation.mutate({ id: deleteModal.tx.id, scope: 'FUTURAS' })}
-                        className="w-full py-2.5 rounded-lg border border-red-800 text-red-500 hover:bg-red-900/20 transition-colors text-sm font-medium">
-                        Excluir este e os próximos meses
                       </button>
                     )}
                   </>
@@ -1018,12 +1010,6 @@ export default function Transacoes() {
                       <button onClick={() => cancelarMutation.mutate({ id: cancelModal.tx.id, scope: 'GRUPO' })}
                         className="w-full py-2.5 rounded-lg border border-orange-800 text-orange-500 hover:bg-orange-900/20 transition-colors text-sm font-medium">
                         Cancelar todas as parcelas
-                      </button>
-                    )}
-                    {cancelModal.tx.fixa && (
-                      <button onClick={() => cancelarMutation.mutate({ id: cancelModal.tx.id, scope: 'FUTURAS' })}
-                        className="w-full py-2.5 rounded-lg border border-orange-800 text-orange-500 hover:bg-orange-900/20 transition-colors text-sm font-medium">
-                        Cancelar este e os próximos meses
                       </button>
                     )}
                   </>

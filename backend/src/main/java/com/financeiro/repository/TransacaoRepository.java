@@ -101,7 +101,7 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
 
     @Query("SELECT t FROM Transacao t WHERE t.espacoId = :espacoId " +
            "AND t.data BETWEEN :inicio AND :fim " +
-           "AND (:entidadeId IS NULL OR t.entidadeId = :entidadeId) " +
+           "AND (:entidadeId IS NULL OR t.conta.entidadeId = :entidadeId) " +
            "ORDER BY t.data DESC")
     List<Transacao> findByEspacoIdAndDataBetweenFiltradoPorEntidade(
             @Param("espacoId") Long espacoId,
@@ -111,7 +111,7 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
 
     @Query("SELECT t FROM Transacao t WHERE t.espacoId = :espacoId " +
            "AND t.data BETWEEN :inicio AND :fim " +
-           "AND (:entidadeId IS NULL OR t.entidadeId = :entidadeId) " +
+           "AND (:entidadeId IS NULL OR t.conta.entidadeId = :entidadeId) " +
            "ORDER BY t.data ASC")
     List<Transacao> findByEspacoIdAndDataBetweenAscFiltradoPorEntidade(
             @Param("espacoId") Long espacoId,
@@ -121,7 +121,7 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
 
     @Query("SELECT t FROM Transacao t WHERE t.espacoId = :espacoId " +
            "AND t.conta.id = :contaId AND t.data BETWEEN :inicio AND :fim " +
-           "AND (:entidadeId IS NULL OR t.entidadeId = :entidadeId) " +
+           "AND (:entidadeId IS NULL OR t.conta.entidadeId = :entidadeId) " +
            "ORDER BY t.data DESC")
     List<Transacao> findByEspacoIdAndContaIdAndDataBetweenFiltradoPorEntidade(
             @Param("espacoId") Long espacoId,
@@ -132,7 +132,7 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
 
     @Query("SELECT t FROM Transacao t WHERE t.espacoId = :espacoId " +
            "AND t.conta.id = :contaId AND t.data BETWEEN :inicio AND :fim " +
-           "AND (:entidadeId IS NULL OR t.entidadeId = :entidadeId) " +
+           "AND (:entidadeId IS NULL OR t.conta.entidadeId = :entidadeId) " +
            "ORDER BY t.data ASC")
     List<Transacao> findByEspacoIdAndContaIdAndDataBetweenAscFiltradoPorEntidade(
             @Param("espacoId") Long espacoId,
@@ -144,7 +144,7 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
     @Query("SELECT t FROM Transacao t WHERE t.espacoId = :espacoId " +
            "AND t.dataVencimento <= :limite " +
            "AND t.dataPagamento IS NULL AND t.dataCancelamento IS NULL " +
-           "AND (:entidadeId IS NULL OR t.entidadeId = :entidadeId) " +
+           "AND (:entidadeId IS NULL OR t.conta.entidadeId = :entidadeId) " +
            "ORDER BY t.dataVencimento ASC")
     List<Transacao> findVencimentosPendentesFiltradoPorEntidade(
             @Param("espacoId") Long espacoId,
@@ -154,7 +154,7 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
     @Query("SELECT t FROM Transacao t WHERE t.espacoId = :espacoId " +
            "AND t.dataVencimento BETWEEN :inicio AND :fim " +
            "AND t.dataPagamento IS NULL AND t.dataCancelamento IS NULL " +
-           "AND (:entidadeId IS NULL OR t.entidadeId = :entidadeId) " +
+           "AND (:entidadeId IS NULL OR t.conta.entidadeId = :entidadeId) " +
            "ORDER BY t.dataVencimento ASC")
     List<Transacao> findVencimentosPorPeriodoFiltradoPorEntidade(
             @Param("espacoId") Long espacoId,
@@ -166,7 +166,7 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
            "AND t.conta.id = :contaId " +
            "AND t.dataVencimento BETWEEN :inicio AND :fim " +
            "AND t.dataPagamento IS NULL AND t.dataCancelamento IS NULL " +
-           "AND (:entidadeId IS NULL OR t.entidadeId = :entidadeId) " +
+           "AND (:entidadeId IS NULL OR t.conta.entidadeId = :entidadeId) " +
            "ORDER BY t.dataVencimento ASC")
     List<Transacao> findByEspacoIdAndContaIdAndDataVencimentoBetweenFiltradoPorEntidade(
             @Param("espacoId") Long espacoId,
@@ -177,7 +177,7 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
 
     @Query("SELECT t FROM Transacao t WHERE t.espacoId = :espacoId " +
            "AND t.dataVencimento BETWEEN :inicio AND :fim " +
-           "AND (:entidadeId IS NULL OR t.entidadeId = :entidadeId) " +
+           "AND (:entidadeId IS NULL OR t.conta.entidadeId = :entidadeId) " +
            "ORDER BY t.dataVencimento ASC")
     List<Transacao> findByEspacoIdAndDataVencimentoBetweenFiltradoPorEntidade(
             @Param("espacoId") Long espacoId,
@@ -193,6 +193,10 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
     @org.springframework.transaction.annotation.Transactional
     @Query("UPDATE Transacao t SET t.meta = null WHERE t.meta.id = :metaId")
     void desvincularMeta(@Param("metaId") Long metaId);
+
+    // --- recorrência ---
+
+    boolean existsByOrigemRecorrenciaIdAndDataBetween(Long origemRecorrenciaId, LocalDate inicio, LocalDate fim);
 
     // --- débito automático ---
 

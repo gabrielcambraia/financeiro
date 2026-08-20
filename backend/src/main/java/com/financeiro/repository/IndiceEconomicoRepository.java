@@ -13,4 +13,7 @@ public interface IndiceEconomicoRepository extends JpaRepository<IndiceEconomico
     List<IndiceEconomico> findByCodigo(String codigo);
 
     boolean existsByCodigoAndMes(String codigo, String mes);
+
+    /** Último mês em cache para a série. {@code mes} é {@code yyyy-MM}, então ordem lexicográfica == cronológica. */
+    Optional<IndiceEconomico> findTopByCodigoOrderByMesDesc(String codigo);
 }

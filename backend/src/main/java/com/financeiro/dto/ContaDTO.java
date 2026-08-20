@@ -21,7 +21,9 @@ public class ContaDTO {
     // ignora esse valor tanto em create() (usa saldoInicial) quanto em update() (não altera saldo)
     private BigDecimal saldo;
 
-    @NotNull
+    // Obrigatório só na criação — validado manualmente em ContaService.create()
+    // (não pode ser @NotNull aqui: o mesmo DTO é usado no PUT de atualização,
+    // que corretamente não envia esse campo por ele ser imutável após a criação).
     private BigDecimal saldoInicial;
 
     @NotBlank
