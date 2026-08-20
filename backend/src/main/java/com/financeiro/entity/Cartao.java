@@ -45,7 +45,4 @@ public class Cartao {
 
     @Column(name = "espaco_id", nullable = false)
     private Long espacoId;
-
-    @Column(name = "entidade_id")
-    private Long entidadeId;
 }

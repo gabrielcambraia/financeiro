@@ -4,7 +4,6 @@ import com.financeiro.dto.TransacaoDTO;
 import com.financeiro.entity.enums.TipoPagamento;
 import com.financeiro.entity.enums.TipoTransacao;
 import com.financeiro.repository.TransacaoRepository;
-import com.financeiro.scheduler.AgendadorTransacaoFixa;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.ParameterizedTypeReference;
@@ -13,20 +12,15 @@ import org.springframework.http.ResponseEntity;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.YearMonth;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Trava o campo {@code debitoAutomatico} na criação e atualização de
- * transações via API, e a propagação da flag em séries fixas pelo
- * {@link AgendadorTransacaoFixa}.
+ * transações via API.
  */
 class DebitoAutomaticoTransacaoTest extends TesteIntegracaoBase {
-
-    @Autowired
-    private AgendadorTransacaoFixa agendadorFixa;
 
     @Autowired
     private TransacaoRepository transacaoRepository;
@@ -137,43 +131,6 @@ class DebitoAutomaticoTransacaoTest extends TesteIntegracaoBase {
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(resposta.getBody().isDebitoAutomatico()).isFalse();
-    }
-
-    @Test
-    void fixa_extensao_propagaDebitoAutomatico() {
-        // Cria fixa no mês atual para que o agendador a encontre como modelo.
-        // O create() pré-cria meses+1 a +11; o agendador estende para mês+12.
-        // Todas as cópias devem herdar debitoAutomatico=true.
-        Usuario u = registrarComConta(BigDecimal.valueOf(2000));
-
-        TransacaoDTO dto = new TransacaoDTO();
-        dto.setContaId(u.contaId());
-        dto.setTipo(TipoTransacao.DESPESA);
-        dto.setTipoPagamento(TipoPagamento.DEBITO);
-        dto.setValor(BigDecimal.valueOf(100));
-        dto.setData(LocalDate.now());
-        dto.setDataVencimento(LocalDate.now());
-        dto.setFixa(true);
-        dto.setDebitoAutomatico(true);
-        dto.setQuitarNaCriacao(true);
-
-        criarTransacao(u.token(), dto);
-
-        agendadorFixa.onStartup();
-
-        // meses+1 a +12 devem ter debitoAutomatico=true
-        YearMonth mesAtual = YearMonth.now();
-        for (int i = 1; i <= 12; i++) {
-            YearMonth mesAlvo = mesAtual.plusMonths(i);
-            boolean todasComFlag = transacaoRepository
-                    .findByEspacoIdAndDataBetweenOrderByDataDesc(
-                            u.espacoId(), mesAlvo.atDay(1), mesAlvo.atEndOfMonth())
-                    .stream()
-                    .allMatch(t -> t.isDebitoAutomatico());
-            assertThat(todasComFlag)
-                    .as("mês +%d deve ter debitoAutomatico=true", i)
-                    .isTrue();
-        }
     }
 
     // ---------- helpers ----------

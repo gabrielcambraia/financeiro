@@ -31,8 +31,18 @@ import java.util.UUID;
  * mesmo padrão de {@link AgendadorTransacaoFixa}: roda no
  * {@code ApplicationReadyEvent} do startup — o app pode ficar dias sem
  * tráfego, então o startup garante que meses perdidos sejam processados ao
- * subir novamente — e também no dia 1° do mês, 15 minutos depois do
- * agendador de transação fixa.
+ * subir novamente — e também diariamente, às 15:30 UTC (~12:30 horário de
+ * Brasília; os containers rodam em UTC).
+ *
+ * <p>É diário, não mensal: {@link com.financeiro.service.ServicoIndiceEconomico}
+ * só busca/persiste o último mês FECHADO das séries do Banco Central (o mês
+ * corrente é publicado com valor parcial — ver Javadoc daquele serviço), então
+ * o índice do mês só fica disponível em algum dia do mês seguinte, variável
+ * conforme a data de publicação do Banco Central. Uma execução mensal fixa no
+ * dia 1° arriscaria rodar antes da publicação e atrasar o crédito em um mês
+ * inteiro; a execução diária é barata quando não há nada nascente para
+ * processar (ver {@link #processarAtivo}) e credita no mesmo dia em que o
+ * índice chega.</p>
  *
  * <p>Roda sem contexto de request/usuário: processa todos os espaços de uma
  * vez, já que {@code Ativo} carrega seu próprio {@code espacoId}.</p>
@@ -57,9 +67,9 @@ public class AgendadorRendimento {
         process();
     }
 
-    @Scheduled(cron = "0 15 0 1 * *")
-    public void onFirstOfMonth() {
-        log.info("Processando rendimento automático de investimentos (dia 1° do mês)...");
+    @Scheduled(cron = "0 30 15 * * *")
+    public void diariamente() {
+        log.info("Processando rendimento automático de investimentos (execução diária)...");
         process();
     }
 

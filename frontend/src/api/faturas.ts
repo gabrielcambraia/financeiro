@@ -4,5 +4,8 @@ import type { Fatura } from '../types'
 export const buscarFaturas = (cartaoId: number, month?: string) =>
   cliente.get<Fatura[]>('/faturas', { params: { cartaoId, month } }).then(r => r.data)
 
+export const buscarTodasFaturas = (month?: string, cartaoId?: number) =>
+  cliente.get<Fatura[]>('/faturas', { params: { month, cartaoId } }).then(r => r.data)
+
 export const buscarFatura = (id: number) =>
   cliente.get<Fatura>(`/faturas/${id}`).then(r => r.data)

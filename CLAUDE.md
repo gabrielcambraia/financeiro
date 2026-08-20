@@ -112,13 +112,19 @@ Ao criar uma transação com `fixa = true`:
 
 Deleção com escopo `FUTURE` apaga a partir da data selecionada.
 
+## Rendimento automático de investimentos
+
+`AgendadorRendimento` credita rendimento automático (CDI/Selic/IPCA+/pré-fixado) rodando no startup e diariamente (`0 30 15 * * *`, ~12:30 horário de Brasília — os containers rodam em **UTC**, sem `TZ` configurado). É diário, não mensal, porque `ServicoIndiceEconomico` só busca/persiste o último mês **fechado** das séries do Banco Central: as séries 4391 (CDI) e 4390 (Selic) publicam o mês corrente com valor acumulado **parcial**, que cresce a cada dia útil até fechar — gravar esse parcial congelaria um valor errado, já que a persistência só insere meses ausentes e nunca revisita um mês já salvo. O IPCA (433) não tem esse problema, pois o SGS só publica essa série já fechada.
+
+**Dívida conhecida:** antes de `V20260819182533__reparar_indices_parciais_cdi_selic.sql`, o serviço gravava esse valor parcial do mês corrente, subcreditando rendimento de ativos `POS_CDI`/`POS_SELIC` (a fração do mês, não o valor cheio). A migration apaga e reconstrói as séries 4391/4390, mas **não recredita a diferença nos ativos já processados**: `MovimentacaoAtivo` não distingue rendimento automático de lançamento manual do usuário (ambos usam `TipoMovimentacaoAtivo.RENDIMENTO`), e `AtivoService.saldoEm` calcula o saldo andando pelas movimentações em ordem, então um ajuste retroativo mudaria a base de todos os meses seguintes já creditados. Se precisar reconciliar no futuro, o pré-requisito é uma coluna de origem (automático/manual) em `movimentacoes_ativo` — não recuperável retroativamente sem ela.
+
 ## Padrão: links direcionados com filtro pré-aplicado
 
-Quando um link navega para outra página já filtrada (ex.: "Ver todas" num card do Painel abrindo Transações filtradas), passe os filtros via `state` do React Router (`<Link to="/rota" state={{...}}>`, lido do lado de destino com `useLocation().state`) — **nunca** via query string (`?campo=valor`). Isso mantém a URL limpa e os filtros não ficam visíveis/editáveis pela barra de endereço nem viram algo bookmarkável.
+Quando um link navega para outra página já filtrada (ex.: "Ver todas" num card do Painel abrindo uma lista filtrada), passe os filtros via `state` do React Router (`<Link to="/rota" state={{...}}>`, lido do lado de destino com `useLocation().state`) — **nunca** via query string (`?campo=valor`). Isso mantém a URL limpa e os filtros não ficam visíveis/editáveis pela barra de endereço nem viram algo bookmarkável.
 
-- Filtros que já são estado global compartilhado (ex.: `mes`/`contaId` em `useLojaFiltro`, usado tanto no Painel quanto em Transações) **não precisam ser passados** — já chegam prontos na página de destino, porque é o mesmo store Zustand em toda a navegação SPA.
-- Só use `state` para filtros que são estado local da página de destino (ex.: `filtroTipo` em `Transacoes.tsx`) e que, portanto, resetam a cada visita.
-- Exemplo de referência: `frontend/src/components/CartaoVencimentos.tsx` (origem, `<Link state={{ tipo, dataVencimentoFim }}>`) e `frontend/src/pages/Transacoes.tsx` (destino, lê `useLocation().state`).
+- Filtros que já são estado global compartilhado (ex.: `mes`/`contaId` em `useLojaFiltro`, usado tanto no Painel quanto em Pagamentos/Recebimentos) **não precisam ser passados** — já chegam prontos na página de destino, porque é o mesmo store Zustand em toda a navegação SPA.
+- Só use `state` para filtros que são estado local da página de destino e que, portanto, resetam a cada visita.
+- Sem exemplo ativo no momento — `CartaoVencimentos.tsx` e `Transacoes.tsx`, que ilustravam o padrão, foram removidos ao separar os popups de lançamento em Despesa/Receita (NEXO-21); reintroduzir um exemplo de referência aqui na próxima vez que esse padrão for usado.
 
 ## Convenção de datas no banco
 

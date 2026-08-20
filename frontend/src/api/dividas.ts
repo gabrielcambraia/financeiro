@@ -9,7 +9,6 @@ type PayloadDivida = {
   contaId: number
   categoriaId?: number
   dataInicio: string
-  entidadeId?: number | null
 }
 
 export const buscarDividas = () => cliente.get<Divida[]>('/dividas').then(r => r.data)

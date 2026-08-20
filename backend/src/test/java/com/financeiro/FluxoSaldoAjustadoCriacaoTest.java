@@ -60,24 +60,22 @@ class FluxoSaldoAjustadoCriacaoTest extends TesteIntegracaoBase {
     }
 
     @Test
-    void criar_fixa_geraEntradaAtualMais11Futuras() {
+    void criar_fixa_geraSomenteEntradaAtual() {
         String token = registrar();
         Long contaId = criarConta(token, BigDecimal.valueOf(100));
 
         TransacaoDTO dto = transacao(
                 contaId, TipoTransacao.DESPESA, BigDecimal.valueOf(20), LocalDate.now(), true, null);
-        criarTransacao(token, dto);
+        List<TransacaoDTO> criadas = criarTransacao(token, dto);
 
-        // saldo mexeu só pela entrada do mês atual
+        // apenas 1 entrada criada — pré-criação de meses futuros removida (substituída por Recorrências)
+        assertThat(criadas).hasSize(1);
         assertThat(saldoConta(token, contaId)).isEqualByComparingTo("80");
 
         YearMonth mesAtual = YearMonth.now();
         assertThat(transacoesDoMes(token, mesAtual)).hasSize(1);
-        for (int i = 1; i <= 11; i++) {
-            List<Map> doMes = transacoesDoMes(token, mesAtual.plusMonths(i));
-            assertThat(doMes).as("mês +%d", i).hasSize(1);
-            assertThat(doMes.get(0).get("status")).isEqualTo("PENDENTE");
-        }
+        // meses futuros não são mais pré-criados automaticamente
+        assertThat(transacoesDoMes(token, mesAtual.plusMonths(1))).isEmpty();
     }
 
     @Test

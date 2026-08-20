@@ -15,7 +15,6 @@ interface PayloadCriarItem {
   descricao?: string
   data: string
   totalParcelas?: number
-  fixa?: boolean
   centroCustoId?: number | null
 }
 

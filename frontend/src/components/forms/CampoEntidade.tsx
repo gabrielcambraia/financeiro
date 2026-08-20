@@ -12,7 +12,7 @@ export default function CampoEntidade({ value, onChange, disabled }: Props) {
   const { data: entidades } = useQuery({ queryKey: ['entidades'], queryFn: listarEntidades })
   const { entidadeAtualId } = useLojaEntidadeAtual()
 
-  if (!entidades || entidades.length === 0) return null
+  if (!entidades || entidades.length < 2) return null
 
   const valorResolvido = value === undefined
     ? (entidadeAtualId ?? null)

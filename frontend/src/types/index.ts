@@ -138,9 +138,9 @@ export interface Transacao {
   transferenciaId?: string
   direcaoTransferencia?: DirecaoTransferencia
   multa?: number
-  entidadeId?: number | null
   centroCustoId?: number | null
   origemDerivada?: 'META' | 'ATIVO' | 'DIVIDA'
+  origemRecorrenciaId?: number | null
 }
 
 export interface ResumoFluxo {
@@ -223,7 +223,6 @@ export interface Cartao {
   banco?: Banco
   faturaAtualTotal: number
   limiteDisponivel: number
-  entidadeId?: number | null
 }
 
 export interface ItemFatura {
@@ -248,6 +247,7 @@ export interface ItemFatura {
   contaPagamentoNome: string
   fixa: boolean
   origemFixaId?: number
+  origemRecorrenciaId?: number | null
   faturaStatus?: string
   centroCustoId?: number | null
 }
@@ -275,7 +275,6 @@ export interface Fatura {
   valor: number
   status: StatusTransacao
   itens?: ItemFatura[]
-  entidadeId?: number | null
 }
 
 export interface Orcamento {
@@ -307,7 +306,6 @@ export interface Ativo {
   inicioRendimento?: string
   isentoIr?: boolean
   rendidoAte?: string
-  entidadeId?: number | null
   // campos derivados (rentabilidade / IR estimado) — só em GET /ativos
   totalAportado?: number
   totalResgatado?: number
@@ -349,7 +347,6 @@ export interface Divida {
   status: StatusDivida
   proximaParcelaData?: string
   proximaParcelaValor?: number
-  entidadeId?: number | null
 }
 
 export interface Meta {
@@ -391,4 +388,33 @@ export interface RespostaImpacto {
   motivoBloqueio?: string
   itensAfetados: ItemImpacto[]
   origem?: OrigemVinculada
+}
+
+export interface Recorrencia {
+  id: number
+  tipo: TipoTransacao
+  tipoPagamento: TipoPagamento
+  contaId?: number
+  cartaoId?: number
+  categoriaId?: number
+  centroCustoId?: number | null
+  valor: number
+  descricao?: string
+  diaCompetencia: number
+  diaVencimento?: number | null
+  debitoAutomatico: boolean
+  ativa: boolean
+  dataInicio: string
+  dataFim?: string | null
+  // campos derivados
+  contaNome?: string
+  cartaoNome?: string
+  cartaoCor?: string
+  categoriaNome?: string
+  categoriaIcone?: string
+  categoriaCor?: string
+  centroCustoNome?: string
+  centroCustoCor?: string
+  proximaGeracaoMes?: string
+  ultimaGeracaoMes?: string
 }

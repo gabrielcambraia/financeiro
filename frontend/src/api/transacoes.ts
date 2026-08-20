@@ -26,7 +26,6 @@ interface PayloadCriarTransacao {
   fixa: boolean
   debitoAutomatico?: boolean
   totalParcelas?: number
-  entidadeId?: number | null
   centroCustoId?: number | null
 }
 

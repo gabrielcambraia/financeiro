@@ -50,6 +50,20 @@ public class FaturaService {
         return faturas.stream().map(f -> toDTO(f, false)).toList();
     }
 
+    public List<FaturaDTO> findAllByEspaco(String month) {
+        Long espacoId = contextoEspaco.espacoAtual();
+        Long entidadeId = contextoEntidade.entidadeAtual();
+        List<Fatura> faturas;
+        if (month != null) {
+            YearMonth ym = YearMonth.parse(month);
+            faturas = repository.findByEspacoIdAndDataFechamentoBetweenFiltradoPorEntidade(
+                    espacoId, ym.atDay(1), ym.atEndOfMonth(), entidadeId);
+        } else {
+            faturas = repository.findByEspacoIdFiltradoPorEntidade(espacoId, entidadeId);
+        }
+        return faturas.stream().map(f -> toDTO(f, false)).toList();
+    }
+
     public FaturaDTO findById(Long id) {
         Long espacoId = contextoEspaco.espacoAtual();
         Fatura fatura = repository.findByIdAndEspacoId(id, espacoId)
@@ -74,7 +88,6 @@ public class FaturaService {
                     .stream().map(itemFaturaService::toDTO).toList());
         }
 
-        dto.setEntidadeId(f.getEntidadeId());
         return dto;
     }
 }

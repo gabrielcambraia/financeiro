@@ -112,15 +112,8 @@ public class Transacao {
     @Column(name = "usuario_id", nullable = false)
     private Long usuarioId;
 
-    @Column(name = "entidade_id")
-    private Long entidadeId;
-
     @Column(name = "centro_custo_id")
     private Long centroCustoId;
-
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "centro_custo_id", insertable = false, updatable = false)
-    private CentroCusto centroCusto;
 
     // Identificador da série de transações fixas: aponta para o id da linha
     // mais antiga do grupo ("cabeça"). A própria cabeça aponta para si mesma.
@@ -134,6 +127,11 @@ public class Transacao {
     @Builder.Default
     @Column(name = "serie_ativa", nullable = false)
     private boolean serieAtiva = true;
+
+    // Aponta para a Recorrencia que gerou este lançamento. Permanece preenchido
+    // mesmo quando a linha é editada localmente ("só este mês").
+    @Column(name = "origem_recorrencia_id")
+    private Long origemRecorrenciaId;
 
     @PrePersist
     public void prePersist() {

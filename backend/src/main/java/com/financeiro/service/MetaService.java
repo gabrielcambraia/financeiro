@@ -40,6 +40,7 @@ public class MetaService {
     private final ContextoEspaco contextoEspaco;
     private final ContextoEntidade contextoEntidade;
     private final ContextoUsuario contextoUsuario;
+    private final ServicoEntidade servicoEntidade;
 
     public List<MetaDTO> findAll() {
         Long espacoId = contextoEspaco.espacoAtual();
@@ -51,15 +52,16 @@ public class MetaService {
     }
 
     public MetaDTO create(MetaDTO dto) {
+        Long espacoId = contextoEspaco.espacoAtual();
         Meta meta = Meta.builder()
                 .nome(dto.getNome())
                 .valorAlvo(dto.getValorAlvo())
                 .prazo(dto.getPrazo())
                 .cor(dto.getCor())
                 .icone(dto.getIcone())
-                .espacoId(contextoEspaco.espacoAtual())
+                .espacoId(espacoId)
                 .usuarioId(contextoUsuario.usuarioAtual())
-                .entidadeId(dto.getEntidadeId())
+                .entidadeId(servicoEntidade.resolverParaCadastro(dto.getEntidadeId(), espacoId))
                 .build();
         return toDTO(repository.save(meta));
     }
