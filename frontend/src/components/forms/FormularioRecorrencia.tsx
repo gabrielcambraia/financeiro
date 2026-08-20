@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { X } from 'lucide-react'
@@ -49,6 +49,25 @@ export default function FormularioRecorrencia({ onClose, editing }: Props) {
   const { data: centrosCusto = [] } = useQuery({ queryKey: ['centros-custo'], queryFn: buscarCentrosCusto })
   const { data: cartoes = [] } = useQuery({ queryKey: ['cartoes'], queryFn: buscarCartoes })
 
+  const entidadeRef: number | null = credito
+    ? (cartoes.find(c => c.id === Number(form.cartaoId))?.contaPagamento?.entidadeId ?? null)
+    : (contas.find(c => c.id === Number(form.contaId))?.entidadeId ?? null)
+
+  const categoriasFiltradas = categorias.filter(c =>
+    entidadeRef == null || c.entidadeId == null || c.entidadeId === entidadeRef
+  )
+  const centrosCustoFiltrados = centrosCusto.filter(cc =>
+    entidadeRef == null || cc.entidadeId == null || cc.entidadeId === entidadeRef
+  )
+
+  useEffect(() => {
+    if (entidadeRef == null) return
+    const cat = categorias.find(c => c.id === Number(form.categoriaId))
+    if (cat?.entidadeId != null && cat.entidadeId !== entidadeRef) set('categoriaId', '')
+    const cc = centrosCusto.find(c => c.id === Number(form.centroCustoId))
+    if (cc?.entidadeId != null && cc.entidadeId !== entidadeRef) set('centroCustoId', '')
+  }, [form.contaId, form.cartaoId, credito])
+
   const mutation = useMutation({
     mutationFn: (payload: Parameters<typeof criarRecorrencia>[0]) =>
       editing ? atualizarRecorrencia(editing.id, payload) : criarRecorrencia(payload),
@@ -87,7 +106,7 @@ export default function FormularioRecorrencia({ onClose, editing }: Props) {
     })
   }
 
-  const categoriasDoTipo = categorias.filter(c => c.tipo === tipo)
+  const categoriasDoTipo = categoriasFiltradas.filter(c => c.tipo === tipo)
 
   const trocarTipo = (t: TipoTransacao) => {
     setTipo(t)
@@ -182,13 +201,13 @@ export default function FormularioRecorrencia({ onClose, editing }: Props) {
                 ))}
               </select>
             </div>
-            {centrosCusto.length > 0 && (
+            {centrosCustoFiltrados.length > 0 && (
               <div>
                 <label className="label">Centro de Custo</label>
                 <select className="input w-full" value={form.centroCustoId}
                   onChange={e => set('centroCustoId', e.target.value ? Number(e.target.value) : '')}>
                   <option value="">Sem centro de custo</option>
-                  {[...centrosCusto].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(cc => (
+                  {[...centrosCustoFiltrados].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(cc => (
                     <option key={cc.id} value={cc.id}>{cc.nome}</option>
                   ))}
                 </select>

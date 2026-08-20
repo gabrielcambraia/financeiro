@@ -431,6 +431,7 @@ export default function CartaoDetalhe() {
       {showForm && (
         <FormularioCompraCartao
           cartaoId={cartaoId}
+          entidadeId={cartao?.contaPagamento?.entidadeId}
           editing={editing}
           onClose={() => { setShowForm(false); setEditing(undefined) }}
         />

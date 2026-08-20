@@ -9,6 +9,7 @@ import com.financeiro.entity.CentroCusto;
 import com.financeiro.entity.Transacao;
 import com.financeiro.entity.enums.DirecaoTransferencia;
 import com.financeiro.entity.enums.TipoTransacao;
+import com.financeiro.repository.CentroCustoRepository;
 import com.financeiro.repository.ContaRepository;
 import com.financeiro.repository.TransacaoRepository;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,7 @@ public class PainelService {
 
     private final TransacaoRepository transacaoRepository;
     private final ContaRepository contaRepository;
+    private final CentroCustoRepository centroCustoRepository;
     private final ContaService contaService;
     private final ContextoEspaco contextoEspaco;
     private final ContextoEntidade contextoEntidade;
@@ -142,25 +144,32 @@ public class PainelService {
             List<Transacao> transacoes, BigDecimal totalDespesas) {
 
         Map<Long, List<Transacao>> agrupado = transacoes.stream()
-                .filter(t -> t.getTipo() == TipoTransacao.DESPESA && t.getCentroCusto() != null)
+                .filter(t -> t.getTipo() == TipoTransacao.DESPESA && t.getCentroCustoId() != null)
                 .collect(Collectors.groupingBy(Transacao::getCentroCustoId));
 
-        return agrupado.entrySet().stream().map(entry -> {
-            CentroCusto cc = entry.getValue().get(0).getCentroCusto();
-            BigDecimal totalCC = entry.getValue().stream()
-                    .map(Transacao::getValor).reduce(BigDecimal.ZERO, BigDecimal::add);
-            double pct = totalDespesas.compareTo(BigDecimal.ZERO) == 0 ? 0
-                    : totalCC.divide(totalDespesas, 4, RoundingMode.HALF_UP).doubleValue() * 100;
+        if (agrupado.isEmpty()) return List.of();
 
-            CentroCustoDTO ccDTO = new CentroCustoDTO();
-            ccDTO.setId(cc.getId());
-            ccDTO.setNome(cc.getNome());
-            ccDTO.setCor(cc.getCor());
-            ccDTO.setEntidadeId(cc.getEntidadeId());
+        Map<Long, CentroCusto> ccPorId = centroCustoRepository.findAllById(agrupado.keySet())
+                .stream().collect(Collectors.toMap(CentroCusto::getId, cc -> cc));
 
-            return PainelDTO.ResumoCentroCusto.builder()
-                    .centroCusto(ccDTO).total(totalCC).percentual(pct).build();
-        }).sorted(Comparator.comparing(PainelDTO.ResumoCentroCusto::getTotal).reversed()).toList();
+        return agrupado.entrySet().stream()
+                .filter(entry -> ccPorId.containsKey(entry.getKey()))
+                .map(entry -> {
+                    CentroCusto cc = ccPorId.get(entry.getKey());
+                    BigDecimal totalCC = entry.getValue().stream()
+                            .map(Transacao::getValor).reduce(BigDecimal.ZERO, BigDecimal::add);
+                    double pct = totalDespesas.compareTo(BigDecimal.ZERO) == 0 ? 0
+                            : totalCC.divide(totalDespesas, 4, RoundingMode.HALF_UP).doubleValue() * 100;
+
+                    CentroCustoDTO ccDTO = new CentroCustoDTO();
+                    ccDTO.setId(cc.getId());
+                    ccDTO.setNome(cc.getNome());
+                    ccDTO.setCor(cc.getCor());
+                    ccDTO.setEntidadeId(cc.getEntidadeId());
+
+                    return PainelDTO.ResumoCentroCusto.builder()
+                            .centroCusto(ccDTO).total(totalCC).percentual(pct).build();
+                }).sorted(Comparator.comparing(PainelDTO.ResumoCentroCusto::getTotal).reversed()).toList();
     }
 
     private List<PainelDTO.TendenciaMensal> buildTendenciaMensal(Long espacoId, YearMonth atual, Long contaId) {

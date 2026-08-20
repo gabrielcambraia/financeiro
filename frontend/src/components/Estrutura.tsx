@@ -1,7 +1,7 @@
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import { ChevronDown, ChevronLeft, ChevronRight, LogOut } from 'lucide-react'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import type { LucideIcon } from 'lucide-react'
 import { useLojaAutenticacao } from '../store/lojaAutenticacao'
 import { sair } from '../api/autenticacao'
@@ -13,20 +13,25 @@ import LogoNexo360 from './LogoNexo360'
 import { type ItemNavegacao, itensNavegacao } from '../config/navegacao'
 
 interface PropsGrupo {
-  item: { icon: LucideIcon; label: string; filhos: { to: string; label: string }[] }
+  item: { icon: LucideIcon; label: string; filhos: { to: string; label: string; icon?: LucideIcon }[] }
   recolhido: boolean
 }
 
 function GrupoNavegacao({ item, recolhido }: PropsGrupo) {
   const location = useLocation()
-  const [aberto, setAberto] = useState(false)
+  const grupoAtivo = item.filhos.some(f => location.pathname.startsWith(f.to))
+  const [aberto, setAberto] = useState(grupoAtivo)
   const [popoverTop, setPopoverTop] = useState(0)
   const [hovering, setHovering] = useState(false)
   const btnRef = useRef<HTMLButtonElement>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const Icon = item.icon
 
-  const grupoAtivo = item.filhos.some(f => location.pathname.startsWith(f.to))
+  // Reabre automaticamente ao navegar para dentro do grupo vindo de fora,
+  // mas não impede o usuário de fechar enquanto já está no grupo.
+  useEffect(() => {
+    if (grupoAtivo) setAberto(true)
+  }, [grupoAtivo])
 
   const iniciarHover = () => {
     if (timerRef.current) clearTimeout(timerRef.current)
@@ -59,16 +64,20 @@ function GrupoNavegacao({ item, recolhido }: PropsGrupo) {
             className="fixed z-50 bg-sb-fundo border border-sb-borda rounded-xl py-1.5 w-44 shadow-xl"
           >
             <p className="px-3 py-1 text-xs font-semibold text-sb-suave uppercase tracking-wider">{item.label}</p>
-            {item.filhos.map(f => (
-              <NavLink key={f.to} to={f.to}
-                className={({ isActive }) =>
-                  `block mx-1 px-3 py-2 rounded-lg text-sm transition-colors
-                   ${isActive ? 'text-sb-texto bg-sb-ativo' : 'text-sb-suave hover:text-sb-texto hover:bg-sb-hover'}`
-                }
-              >
-                {f.label}
-              </NavLink>
-            ))}
+            {item.filhos.map(f => {
+              const FIcon = f.icon
+              return (
+                <NavLink key={f.to} to={f.to}
+                  className={({ isActive }) =>
+                    `flex items-center gap-2 mx-1 px-3 py-2 rounded-lg text-sm transition-colors
+                     ${isActive ? 'text-sb-texto bg-sb-ativo' : 'text-sb-suave hover:text-sb-texto hover:bg-sb-hover'}`
+                  }
+                >
+                  {FIcon && <FIcon size={14} className="shrink-0" />}
+                  {f.label}
+                </NavLink>
+              )
+            })}
           </div>,
           document.body
         )}
@@ -88,21 +97,25 @@ function GrupoNavegacao({ item, recolhido }: PropsGrupo) {
         <span className="flex-1 text-left">{item.label}</span>
         <ChevronDown
           size={14}
-          className={`transition-transform duration-200 shrink-0 ${(aberto || grupoAtivo) ? 'rotate-180' : ''}`}
+          className={`transition-transform duration-200 shrink-0 ${aberto ? 'rotate-180' : ''}`}
         />
       </button>
-      {(aberto || grupoAtivo) && (
+      {aberto && (
         <div className="ml-7 mt-0.5 space-y-0.5">
-          {item.filhos.map(f => (
-            <NavLink key={f.to} to={f.to}
-              className={({ isActive }) =>
-                `block px-3 py-2 rounded-xl text-sm font-medium transition-colors
-                 ${isActive ? 'bg-sb-ativo text-sb-texto' : 'text-sb-suave hover:text-sb-texto hover:bg-sb-hover'}`
-              }
-            >
-              {f.label}
-            </NavLink>
-          ))}
+          {item.filhos.map(f => {
+            const FIcon = f.icon
+            return (
+              <NavLink key={f.to} to={f.to}
+                className={({ isActive }) =>
+                  `flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-colors
+                   ${isActive ? 'bg-sb-ativo text-sb-texto' : 'text-sb-suave hover:text-sb-texto hover:bg-sb-hover'}`
+                }
+              >
+                {FIcon && <FIcon size={14} className="shrink-0" />}
+                {f.label}
+              </NavLink>
+            )
+          })}
         </div>
       )}
     </div>

@@ -1,6 +1,7 @@
 import { X, LogOut } from 'lucide-react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { itensSecundarios } from '../config/navegacao'
+import { itensNavegacao } from '../config/navegacao'
+import type { LucideIcon } from 'lucide-react'
 import { useLojaAutenticacao } from '../store/lojaAutenticacao'
 
 interface Props {
@@ -8,9 +9,27 @@ interface Props {
   fechar: () => void
 }
 
+// Rotas fixadas na barra inferior — não precisam aparecer no drawer.
+const ROTAS_BARRA_INFERIOR = new Set(['/', '/lancamentos/a-pagar', '/cartoes'])
+
+function itensDrawer(): { to: string; icon: LucideIcon; label: string }[] {
+  return itensNavegacao(false).flatMap(item => {
+    if (item.filhos) {
+      return item.filhos
+        .filter(f => !ROTAS_BARRA_INFERIOR.has(f.to))
+        .map(f => ({ to: f.to, icon: f.icon ?? item.icon, label: f.label }))
+    }
+    if (item.to && !ROTAS_BARRA_INFERIOR.has(item.to)) {
+      return [{ to: item.to, icon: item.icon, label: item.label }]
+    }
+    return []
+  })
+}
+
 export default function DrawerMobile({ aberto, fechar }: Props) {
   const limparSessao = useLojaAutenticacao(s => s.limparSessao)
   const navigate = useNavigate()
+  const itens = itensDrawer()
 
   const sair = () => {
     limparSessao()
@@ -33,11 +52,10 @@ export default function DrawerMobile({ aberto, fechar }: Props) {
           <button onClick={fechar} className="btn-ghost p-1.5"><X size={18} /></button>
         </div>
         <div className="grid grid-cols-4 gap-1 p-4">
-          {itensSecundarios.map(({ to, icon: Icon, label }) => (
+          {itens.map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}
-              to={to!}
-              end={to === '/'}
+              to={to}
               onClick={fechar}
               className={({ isActive }) =>
                 `flex flex-col items-center gap-1.5 p-3 rounded-xl transition-colors text-xs font-medium

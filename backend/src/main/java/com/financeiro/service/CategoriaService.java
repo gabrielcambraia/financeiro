@@ -57,6 +57,7 @@ public class CategoriaService {
         cat.setTipo(dto.getTipo());
         cat.setCor(dto.getCor());
         cat.setIcone(dto.getIcone());
+        cat.setEntidadeId(dto.getEntidadeId());
         return toDTO(repository.save(cat));
     }
 

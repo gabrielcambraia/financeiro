@@ -63,6 +63,7 @@ public class ContaService {
         conta.setCor(dto.getCor());
         conta.setIcone(dto.getIcone());
         conta.setBanco(resolverBanco(dto.getBancoId()));
+        conta.setEntidadeId(dto.getEntidadeId());
         return toDTO(repository.save(conta));
     }
 

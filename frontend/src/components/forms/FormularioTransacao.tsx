@@ -31,14 +31,15 @@ const fmtParcela = (valor: string | number, totalParcelas: string | number) => {
 
 interface Props {
   // Tipo do lançamento a criar — determinado pelo contexto de onde o popup
-  // foi aberto (tela de Pagamentos ou de Recebimentos), nunca escolhido
-  // dentro do form. Ignorado quando `editing` está presente.
-  tipo: 'DESPESA' | 'RECEITA'
+  // foi aberto (Pagamentos → DESPESA, Recebimentos → RECEITA). Opcional para
+  // Transacoes.tsx que abre o form sem contexto de tipo; nesse caso cria como
+  // DESPESA por padrão. Ignorado quando `editing` está presente.
+  tipo?: 'DESPESA' | 'RECEITA'
   onClose: () => void
   editing?: EdicaoLancamento
 }
 
-export default function FormularioTransacao({ tipo: tipoProp, onClose, editing }: Props) {
+export default function FormularioTransacao({ tipo: tipoProp = 'DESPESA', onClose, editing }: Props) {
   const qc = useQueryClient()
   const navigate = useNavigate()
   const editingTx = editing?.origem === 'TRANSACAO' ? editing.tx : undefined
@@ -117,6 +118,28 @@ export default function FormularioTransacao({ tipo: tipoProp, onClose, editing }
     queryKey: ['centros-custo'],
     queryFn: buscarCentrosCusto,
   })
+
+  // Entidade derivada da conta (débito) ou da conta de pagamento do cartão (crédito).
+  // null = fonte global → sem restrição.
+  const entidadeRef: number | null = credito
+    ? (cartoes.find(c => c.id === Number(form.cartaoId))?.contaPagamento?.entidadeId ?? null)
+    : (contas.find(c => c.id === Number(form.contaId))?.entidadeId ?? null)
+
+  const categoriasFiltradas = categorias.filter(c =>
+    entidadeRef == null || c.entidadeId == null || c.entidadeId === entidadeRef
+  )
+  const centrosCustoFiltrados = centrosCusto.filter(cc =>
+    entidadeRef == null || cc.entidadeId == null || cc.entidadeId === entidadeRef
+  )
+
+  // Limpa seleções incompatíveis ao trocar a fonte de pagamento
+  useEffect(() => {
+    if (entidadeRef == null) return
+    const cat = categorias.find(c => c.id === Number(form.categoriaId))
+    if (cat?.entidadeId != null && cat.entidadeId !== entidadeRef) set('categoriaId', '')
+    const cc = centrosCusto.find(c => c.id === Number(form.centroCustoId))
+    if (cc?.entidadeId != null && cc.entidadeId !== entidadeRef) set('centroCustoId', '')
+  }, [form.contaId, form.cartaoId, credito])
 
   const invalidarTudo = async () => {
     await Promise.all([
@@ -273,16 +296,16 @@ export default function FormularioTransacao({ tipo: tipoProp, onClose, editing }
               <label className="label">Categoria</label>
               <select className="select" value={form.categoriaId} onChange={e => set('categoriaId', e.target.value)}>
                 <option value="">Sem categoria</option>
-                {[...categorias].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                {[...categoriasFiltradas].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
               </select>
             </div>
           </div>
-          {centrosCusto.length > 0 && (
+          {centrosCustoFiltrados.length > 0 && (
             <div>
               <label className="label">Centro de Custo</label>
               <select className="select" value={form.centroCustoId} onChange={e => set('centroCustoId', e.target.value ? Number(e.target.value) : '')}>
                 <option value="">Sem centro de custo</option>
-                {[...centrosCusto].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(cc => (
+                {[...centrosCustoFiltrados].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(cc => (
                   <option key={cc.id} value={cc.id}>{cc.nome}</option>
                 ))}
               </select>
