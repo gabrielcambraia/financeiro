@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { ChevronLeft, Pencil, Trash2, Ban, Upload, Download, Plus, Tag } from 'lucide-react'
+import { ChevronLeft, Upload, Download, Plus } from 'lucide-react'
 import { format, parseISO, addMonths, differenceInCalendarDays } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { buscarCartoes } from '../api/cartoes'
@@ -12,81 +12,12 @@ import { pagarTransacao, estornarTransacao } from '../api/transacoes'
 import FormularioCompraCartao from '../components/forms/FormularioCompraCartao'
 import ModalConfirmacao from '../components/ModalConfirmacao'
 import Spinner from '../components/Spinner'
-import type { ItemFatura, StatusTransacao } from '../types'
+import LinhaCompraCartao from '../components/LinhaCompraCartao'
+import { corStatusFatura as corStatus, rotuloStatusFatura as rotuloStatus } from '../utils/statusTransacao'
+import type { ItemFatura } from '../types'
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
-
-const corStatus: Record<StatusTransacao, string> = {
-  PAGA: 'bg-sucesso-fundo text-sucesso',
-  PENDENTE: 'bg-aviso-fundo text-aviso',
-  ATRASADA: 'bg-perigo-fundo text-perigo',
-  CANCELADA: 'bg-superficie-2 text-conteudo-suave',
-}
-const rotuloStatus: Record<StatusTransacao, string> = {
-  PAGA: 'Paga', PENDENTE: 'Pendente', ATRASADA: 'Atrasada', CANCELADA: 'Cancelada',
-}
-
-function ItemLinha({ item, onEdit, onExcluir, onCancelar, editavel }: {
-  item: ItemFatura
-  onEdit?: () => void
-  onExcluir?: () => void
-  onCancelar?: () => void
-  editavel: boolean
-}) {
-  const cor = item.categoria?.cor ?? '#6B7280'
-  return (
-    <div className={`flex items-center gap-3 py-2.5 border-b border-borda/50 last:border-b-0 ${item.cancelado ? 'opacity-50' : ''}`}>
-      <div
-        className="w-[34px] h-[34px] rounded-lg flex items-center justify-center shrink-0"
-        style={{ backgroundColor: `${cor}22` }}
-      >
-        <Tag size={16} style={{ color: cor }} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className={`text-sm font-medium text-conteudo truncate ${item.cancelado ? 'line-through' : ''}`}>
-          {item.descricao || item.categoria?.nome || '—'}
-        </div>
-        <div className="text-xs text-conteudo-suave mt-0.5 flex items-center gap-2 flex-wrap">
-          <span>{item.categoria?.nome ?? 'Sem categoria'}{item.totalParcelas ? ` · ${item.numeroParcela}/${item.totalParcelas}x` : ''}</span>
-          {item.centroCusto && (
-            <span className="flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: item.centroCusto.cor }} />
-              <span>{item.centroCusto.nome}</span>
-            </span>
-          )}
-        </div>
-      </div>
-      <div className="text-right shrink-0">
-        <div className={`text-sm font-bold ${item.cancelado ? 'line-through text-conteudo-suave' : 'text-conteudo'}`}>
-          {fmt(item.valor)}
-        </div>
-        {item.totalParcelas && (
-          <div className="text-xs text-conteudo-suave">parcela {item.numeroParcela}/{item.totalParcelas}</div>
-        )}
-      </div>
-      {editavel && !item.cancelado && (
-        <div className="flex gap-1 shrink-0">
-          {onEdit && (
-            <button onClick={onEdit} className="p-1.5 rounded-lg hover:bg-superficie-2 text-conteudo-suave hover:text-conteudo transition-colors">
-              <Pencil size={14} />
-            </button>
-          )}
-          {onCancelar && (
-            <button onClick={onCancelar} className="p-1.5 rounded-lg hover:bg-aviso/10 text-conteudo-suave hover:text-aviso transition-colors">
-              <Ban size={14} />
-            </button>
-          )}
-          {onExcluir && (
-            <button onClick={onExcluir} className="p-1.5 rounded-lg hover:bg-perigo/10 text-conteudo-suave hover:text-perigo transition-colors">
-              <Trash2 size={14} />
-            </button>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
 
 export default function CartaoDetalhe() {
   const { id } = useParams()
@@ -381,7 +312,7 @@ export default function CartaoDetalhe() {
                   <span className="text-sm font-bold text-conteudo">{fmt(subtotal)}</span>
                 </div>
                 {itens.map(item => (
-                  <ItemLinha
+                  <LinhaCompraCartao
                     key={item.id}
                     item={item}
                     editavel={faturaAberta}

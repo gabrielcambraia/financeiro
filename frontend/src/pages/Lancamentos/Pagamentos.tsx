@@ -17,7 +17,7 @@ import SeletorMes from '../../components/SeletorMes'
 import FormularioTransacao, { type EdicaoLancamento } from '../../components/forms/FormularioTransacao'
 import SobreposicaoModal from '../../components/SobreposicaoModal'
 import Spinner from '../../components/Spinner'
-import type { Transacao, StatusTransacao, TipoPagamento, RespostaImpacto } from '../../types'
+import type { Transacao, StatusTransacao, RespostaImpacto } from '../../types'
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
@@ -32,16 +32,11 @@ const rotuloStatus: Record<StatusTransacao, string> = {
   PAGA: 'Paga', PENDENTE: 'Pendente', ATRASADA: 'Atrasada', CANCELADA: 'Cancelada',
 }
 
-const chipBase = 'text-xs px-3 py-1.5 rounded-full font-medium transition-colors'
-const chipAtivo = 'bg-acento text-white border border-acento'
-const chipInativo = 'border border-borda text-conteudo-suave hover:border-acento hover:text-acento bg-superficie'
-
 const ITENS_POR_PAGINA = 20
 
 export default function Pagamentos() {
   const qc = useQueryClient()
   const { mes, contaId, definirContaId } = useLojaFiltro()
-  const [filtroTipoPagamento, setFiltroTipoPagamento] = useState<TipoPagamento | ''>('')
   const [filtroStatus, setFiltroStatus] = useState<StatusTransacao | ''>('')
   const [filtroCategoria, setFiltroCategoria] = useState<number | ''>('')
   const [filtroCentroCusto, setFiltroCentroCusto] = useState<number | ''>('')
@@ -52,7 +47,7 @@ export default function Pagamentos() {
   const [cancelModal, setCancelModal] = useState<{ tx: Transacao; impacto: RespostaImpacto | null; carregando: boolean; erro?: string } | null>(null)
   const [pagina, setPagina] = useState(1)
 
-  useEffect(() => { setPagina(1) }, [mes, contaId, filtroTipoPagamento, filtroStatus, filtroCategoria, filtroCentroCusto])
+  useEffect(() => { setPagina(1) }, [mes, contaId, filtroStatus, filtroCategoria, filtroCentroCusto])
 
   const { data: todas = [], isLoading } = useQuery({
     queryKey: ['transacoes', mes, contaId, 'DESPESA', filtroCategoria, filtroCentroCusto],
@@ -60,7 +55,6 @@ export default function Pagamentos() {
   })
 
   const transacoes = todas
-    .filter(t => !filtroTipoPagamento || t.tipoPagamento === filtroTipoPagamento)
     .filter(t => !filtroStatus || t.status === filtroStatus)
 
   const { data: contas = [] } = useQuery({ queryKey: ['contas'], queryFn: buscarContas })
@@ -170,10 +164,6 @@ export default function Pagamentos() {
 
       {/* Filtros */}
       <div className="card p-3 flex flex-wrap gap-2 items-center">
-        <button className={`${chipBase} ${filtroTipoPagamento === '' ? chipAtivo : chipInativo}`} onClick={() => setFiltroTipoPagamento('')}>Todos</button>
-        <button className={`${chipBase} ${filtroTipoPagamento === 'DEBITO' ? chipAtivo : chipInativo}`} onClick={() => setFiltroTipoPagamento('DEBITO')}>Débito</button>
-        <button className={`${chipBase} ${filtroTipoPagamento === 'CREDITO' ? chipAtivo : chipInativo}`} onClick={() => setFiltroTipoPagamento('CREDITO')}>Crédito</button>
-        <div className="w-px h-5 bg-borda shrink-0" />
         <select
           className="text-xs px-3 py-1.5 rounded-full font-medium border border-borda bg-superficie text-conteudo-suave focus:border-acento focus:outline-none cursor-pointer"
           value={contaId ?? ''}

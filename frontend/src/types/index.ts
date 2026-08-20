@@ -249,6 +249,7 @@ export interface ItemFatura {
   origemFixaId?: number
   origemRecorrenciaId?: number | null
   faturaStatus?: string
+  faturaDataFechamento?: string
   centroCustoId?: number | null
 }
 
