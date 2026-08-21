@@ -119,26 +119,26 @@ export default function FormularioTransacao({ tipo: tipoProp = 'DESPESA', onClos
     queryFn: buscarCentrosCusto,
   })
 
-  // Entidade derivada da conta (débito) ou da conta de pagamento do cartão (crédito).
+  // Filial derivada da conta (débito) ou da conta de pagamento do cartão (crédito).
   // null = fonte global → sem restrição.
-  const entidadeRef: number | null = credito
-    ? (cartoes.find(c => c.id === Number(form.cartaoId))?.contaPagamento?.entidadeId ?? null)
-    : (contas.find(c => c.id === Number(form.contaId))?.entidadeId ?? null)
+  const filialRef: number | null = credito
+    ? (cartoes.find(c => c.id === Number(form.cartaoId))?.contaPagamento?.filialId ?? null)
+    : (contas.find(c => c.id === Number(form.contaId))?.filialId ?? null)
 
   const categoriasFiltradas = categorias.filter(c =>
-    entidadeRef == null || c.entidadeId == null || c.entidadeId === entidadeRef
+    filialRef == null || c.filialId == null || c.filialId === filialRef
   )
   const centrosCustoFiltrados = centrosCusto.filter(cc =>
-    entidadeRef == null || cc.entidadeId == null || cc.entidadeId === entidadeRef
+    filialRef == null || cc.filialId == null || cc.filialId === filialRef
   )
 
   // Limpa seleções incompatíveis ao trocar a fonte de pagamento
   useEffect(() => {
-    if (entidadeRef == null) return
+    if (filialRef == null) return
     const cat = categorias.find(c => c.id === Number(form.categoriaId))
-    if (cat?.entidadeId != null && cat.entidadeId !== entidadeRef) set('categoriaId', '')
+    if (cat?.filialId != null && cat.filialId !== filialRef) set('categoriaId', '')
     const cc = centrosCusto.find(c => c.id === Number(form.centroCustoId))
-    if (cc?.entidadeId != null && cc.entidadeId !== entidadeRef) set('centroCustoId', '')
+    if (cc?.filialId != null && cc.filialId !== filialRef) set('centroCustoId', '')
   }, [form.contaId, form.cartaoId, credito])
 
   const invalidarTudo = async () => {

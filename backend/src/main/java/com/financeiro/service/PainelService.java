@@ -1,6 +1,6 @@
 package com.financeiro.service;
 
-import com.financeiro.context.ContextoEntidade;
+import com.financeiro.context.ContextoFilial;
 import com.financeiro.context.ContextoEspaco;
 import com.financeiro.dto.CategoriaDTO;
 import com.financeiro.dto.CentroCustoDTO;
@@ -36,7 +36,7 @@ public class PainelService {
     private final CentroCustoRepository centroCustoRepository;
     private final ContaService contaService;
     private final ContextoEspaco contextoEspaco;
-    private final ContextoEntidade contextoEntidade;
+    private final ContextoFilial contextoFilial;
 
     public PainelDTO getDashboard(String month, Long contaId) {
         Long espacoId = contextoEspaco.espacoAtual();
@@ -87,16 +87,16 @@ public class PainelService {
     }
 
     private List<Transacao> fetch(Long espacoId, Long contaId, LocalDate start, LocalDate end, boolean asc) {
-        Long entidadeId = contextoEntidade.entidadeAtual();
-        if (entidadeId != null) {
+        Long filialId = contextoFilial.filialAtual();
+        if (filialId != null) {
             if (contaId != null) {
                 return asc
-                        ? transacaoRepository.findByEspacoIdAndContaIdAndDataBetweenAscFiltradoPorEntidade(espacoId, contaId, start, end, entidadeId)
-                        : transacaoRepository.findByEspacoIdAndContaIdAndDataBetweenFiltradoPorEntidade(espacoId, contaId, start, end, entidadeId);
+                        ? transacaoRepository.findByEspacoIdAndContaIdAndDataBetweenAscFiltradoPorFilial(espacoId, contaId, start, end, filialId)
+                        : transacaoRepository.findByEspacoIdAndContaIdAndDataBetweenFiltradoPorFilial(espacoId, contaId, start, end, filialId);
             }
             return asc
-                    ? transacaoRepository.findByEspacoIdAndDataBetweenAscFiltradoPorEntidade(espacoId, start, end, entidadeId)
-                    : transacaoRepository.findByEspacoIdAndDataBetweenFiltradoPorEntidade(espacoId, start, end, entidadeId);
+                    ? transacaoRepository.findByEspacoIdAndDataBetweenAscFiltradoPorFilial(espacoId, start, end, filialId)
+                    : transacaoRepository.findByEspacoIdAndDataBetweenFiltradoPorFilial(espacoId, start, end, filialId);
         }
         if (contaId != null) {
             return asc
@@ -165,7 +165,7 @@ public class PainelService {
                     ccDTO.setId(cc.getId());
                     ccDTO.setNome(cc.getNome());
                     ccDTO.setCor(cc.getCor());
-                    ccDTO.setEntidadeId(cc.getEntidadeId());
+                    ccDTO.setFilialId(cc.getFilialId());
 
                     return PainelDTO.ResumoCentroCusto.builder()
                             .centroCusto(ccDTO).total(totalCC).percentual(pct).build();
@@ -197,9 +197,9 @@ public class PainelService {
     }
 
     private List<PainelDTO.SaldoConta> buildSaldosContas(Long espacoId, Long contaId) {
-        Long entidadeId = contextoEntidade.entidadeAtual();
-        var contas = entidadeId != null
-                ? contaRepository.findByEspacoIdFiltradoPorEntidade(espacoId, entidadeId)
+        Long filialId = contextoFilial.filialAtual();
+        var contas = filialId != null
+                ? contaRepository.findByEspacoIdFiltradoPorFilial(espacoId, filialId)
                 : contaRepository.findByEspacoId(espacoId);
         if (contaId != null) {
             contas = contas.stream().filter(c -> c.getId().equals(contaId)).toList();

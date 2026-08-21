@@ -18,5 +18,5 @@ public class RespostaAutenticacao {
     private PapelUsuario papel;
     private boolean precisaTrocarSenha;
     private NivelAcesso nivelAcesso;
-    private List<RespostaEntidadeResumo> entidades;
+    private List<RespostaFilialResumo> filiais;
 }

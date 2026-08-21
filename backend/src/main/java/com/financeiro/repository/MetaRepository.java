@@ -15,8 +15,8 @@ public interface MetaRepository extends JpaRepository<Meta, Long> {
     Optional<Meta> findByIdAndEspacoId(Long id, Long espacoId);
 
     @Query("SELECT m FROM Meta m WHERE m.espacoId = :espacoId " +
-           "AND (:entidadeId IS NULL OR m.entidadeId = :entidadeId OR m.entidadeId IS NULL) " +
+           "AND (:filialId IS NULL OR m.filialId = :filialId OR m.filialId IS NULL) " +
            "ORDER BY m.criadoEm DESC")
-    List<Meta> findByEspacoIdFiltradoPorEntidade(@Param("espacoId") Long espacoId,
-                                                 @Param("entidadeId") Long entidadeId);
+    List<Meta> findByEspacoIdFiltradoPorFilial(@Param("espacoId") Long espacoId,
+                                                 @Param("filialId") Long filialId);
 }

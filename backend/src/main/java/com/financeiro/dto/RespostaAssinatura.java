@@ -9,8 +9,8 @@ public record RespostaAssinatura(
         Long id,
         CodigoPlano codigoPlano,
         String nomePlano,
-        int limiteEntidades,
-        long entidadesUsadas,
+        int limiteFiliais,
+        long filiaisUsadas,
         StatusAssinatura status,
         LocalDateTime vigenciaInicio,
         LocalDateTime vigenciaFim

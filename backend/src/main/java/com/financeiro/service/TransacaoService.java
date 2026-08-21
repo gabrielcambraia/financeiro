@@ -1,6 +1,6 @@
 package com.financeiro.service;
 
-import com.financeiro.context.ContextoEntidade;
+import com.financeiro.context.ContextoFilial;
 import com.financeiro.context.ContextoEspaco;
 import com.financeiro.context.ContextoUsuario;
 import com.financeiro.dto.CategoriaDTO;
@@ -63,7 +63,7 @@ public class TransacaoService {
     private final DividaRepository dividaRepository;
     private final ContextoEspaco contextoEspaco;
     private final ContextoUsuario contextoUsuario;
-    private final ContextoEntidade contextoEntidade;
+    private final ContextoFilial contextoFilial;
 
     public List<TransacaoDTO> findByFilters(String month, Long contaId, TipoTransacao tipo, Long categoriaId) {
         return findByFilters(month, contaId, tipo, categoriaId, null, null, null);
@@ -83,21 +83,21 @@ public class TransacaoService {
                                              LocalDate dataVencimentoInicio, LocalDate dataVencimentoFim,
                                              Long centroCustoId) {
         Long espacoId = contextoEspaco.espacoAtual();
-        Long entidadeId = contextoEntidade.entidadeAtual();
+        Long filialId = contextoFilial.filialAtual();
 
         List<Transacao> raw;
         if (dataVencimentoFim != null) {
             LocalDate inicio = dataVencimentoInicio != null ? dataVencimentoInicio : LocalDate.of(1970, 1, 1);
             if (contaId != null) {
-                raw = entidadeId != null
-                        ? repository.findByEspacoIdAndContaIdAndDataVencimentoBetweenFiltradoPorEntidade(
-                                espacoId, contaId, inicio, dataVencimentoFim, entidadeId)
+                raw = filialId != null
+                        ? repository.findByEspacoIdAndContaIdAndDataVencimentoBetweenFiltradoPorFilial(
+                                espacoId, contaId, inicio, dataVencimentoFim, filialId)
                         : repository.findByEspacoIdAndContaIdAndDataVencimentoBetweenAndDataPagamentoIsNullAndDataCancelamentoIsNullOrderByDataVencimentoAsc(
                                 espacoId, contaId, inicio, dataVencimentoFim);
             } else {
-                raw = entidadeId != null
-                        ? repository.findVencimentosPorPeriodoFiltradoPorEntidade(
-                                espacoId, inicio, dataVencimentoFim, entidadeId)
+                raw = filialId != null
+                        ? repository.findVencimentosPorPeriodoFiltradoPorFilial(
+                                espacoId, inicio, dataVencimentoFim, filialId)
                         : repository.findByEspacoIdAndDataVencimentoBetweenAndDataPagamentoIsNullAndDataCancelamentoIsNullOrderByDataVencimentoAsc(
                                 espacoId, inicio, dataVencimentoFim);
             }
@@ -106,14 +106,14 @@ public class TransacaoService {
             LocalDate start = ym.atDay(1);
             LocalDate end = ym.atEndOfMonth();
             if (contaId != null) {
-                raw = entidadeId != null
-                        ? repository.findByEspacoIdAndContaIdAndDataBetweenFiltradoPorEntidade(
-                                espacoId, contaId, start, end, entidadeId)
+                raw = filialId != null
+                        ? repository.findByEspacoIdAndContaIdAndDataBetweenFiltradoPorFilial(
+                                espacoId, contaId, start, end, filialId)
                         : repository.findByEspacoIdAndContaIdAndDataBetweenOrderByDataDesc(espacoId, contaId, start, end);
             } else {
-                raw = entidadeId != null
-                        ? repository.findByEspacoIdAndDataBetweenFiltradoPorEntidade(
-                                espacoId, start, end, entidadeId)
+                raw = filialId != null
+                        ? repository.findByEspacoIdAndDataBetweenFiltradoPorFilial(
+                                espacoId, start, end, filialId)
                         : repository.findByEspacoIdAndDataBetweenOrderByDataDesc(espacoId, start, end);
             }
         }

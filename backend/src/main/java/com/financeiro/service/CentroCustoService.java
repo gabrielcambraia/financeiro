@@ -1,6 +1,6 @@
 package com.financeiro.service;
 
-import com.financeiro.context.ContextoEntidade;
+import com.financeiro.context.ContextoFilial;
 import com.financeiro.context.ContextoEspaco;
 import com.financeiro.dto.CentroCustoDTO;
 import com.financeiro.entity.CentroCusto;
@@ -20,14 +20,14 @@ public class CentroCustoService {
 
     private final CentroCustoRepository repository;
     private final ContextoEspaco contextoEspaco;
-    private final ContextoEntidade contextoEntidade;
-    private final ServicoEntidade servicoEntidade;
+    private final ContextoFilial contextoFilial;
+    private final ServicoFilial servicoFilial;
 
     public List<CentroCustoDTO> findAll() {
         Long espacoId = contextoEspaco.espacoAtual();
-        Long entidadeId = contextoEntidade.entidadeAtual();
-        List<CentroCusto> list = entidadeId != null
-                ? repository.findByEspacoIdFiltradoPorEntidade(espacoId, entidadeId)
+        Long filialId = contextoFilial.filialAtual();
+        List<CentroCusto> list = filialId != null
+                ? repository.findByEspacoIdFiltradoPorFilial(espacoId, filialId)
                 : repository.findByEspacoId(espacoId);
         return list.stream().map(this::toDTO).toList();
     }
@@ -35,13 +35,13 @@ public class CentroCustoService {
     @PreAuthorize("@autorizacaoEspaco.exigirDono('Somente o dono do espaço pode criar centros de custo')")
     public CentroCustoDTO create(CentroCustoDTO dto) {
         Long espacoId = contextoEspaco.espacoAtual();
-        Long entidadeId = servicoEntidade.resolverParaCadastro(dto.getEntidadeId(), espacoId);
-        validarNomeUnico(espacoId, dto.getNome(), entidadeId, null);
+        Long filialId = servicoFilial.resolverParaCadastro(dto.getFilialId(), espacoId);
+        validarNomeUnico(espacoId, dto.getNome(), filialId, null);
         CentroCusto cc = CentroCusto.builder()
                 .nome(dto.getNome())
                 .cor(dto.getCor())
                 .espacoId(espacoId)
-                .entidadeId(entidadeId)
+                .filialId(filialId)
                 .build();
         return toDTO(repository.save(cc));
     }
@@ -51,10 +51,10 @@ public class CentroCustoService {
         Long espacoId = contextoEspaco.espacoAtual();
         CentroCusto cc = repository.findByIdAndEspacoId(id, espacoId)
                 .orElseThrow(() -> new ExcecaoRecursoNaoEncontrado("Centro de custo não encontrado: " + id));
-        validarNomeUnico(espacoId, dto.getNome(), dto.getEntidadeId(), id);
+        validarNomeUnico(espacoId, dto.getNome(), dto.getFilialId(), id);
         cc.setNome(dto.getNome());
         cc.setCor(dto.getCor());
-        cc.setEntidadeId(dto.getEntidadeId());
+        cc.setFilialId(dto.getFilialId());
         return toDTO(repository.save(cc));
     }
 
@@ -71,20 +71,20 @@ public class CentroCustoService {
         dto.setId(cc.getId());
         dto.setNome(cc.getNome());
         dto.setCor(cc.getCor());
-        dto.setEntidadeId(cc.getEntidadeId());
+        dto.setFilialId(cc.getFilialId());
         return dto;
     }
 
-    private void validarNomeUnico(Long espacoId, String nome, Long entidadeId, Long idExcluido) {
+    private void validarNomeUnico(Long espacoId, String nome, Long filialId, Long idExcluido) {
         boolean existe;
         if (idExcluido == null) {
-            existe = entidadeId == null
-                    ? repository.existsByEspacoIdAndNomeAndEntidadeIdIsNull(espacoId, nome)
-                    : repository.existsByEspacoIdAndNomeAndEntidadeId(espacoId, nome, entidadeId);
+            existe = filialId == null
+                    ? repository.existsByEspacoIdAndNomeAndFilialIdIsNull(espacoId, nome)
+                    : repository.existsByEspacoIdAndNomeAndFilialId(espacoId, nome, filialId);
         } else {
-            existe = entidadeId == null
-                    ? repository.existsByEspacoIdAndNomeAndEntidadeIdIsNullAndIdNot(espacoId, nome, idExcluido)
-                    : repository.existsByEspacoIdAndNomeAndEntidadeIdAndIdNot(espacoId, nome, entidadeId, idExcluido);
+            existe = filialId == null
+                    ? repository.existsByEspacoIdAndNomeAndFilialIdIsNullAndIdNot(espacoId, nome, idExcluido)
+                    : repository.existsByEspacoIdAndNomeAndFilialIdAndIdNot(espacoId, nome, filialId, idExcluido);
         }
         if (existe) throw new ResponseStatusException(HttpStatus.CONFLICT,
                 "Já existe um centro de custo com este nome");

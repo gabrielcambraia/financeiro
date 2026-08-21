@@ -1,6 +1,6 @@
 package com.financeiro.service;
 
-import com.financeiro.context.ContextoEntidade;
+import com.financeiro.context.ContextoFilial;
 import com.financeiro.context.ContextoEspaco;
 import com.financeiro.dto.CategoriaDTO;
 import com.financeiro.entity.Categoria;
@@ -18,17 +18,17 @@ public class CategoriaService {
 
     private final CategoriaRepository repository;
     private final ContextoEspaco contextoEspaco;
-    private final ContextoEntidade contextoEntidade;
-    private final ServicoEntidade servicoEntidade;
+    private final ContextoFilial contextoFilial;
+    private final ServicoFilial servicoFilial;
 
     public List<CategoriaDTO> findAll(TipoTransacao tipo) {
         Long espacoId = contextoEspaco.espacoAtual();
-        Long entidadeId = contextoEntidade.entidadeAtual();
+        Long filialId = contextoFilial.filialAtual();
         List<Categoria> list;
-        if (entidadeId != null) {
+        if (filialId != null) {
             list = tipo != null
-                    ? repository.findByTipoAndEspacoIdFiltradoPorEntidade(tipo, espacoId, entidadeId)
-                    : repository.findByEspacoIdFiltradoPorEntidade(espacoId, entidadeId);
+                    ? repository.findByTipoAndEspacoIdFiltradoPorFilial(tipo, espacoId, filialId)
+                    : repository.findByEspacoIdFiltradoPorFilial(espacoId, filialId);
         } else {
             list = tipo != null
                     ? repository.findByTipoAndEspacoId(tipo, espacoId)
@@ -45,7 +45,7 @@ public class CategoriaService {
                 .cor(dto.getCor())
                 .icone(dto.getIcone())
                 .espacoId(espacoId)
-                .entidadeId(servicoEntidade.resolverParaCadastro(dto.getEntidadeId(), espacoId))
+                .filialId(servicoFilial.resolverParaCadastro(dto.getFilialId(), espacoId))
                 .build();
         return toDTO(repository.save(cat));
     }
@@ -57,7 +57,7 @@ public class CategoriaService {
         cat.setTipo(dto.getTipo());
         cat.setCor(dto.getCor());
         cat.setIcone(dto.getIcone());
-        cat.setEntidadeId(dto.getEntidadeId());
+        cat.setFilialId(dto.getFilialId());
         return toDTO(repository.save(cat));
     }
 
@@ -74,7 +74,7 @@ public class CategoriaService {
         dto.setTipo(c.getTipo());
         dto.setCor(c.getCor());
         dto.setIcone(c.getIcone());
-        dto.setEntidadeId(c.getEntidadeId());
+        dto.setFilialId(c.getFilialId());
         return dto;
     }
 }

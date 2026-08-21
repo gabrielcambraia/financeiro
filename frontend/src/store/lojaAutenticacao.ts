@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { EntidadeResumo, NivelAcesso, PapelUsuario } from '../types'
+import type { FilialResumo, NivelAcesso, PapelUsuario } from '../types'
 
 interface SessaoAutenticacao {
   token: string
@@ -10,7 +10,7 @@ interface SessaoAutenticacao {
   papel: PapelUsuario
   precisaTrocarSenha: boolean
   nivelAcesso: NivelAcesso
-  entidades?: EntidadeResumo[]
+  filiais?: FilialResumo[]
 }
 
 interface EstadoAutenticacao {

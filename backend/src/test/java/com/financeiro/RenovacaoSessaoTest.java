@@ -138,7 +138,7 @@ class RenovacaoSessaoTest extends TesteIntegracaoBase {
     }
 
     private ResponseEntity<RespostaAutenticacao> registrarCompleto(String base) {
-        com.financeiro.dto.PrimeiraEntidadeDTO entidade = new com.financeiro.dto.PrimeiraEntidadeDTO();
+        com.financeiro.dto.PrimeiraFilialDTO entidade = new com.financeiro.dto.PrimeiraFilialDTO();
         entidade.setTipoPessoa(com.financeiro.entity.enums.TipoPessoa.FISICA);
         entidade.setNome("Usuária Teste");
         entidade.setDocumento("529.982.247-25");

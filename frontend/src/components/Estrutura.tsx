@@ -8,7 +8,7 @@ import { sair } from '../api/autenticacao'
 import { iniciaisDoNome } from '../utils/formatadores'
 import AlternadorTema from './AlternadorTema'
 import NavegacaoInferior from './NavegacaoInferior'
-import SeletorEntidade from './SeletorEntidade'
+import SeletorFilial from './SeletorFilial'
 import LogoPlataforma from './LogoPlataforma'
 import { type ItemNavegacao, itensNavegacao } from '../config/navegacao'
 
@@ -159,7 +159,7 @@ export default function Estrutura() {
     }
   }
 
-  const itens = itensNavegacao(sessao?.nivelAcesso === 'ADMIN')
+  const itens = itensNavegacao(sessao?.nivelAcesso === 'ADMIN', sessao?.papel === 'DONO')
 
   return (
     <div className="flex h-screen overflow-hidden bg-fundo">
@@ -196,7 +196,7 @@ export default function Estrutura() {
           </div>
         )}
 
-        <SeletorEntidade recolhido={recolhido} nasSidebar />
+        <SeletorFilial recolhido={recolhido} nasSidebar />
 
         <nav className="flex-1 min-h-0 overflow-y-auto px-2 py-1 space-y-0.5">
           {itens.map(item =>
@@ -249,7 +249,7 @@ export default function Estrutura() {
       >
         <div className="flex items-center justify-end gap-3 px-6 py-3">
           <div className="mr-auto">
-            <SeletorEntidade />
+            <SeletorFilial />
           </div>
           <AlternadorTema />
           {sessao && (

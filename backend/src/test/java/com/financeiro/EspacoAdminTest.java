@@ -1,6 +1,5 @@
 package com.financeiro;
 
-import com.financeiro.dto.RequisicaoAdicionarMembro;
 import com.financeiro.dto.RequisicaoAlterarModulosEspaco;
 import com.financeiro.dto.RequisicaoAlterarTipoEspaco;
 import com.financeiro.dto.RequisicaoLogin;
@@ -98,20 +97,13 @@ class EspacoAdminTest extends TesteIntegracaoBase {
         String emailDono = "dona" + UUID.randomUUID() + "@teste.com";
         RespostaAutenticacao dona = registrarCompleto("Dona Espaco", emailDono);
 
-        String emailMembro = "membro" + UUID.randomUUID() + "@teste.com";
-        RequisicaoAdicionarMembro requisicaoMembro = new RequisicaoAdicionarMembro();
-        requisicaoMembro.setNome("Membro Espaco");
-        requisicaoMembro.setEmail(emailMembro);
-        ResponseEntity<Map> respostaMembro = postComCorpoDeErro("/api/espacos/membros", requisicaoMembro, dona.getToken());
-        assertThat(respostaMembro.getStatusCode()).isEqualTo(HttpStatus.OK);
-
         RespostaEspacoAdmin espaco = buscarEspacoNaListagem(tokenAdmin, dona.getEspacoId());
 
         assertThat(espaco.emailDono()).isEqualTo(emailDono);
-        assertThat(espaco.totalMembros()).isEqualTo(2);
+        assertThat(espaco.totalMembros()).isEqualTo(1);
+        assertThat(espaco.vinculos()).hasSize(1);
         assertThat(espaco.vinculos().get(0).getPapel()).isEqualTo(PapelUsuario.DONO);
-        assertThat(espaco.vinculos()).extracting(v -> v.getEmail())
-                .containsExactlyInAnyOrder(emailDono, emailMembro);
+        assertThat(espaco.vinculos().get(0).getEmail()).isEqualTo(emailDono);
     }
 
     @Test

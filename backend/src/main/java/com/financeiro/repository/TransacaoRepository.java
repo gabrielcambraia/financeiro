@@ -101,89 +101,89 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
 
     @Query("SELECT t FROM Transacao t WHERE t.espacoId = :espacoId " +
            "AND t.data BETWEEN :inicio AND :fim " +
-           "AND (:entidadeId IS NULL OR t.conta.entidadeId = :entidadeId) " +
+           "AND (:filialId IS NULL OR t.conta.filialId = :filialId) " +
            "ORDER BY t.data DESC")
-    List<Transacao> findByEspacoIdAndDataBetweenFiltradoPorEntidade(
+    List<Transacao> findByEspacoIdAndDataBetweenFiltradoPorFilial(
             @Param("espacoId") Long espacoId,
             @Param("inicio") LocalDate inicio,
             @Param("fim") LocalDate fim,
-            @Param("entidadeId") Long entidadeId);
+            @Param("filialId") Long filialId);
 
     @Query("SELECT t FROM Transacao t WHERE t.espacoId = :espacoId " +
            "AND t.data BETWEEN :inicio AND :fim " +
-           "AND (:entidadeId IS NULL OR t.conta.entidadeId = :entidadeId) " +
+           "AND (:filialId IS NULL OR t.conta.filialId = :filialId) " +
            "ORDER BY t.data ASC")
-    List<Transacao> findByEspacoIdAndDataBetweenAscFiltradoPorEntidade(
+    List<Transacao> findByEspacoIdAndDataBetweenAscFiltradoPorFilial(
             @Param("espacoId") Long espacoId,
             @Param("inicio") LocalDate inicio,
             @Param("fim") LocalDate fim,
-            @Param("entidadeId") Long entidadeId);
+            @Param("filialId") Long filialId);
 
     @Query("SELECT t FROM Transacao t WHERE t.espacoId = :espacoId " +
            "AND t.conta.id = :contaId AND t.data BETWEEN :inicio AND :fim " +
-           "AND (:entidadeId IS NULL OR t.conta.entidadeId = :entidadeId) " +
+           "AND (:filialId IS NULL OR t.conta.filialId = :filialId) " +
            "ORDER BY t.data DESC")
-    List<Transacao> findByEspacoIdAndContaIdAndDataBetweenFiltradoPorEntidade(
+    List<Transacao> findByEspacoIdAndContaIdAndDataBetweenFiltradoPorFilial(
             @Param("espacoId") Long espacoId,
             @Param("contaId") Long contaId,
             @Param("inicio") LocalDate inicio,
             @Param("fim") LocalDate fim,
-            @Param("entidadeId") Long entidadeId);
+            @Param("filialId") Long filialId);
 
     @Query("SELECT t FROM Transacao t WHERE t.espacoId = :espacoId " +
            "AND t.conta.id = :contaId AND t.data BETWEEN :inicio AND :fim " +
-           "AND (:entidadeId IS NULL OR t.conta.entidadeId = :entidadeId) " +
+           "AND (:filialId IS NULL OR t.conta.filialId = :filialId) " +
            "ORDER BY t.data ASC")
-    List<Transacao> findByEspacoIdAndContaIdAndDataBetweenAscFiltradoPorEntidade(
+    List<Transacao> findByEspacoIdAndContaIdAndDataBetweenAscFiltradoPorFilial(
             @Param("espacoId") Long espacoId,
             @Param("contaId") Long contaId,
             @Param("inicio") LocalDate inicio,
             @Param("fim") LocalDate fim,
-            @Param("entidadeId") Long entidadeId);
+            @Param("filialId") Long filialId);
 
     @Query("SELECT t FROM Transacao t WHERE t.espacoId = :espacoId " +
            "AND t.dataVencimento <= :limite " +
            "AND t.dataPagamento IS NULL AND t.dataCancelamento IS NULL " +
-           "AND (:entidadeId IS NULL OR t.conta.entidadeId = :entidadeId) " +
+           "AND (:filialId IS NULL OR t.conta.filialId = :filialId) " +
            "ORDER BY t.dataVencimento ASC")
-    List<Transacao> findVencimentosPendentesFiltradoPorEntidade(
+    List<Transacao> findVencimentosPendentesFiltradoPorFilial(
             @Param("espacoId") Long espacoId,
             @Param("limite") LocalDate limite,
-            @Param("entidadeId") Long entidadeId);
+            @Param("filialId") Long filialId);
 
     @Query("SELECT t FROM Transacao t WHERE t.espacoId = :espacoId " +
            "AND t.dataVencimento BETWEEN :inicio AND :fim " +
            "AND t.dataPagamento IS NULL AND t.dataCancelamento IS NULL " +
-           "AND (:entidadeId IS NULL OR t.conta.entidadeId = :entidadeId) " +
+           "AND (:filialId IS NULL OR t.conta.filialId = :filialId) " +
            "ORDER BY t.dataVencimento ASC")
-    List<Transacao> findVencimentosPorPeriodoFiltradoPorEntidade(
+    List<Transacao> findVencimentosPorPeriodoFiltradoPorFilial(
             @Param("espacoId") Long espacoId,
             @Param("inicio") LocalDate inicio,
             @Param("fim") LocalDate fim,
-            @Param("entidadeId") Long entidadeId);
+            @Param("filialId") Long filialId);
 
     @Query("SELECT t FROM Transacao t WHERE t.espacoId = :espacoId " +
            "AND t.conta.id = :contaId " +
            "AND t.dataVencimento BETWEEN :inicio AND :fim " +
            "AND t.dataPagamento IS NULL AND t.dataCancelamento IS NULL " +
-           "AND (:entidadeId IS NULL OR t.conta.entidadeId = :entidadeId) " +
+           "AND (:filialId IS NULL OR t.conta.filialId = :filialId) " +
            "ORDER BY t.dataVencimento ASC")
-    List<Transacao> findByEspacoIdAndContaIdAndDataVencimentoBetweenFiltradoPorEntidade(
+    List<Transacao> findByEspacoIdAndContaIdAndDataVencimentoBetweenFiltradoPorFilial(
             @Param("espacoId") Long espacoId,
             @Param("contaId") Long contaId,
             @Param("inicio") LocalDate inicio,
             @Param("fim") LocalDate fim,
-            @Param("entidadeId") Long entidadeId);
+            @Param("filialId") Long filialId);
 
     @Query("SELECT t FROM Transacao t WHERE t.espacoId = :espacoId " +
            "AND t.dataVencimento BETWEEN :inicio AND :fim " +
-           "AND (:entidadeId IS NULL OR t.conta.entidadeId = :entidadeId) " +
+           "AND (:filialId IS NULL OR t.conta.filialId = :filialId) " +
            "ORDER BY t.dataVencimento ASC")
-    List<Transacao> findByEspacoIdAndDataVencimentoBetweenFiltradoPorEntidade(
+    List<Transacao> findByEspacoIdAndDataVencimentoBetweenFiltradoPorFilial(
             @Param("espacoId") Long espacoId,
             @Param("inicio") LocalDate inicio,
             @Param("fim") LocalDate fim,
-            @Param("entidadeId") Long entidadeId);
+            @Param("filialId") Long filialId);
 
     List<Transacao> findByEspacoIdAndMetaIdAndDataCancelamentoIsNull(Long espacoId, Long metaId);
 

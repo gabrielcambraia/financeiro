@@ -1,6 +1,6 @@
 package com.financeiro.service;
 
-import com.financeiro.context.ContextoEntidade;
+import com.financeiro.context.ContextoFilial;
 import com.financeiro.context.ContextoEspaco;
 import com.financeiro.dto.ContaDTO;
 import com.financeiro.entity.Banco;
@@ -23,14 +23,14 @@ public class ContaService {
     private final BancoRepository bancoRepository;
     private final BancoService bancoService;
     private final ContextoEspaco contextoEspaco;
-    private final ContextoEntidade contextoEntidade;
-    private final ServicoEntidade servicoEntidade;
+    private final ContextoFilial contextoFilial;
+    private final ServicoFilial servicoFilial;
 
     public List<ContaDTO> findAll() {
         Long espacoId = contextoEspaco.espacoAtual();
-        Long entidadeId = contextoEntidade.entidadeAtual();
-        List<Conta> contas = entidadeId != null
-                ? repository.findByEspacoIdFiltradoPorEntidade(espacoId, entidadeId)
+        Long filialId = contextoFilial.filialAtual();
+        List<Conta> contas = filialId != null
+                ? repository.findByEspacoIdFiltradoPorFilial(espacoId, filialId)
                 : repository.findByEspacoId(espacoId);
         return contas.stream().map(this::toDTO).toList();
     }
@@ -49,7 +49,7 @@ public class ContaService {
                 .icone(dto.getIcone())
                 .banco(resolverBanco(dto.getBancoId()))
                 .espacoId(espacoId)
-                .entidadeId(servicoEntidade.resolverParaCadastro(dto.getEntidadeId(), espacoId))
+                .filialId(servicoFilial.resolverParaCadastro(dto.getFilialId(), espacoId))
                 .build();
         return toDTO(repository.save(conta));
     }
@@ -63,7 +63,7 @@ public class ContaService {
         conta.setCor(dto.getCor());
         conta.setIcone(dto.getIcone());
         conta.setBanco(resolverBanco(dto.getBancoId()));
-        conta.setEntidadeId(dto.getEntidadeId());
+        conta.setFilialId(dto.getFilialId());
         return toDTO(repository.save(conta));
     }
 
@@ -86,7 +86,7 @@ public class ContaService {
         dto.setSaldoInicial(c.getSaldoInicial());
         dto.setCor(c.getCor());
         dto.setIcone(c.getIcone());
-        dto.setEntidadeId(c.getEntidadeId());
+        dto.setFilialId(c.getFilialId());
         if (c.getBanco() != null) {
             dto.setBancoId(c.getBanco().getId());
             dto.setBanco(bancoService.toDTO(c.getBanco()));

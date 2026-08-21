@@ -348,18 +348,18 @@ class CartaoFaturaTest extends TesteIntegracaoBase {
     }
 
     @Test
-    void itensFatura_filtraPorEntidade_globalApareceEmTodosOsFiltros() {
-        RespostaAutenticacao auth = registrarCompleto("Teste Entidade Cartão", "cartao-entidade" + UUID.randomUUID() + "@teste.com");
+    void itensFatura_filtraPorFilial_globalApareceEmTodosOsFiltros() {
+        RespostaAutenticacao auth = registrarCompleto("Teste Filial Cartão", "cartao-filial" + UUID.randomUUID() + "@teste.com");
         String token = auth.getToken();
         ativarPlanoEmpresa(auth.getEspacoId());
 
-        ResponseEntity<List<Map>> entidades = get("/api/entidades", token, new ParameterizedTypeReference<List<Map>>() {});
-        Long entidadePfId = ((Number) entidades.getBody().get(0).get("id")).longValue();
-        Long entidadePjId = criarEntidade(token, "PJ Cartão Teste", TipoPessoa.JURIDICA);
+        ResponseEntity<List<Map>> filiais = get("/api/filiais", token, new ParameterizedTypeReference<List<Map>>() {});
+        Long filialPfId = ((Number) filiais.getBody().get(0).get("id")).longValue();
+        Long filialPjId = criarFilial(token, "PJ Cartão Teste", TipoPessoa.JURIDICA);
 
-        Long contaPfId = criarContaComEntidade(token, entidadePfId);
-        Long contaPjId = criarContaComEntidade(token, entidadePjId);
-        Long contaGlobalId = criarContaComEntidade(token, null);
+        Long contaPfId = criarContaComFilial(token, filialPfId);
+        Long contaPjId = criarContaComFilial(token, filialPjId);
+        Long contaGlobalId = criarContaComFilial(token, null);
 
         Long cartaoPfId = criarCartao(token, contaPfId, 10, 20);
         Long cartaoPjId = criarCartao(token, contaPjId, 10, 20);
@@ -369,14 +369,14 @@ class CartaoFaturaTest extends TesteIntegracaoBase {
         Long itemPjId = criarItem(token, cartaoPjId, BigDecimal.valueOf(10), LocalDate.now()).get(0).getId();
         Long itemGlobalId = criarItem(token, cartaoGlobalId, BigDecimal.valueOf(10), LocalDate.now()).get(0).getId();
 
-        assertThat(extrairIds(listarItensFaturaComEntidade(token, null)))
+        assertThat(extrairIds(listarItensFaturaComFilial(token, null)))
                 .contains(itemPfId, itemPjId, itemGlobalId);
 
-        List<Long> filtroPf = extrairIds(listarItensFaturaComEntidade(token, entidadePfId));
+        List<Long> filtroPf = extrairIds(listarItensFaturaComFilial(token, filialPfId));
         assertThat(filtroPf).contains(itemPfId, itemGlobalId);
         assertThat(filtroPf).doesNotContain(itemPjId);
 
-        List<Long> filtroPj = extrairIds(listarItensFaturaComEntidade(token, entidadePjId));
+        List<Long> filtroPj = extrairIds(listarItensFaturaComFilial(token, filialPjId));
         assertThat(filtroPj).contains(itemPjId, itemGlobalId);
         assertThat(filtroPj).doesNotContain(itemPfId);
     }
@@ -456,22 +456,22 @@ class CartaoFaturaTest extends TesteIntegracaoBase {
         return resposta.getBody();
     }
 
-    private List<ItemFaturaDTO> listarItensFaturaComEntidade(String token, Long entidadeId) {
-        ResponseEntity<List<ItemFaturaDTO>> resposta = entidadeId != null
-                ? get("/api/itens-fatura", token, entidadeId, new ParameterizedTypeReference<List<ItemFaturaDTO>>() {})
+    private List<ItemFaturaDTO> listarItensFaturaComFilial(String token, Long filialId) {
+        ResponseEntity<List<ItemFaturaDTO>> resposta = filialId != null
+                ? get("/api/itens-fatura", token, filialId, new ParameterizedTypeReference<List<ItemFaturaDTO>>() {})
                 : get("/api/itens-fatura", token, new ParameterizedTypeReference<List<ItemFaturaDTO>>() {});
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
         return resposta.getBody();
     }
 
-    private Long criarContaComEntidade(String token, Long entidadeId) {
+    private Long criarContaComFilial(String token, Long filialId) {
         ContaDTO dto = new ContaDTO();
         dto.setNome("Conta Teste");
         dto.setTipo(TipoConta.CORRENTE);
         dto.setSaldoInicial(BigDecimal.valueOf(1000));
         dto.setCor("#6366f1");
         dto.setIcone("wallet");
-        dto.setEntidadeId(entidadeId);
+        dto.setFilialId(filialId);
         ResponseEntity<ContaDTO> resposta = post("/api/contas", dto, token, ContaDTO.class);
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         return resposta.getBody().getId();

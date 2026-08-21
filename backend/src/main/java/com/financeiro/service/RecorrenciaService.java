@@ -1,6 +1,6 @@
 package com.financeiro.service;
 
-import com.financeiro.context.ContextoEntidade;
+import com.financeiro.context.ContextoFilial;
 import com.financeiro.context.ContextoEspaco;
 import com.financeiro.context.ContextoUsuario;
 import com.financeiro.dto.RecorrenciaDTO;
@@ -31,7 +31,7 @@ public class RecorrenciaService {
     private final GeradorLancamentoRecorrencia gerador;
     private final ContextoEspaco contextoEspaco;
     private final ContextoUsuario contextoUsuario;
-    private final ContextoEntidade contextoEntidade;
+    private final ContextoFilial contextoFilial;
     private final EntityManager entityManager;
     private final ContaRepository contaRepository;
     private final CartaoRepository cartaoRepository;
@@ -40,8 +40,8 @@ public class RecorrenciaService {
 
     public List<RecorrenciaDTO> listar() {
         Long espacoId = contextoEspaco.espacoAtual();
-        Long entidadeId = contextoEntidade.entidadeAtual();
-        return repository.findByEspacoIdFiltrado(espacoId, entidadeId)
+        Long filialId = contextoFilial.filialAtual();
+        return repository.findByEspacoIdFiltrado(espacoId, filialId)
                 .stream().map(this::toDTO).toList();
     }
 

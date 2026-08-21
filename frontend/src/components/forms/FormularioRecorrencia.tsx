@@ -119,29 +119,29 @@ export default function FormularioRecorrencia({ onClose, editing }: Props) {
   const { data: centrosCusto = [] } = useQuery({ queryKey: ['centros-custo'], queryFn: buscarCentrosCusto })
   const { data: cartoes = [] } = useQuery({ queryKey: ['cartoes'], queryFn: buscarCartoes })
 
-  const entidadeRef: number | null = credito
-    ? (cartoes.find(c => c.id === Number(form.cartaoId))?.contaPagamento?.entidadeId ?? null)
-    : (contas.find(c => c.id === Number(form.contaId))?.entidadeId ?? null)
+  const filialRef: number | null = credito
+    ? (cartoes.find(c => c.id === Number(form.cartaoId))?.contaPagamento?.filialId ?? null)
+    : (contas.find(c => c.id === Number(form.contaId))?.filialId ?? null)
 
   const categoriasFiltradas = categorias.filter(c =>
-    entidadeRef == null || c.entidadeId == null || c.entidadeId === entidadeRef
+    filialRef == null || c.filialId == null || c.filialId === filialRef
   )
   const centrosCustoFiltrados = centrosCusto.filter(cc =>
-    entidadeRef == null || cc.entidadeId == null || cc.entidadeId === entidadeRef
+    filialRef == null || cc.filialId == null || cc.filialId === filialRef
   )
 
   // Limpa categoria/centro de custo ao trocar de entidade (conta ou cartão) se
   // a seleção atual pertencer a outra entidade — ajuste feito durante a
   // renderização (não em useEffect) seguindo o padrão do React para "resetar
   // estado quando algo muda": https://react.dev/learn/you-might-not-need-an-effect
-  const [entidadeRefAnterior, setEntidadeRefAnterior] = useState(entidadeRef)
-  if (entidadeRef !== entidadeRefAnterior) {
-    setEntidadeRefAnterior(entidadeRef)
-    if (entidadeRef != null) {
+  const [filialRefAnterior, setFilialRefAnterior] = useState(filialRef)
+  if (filialRef !== filialRefAnterior) {
+    setFilialRefAnterior(filialRef)
+    if (filialRef != null) {
       const cat = categorias.find(c => c.id === Number(form.categoriaId))
-      if (cat?.entidadeId != null && cat.entidadeId !== entidadeRef) set('categoriaId', '')
+      if (cat?.filialId != null && cat.filialId !== filialRef) set('categoriaId', '')
       const cc = centrosCusto.find(c => c.id === Number(form.centroCustoId))
-      if (cc?.entidadeId != null && cc.entidadeId !== entidadeRef) set('centroCustoId', '')
+      if (cc?.filialId != null && cc.filialId !== filialRef) set('centroCustoId', '')
     }
   }
 

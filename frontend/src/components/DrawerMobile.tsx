@@ -12,8 +12,8 @@ interface Props {
 // Rotas fixadas na barra inferior — não precisam aparecer no drawer.
 const ROTAS_BARRA_INFERIOR = new Set(['/', '/lancamentos/a-pagar', '/cartoes'])
 
-function itensDrawer(): { to: string; icon: LucideIcon; label: string }[] {
-  return itensNavegacao(false).flatMap(item => {
+function itensDrawer(dono: boolean): { to: string; icon: LucideIcon; label: string }[] {
+  return itensNavegacao(false, dono).flatMap(item => {
     if (item.filhos) {
       return item.filhos
         .filter(f => !ROTAS_BARRA_INFERIOR.has(f.to))
@@ -28,8 +28,9 @@ function itensDrawer(): { to: string; icon: LucideIcon; label: string }[] {
 
 export default function DrawerMobile({ aberto, fechar }: Props) {
   const limparSessao = useLojaAutenticacao(s => s.limparSessao)
+  const sessao = useLojaAutenticacao(s => s.sessao)
   const navigate = useNavigate()
-  const itens = itensDrawer()
+  const itens = itensDrawer(sessao?.papel === 'DONO')
 
   const sair = () => {
     limparSessao()

@@ -27,7 +27,7 @@ public class MetaDTO {
     @NotBlank
     private String icone;
 
-    private Long entidadeId;
+    private Long filialId;
 
     // campos de resposta
     private BigDecimal valorAtual;

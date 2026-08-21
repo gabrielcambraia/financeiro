@@ -14,16 +14,16 @@ public interface CentroCustoRepository extends JpaRepository<CentroCusto, Long> 
 
     Optional<CentroCusto> findByIdAndEspacoId(Long id, Long espacoId);
 
-    boolean existsByEspacoIdAndNomeAndEntidadeIdIsNull(Long espacoId, String nome);
+    boolean existsByEspacoIdAndNomeAndFilialIdIsNull(Long espacoId, String nome);
 
-    boolean existsByEspacoIdAndNomeAndEntidadeId(Long espacoId, String nome, Long entidadeId);
+    boolean existsByEspacoIdAndNomeAndFilialId(Long espacoId, String nome, Long filialId);
 
-    boolean existsByEspacoIdAndNomeAndEntidadeIdIsNullAndIdNot(Long espacoId, String nome, Long id);
+    boolean existsByEspacoIdAndNomeAndFilialIdIsNullAndIdNot(Long espacoId, String nome, Long id);
 
-    boolean existsByEspacoIdAndNomeAndEntidadeIdAndIdNot(Long espacoId, String nome, Long entidadeId, Long id);
+    boolean existsByEspacoIdAndNomeAndFilialIdAndIdNot(Long espacoId, String nome, Long filialId, Long id);
 
     @Query("SELECT c FROM CentroCusto c WHERE c.espacoId = :espacoId " +
-           "AND (:entidadeId IS NULL OR c.entidadeId = :entidadeId OR c.entidadeId IS NULL)")
-    List<CentroCusto> findByEspacoIdFiltradoPorEntidade(@Param("espacoId") Long espacoId,
-                                                         @Param("entidadeId") Long entidadeId);
+           "AND (:filialId IS NULL OR c.filialId = :filialId OR c.filialId IS NULL)")
+    List<CentroCusto> findByEspacoIdFiltradoPorFilial(@Param("espacoId") Long espacoId,
+                                                       @Param("filialId") Long filialId);
 }

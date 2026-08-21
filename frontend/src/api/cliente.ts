@@ -1,7 +1,7 @@
 import axios from 'axios'
 import { toast } from 'sonner'
 import { useLojaAutenticacao } from '../store/lojaAutenticacao'
-import { useLojaEntidadeAtual } from '../store/lojaEntidadeAtual'
+import { useLojaFilialAtual } from '../store/lojaFilialAtual'
 
 const cliente = axios.create({
   baseURL: '/api',
@@ -14,9 +14,9 @@ cliente.interceptors.request.use(config => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
-  const entidadeAtualId = useLojaEntidadeAtual.getState().entidadeAtualId
-  if (entidadeAtualId != null && !config.url?.startsWith('/entidades') && !config.url?.startsWith('/consultas')) {
-    config.headers['X-Entidade-Id'] = String(entidadeAtualId)
+  const filialAtualId = useLojaFilialAtual.getState().filialAtualId
+  if (filialAtualId != null && !config.url?.startsWith('/filiais') && !config.url?.startsWith('/consultas')) {
+    config.headers['X-Filial-Id'] = String(filialAtualId)
   }
   return config
 })

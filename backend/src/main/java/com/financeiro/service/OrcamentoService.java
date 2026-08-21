@@ -1,6 +1,6 @@
 package com.financeiro.service;
 
-import com.financeiro.context.ContextoEntidade;
+import com.financeiro.context.ContextoFilial;
 import com.financeiro.context.ContextoEspaco;
 import com.financeiro.dto.CategoriaDTO;
 import com.financeiro.dto.OrcamentoDTO;
@@ -31,14 +31,14 @@ public class OrcamentoService {
     private final CategoriaRepository categoriaRepository;
     private final TransacaoRepository transacaoRepository;
     private final ContextoEspaco contextoEspaco;
-    private final ContextoEntidade contextoEntidade;
-    private final ServicoEntidade servicoEntidade;
+    private final ContextoFilial contextoFilial;
+    private final ServicoFilial servicoFilial;
 
     public List<OrcamentoDTO> findByMes(String mes) {
         Long espacoId = contextoEspaco.espacoAtual();
-        Long entidadeId = contextoEntidade.entidadeAtual();
-        List<Orcamento> lista = entidadeId != null
-                ? repository.findByEspacoIdAndMesFiltradoPorEntidade(espacoId, mes, entidadeId)
+        Long filialId = contextoFilial.filialAtual();
+        List<Orcamento> lista = filialId != null
+                ? repository.findByEspacoIdAndMesFiltradoPorFilial(espacoId, mes, filialId)
                 : repository.findByEspacoIdAndMes(espacoId, mes);
         return lista.stream().map(this::toDTO).toList();
     }
@@ -58,7 +58,7 @@ public class OrcamentoService {
                 .mes(dto.getMes())
                 .limite(dto.getLimite())
                 .espacoId(espacoId)
-                .entidadeId(servicoEntidade.resolverParaCadastro(dto.getEntidadeId(), espacoId))
+                .filialId(servicoFilial.resolverParaCadastro(dto.getFilialId(), espacoId))
                 .build();
         return toDTO(repository.save(orcamento));
     }
@@ -136,7 +136,7 @@ public class OrcamentoService {
         dto.setGasto(gasto);
         dto.setPercentualUsado(percentual);
         dto.setEstourado(gasto.compareTo(o.getLimite()) > 0);
-        dto.setEntidadeId(o.getEntidadeId());
+        dto.setFilialId(o.getFilialId());
         return dto;
     }
 }

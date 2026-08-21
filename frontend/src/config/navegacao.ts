@@ -1,4 +1,4 @@
-import { LayoutDashboard, ArrowLeftRight, Wallet, Tags, CreditCard, Landmark, PiggyBank, Target, Calendar, HandCoins, TrendingUp, LineChart, Building2, Users, Layers, ArrowDownCircle, ArrowUpCircle, Repeat2, Receipt, BarChart3, Database, List } from 'lucide-react'
+import { LayoutDashboard, ArrowLeftRight, Wallet, Tags, CreditCard, Landmark, PiggyBank, Target, Calendar, HandCoins, TrendingUp, LineChart, Building2, Users, Layers, ArrowDownCircle, ArrowUpCircle, Repeat2, Receipt, BarChart3, Database, List, UserCog } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 export interface ItemNavegacao {
@@ -32,7 +32,7 @@ const itensBase: ItemNavegacao[] = [
       { to: '/orcamentos',   label: 'Orçamentos',    icon: PiggyBank },
       { to: '/investimentos', label: 'Investimentos', icon: TrendingUp },
       { to: '/dividas',      label: 'Dívidas',       icon: HandCoins },
-      { to: '/simulacao',    label: 'Previsão',      icon: LineChart },
+      { to: '/fluxo-de-caixa', label: 'Fluxo de caixa', icon: LineChart },
     ],
   },
   {
@@ -43,15 +43,25 @@ const itensBase: ItemNavegacao[] = [
       { to: '/cartoes',       label: 'Cartões',          icon: CreditCard },
       { to: '/centros-custo', label: 'Centros de Custo', icon: Layers },
       { to: '/categorias',    label: 'Categorias',       icon: Tags },
-      { to: '/entidades',     label: 'Entidades',        icon: Users },
+      { to: '/filiais',        label: 'Filiais',           icon: Users },
     ],
   },
 ]
+
+const filhoCadastrosDono = { to: '/usuarios', label: 'Usuários', icon: UserCog }
 
 const itensAdmin: ItemNavegacao[] = [
   { to: '/admin/bancos',  icon: Landmark, label: 'Bancos' },
   { to: '/admin/espacos', icon: Building2, label: 'Espaços' },
 ]
 
-export const itensNavegacao = (admin: boolean): ItemNavegacao[] =>
-  admin ? [...itensBase, ...itensAdmin] : itensBase
+export const itensNavegacao = (admin: boolean, dono: boolean): ItemNavegacao[] => {
+  const base = dono
+    ? itensBase.map(item =>
+        item.label === 'Cadastros' && item.filhos
+          ? { ...item, filhos: [...item.filhos, filhoCadastrosDono] }
+          : item
+      )
+    : itensBase
+  return admin ? [...base, ...itensAdmin] : base
+}

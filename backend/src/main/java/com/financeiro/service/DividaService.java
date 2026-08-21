@@ -1,6 +1,6 @@
 package com.financeiro.service;
 
-import com.financeiro.context.ContextoEntidade;
+import com.financeiro.context.ContextoFilial;
 import com.financeiro.context.ContextoEspaco;
 import com.financeiro.context.ContextoUsuario;
 import com.financeiro.dto.CategoriaDTO;
@@ -45,13 +45,13 @@ public class DividaService {
     private final TransacaoService transacaoService;
     private final ContextoEspaco contextoEspaco;
     private final ContextoUsuario contextoUsuario;
-    private final ContextoEntidade contextoEntidade;
+    private final ContextoFilial contextoFilial;
 
     public List<DividaDTO> findAll() {
         Long espacoId = contextoEspaco.espacoAtual();
-        Long entidadeId = contextoEntidade.entidadeAtual();
-        List<Divida> lista = entidadeId != null
-                ? repository.findByEspacoIdFiltradoPorEntidade(espacoId, entidadeId)
+        Long filialId = contextoFilial.filialAtual();
+        List<Divida> lista = filialId != null
+                ? repository.findByEspacoIdFiltradoPorFilial(espacoId, filialId)
                 : repository.findByEspacoIdOrderByCriadoEmDesc(espacoId);
         return lista.stream().map(this::toDTO).toList();
     }

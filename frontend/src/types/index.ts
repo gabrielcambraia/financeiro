@@ -11,12 +11,12 @@ export type PlanoEspaco = 'GRATUITO' | 'PAGO'
 // acesso, só a base para a tela de admin marcar quais espaços têm cada um.
 export type ModuloEspaco = 'WHATSAPP_IA'
 
-// Planos e entidades
+// Planos e filiais
 export type CodigoPlano = 'INDIVIDUAL' | 'FAMILIA' | 'EMPRESA'
 export type StatusAssinatura = 'ATIVA' | 'SUSPENSA' | 'CANCELADA'
 export type TipoPessoa = 'FISICA' | 'JURIDICA'
 
-export interface Entidade {
+export interface Filial {
   id: number
   tipoPessoa: TipoPessoa
   nome: string
@@ -41,8 +41,8 @@ export interface Assinatura {
   id: number
   codigoPlano: CodigoPlano
   nomePlano: string
-  limiteEntidades: number
-  entidadesUsadas: number
+  limiteFiliais: number
+  filiaisUsadas: number
   status: StatusAssinatura
   vigenciaInicio: string
   vigenciaFim?: string
@@ -88,7 +88,7 @@ export interface Conta {
   icone: string
   bancoId?: number
   banco?: Banco
-  entidadeId?: number | null
+  filialId?: number | null
 }
 
 export interface Categoria {
@@ -97,14 +97,14 @@ export interface Categoria {
   tipo: TipoTransacao
   cor: string
   icone: string
-  entidadeId?: number | null
+  filialId?: number | null
 }
 
 export interface CentroCusto {
   id: number
   nome: string
   cor: string
-  entidadeId?: number | null
+  filialId?: number | null
 }
 
 export interface ResumoCentroCusto {
@@ -287,7 +287,7 @@ export interface Orcamento {
   gasto: number
   percentualUsado: number
   estourado: boolean
-  entidadeId?: number | null
+  filialId?: number | null
 }
 
 export interface Ativo {
@@ -362,10 +362,10 @@ export interface Meta {
   percentualConcluido: number
   mesesEstimados?: number
   concluida: boolean
-  entidadeId?: number | null
+  filialId?: number | null
 }
 
-export interface EntidadeResumo {
+export interface FilialResumo {
   id: number
   nome: string
   tipoPessoa: TipoPessoa

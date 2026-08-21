@@ -2,6 +2,7 @@ package com.financeiro.entity;
 
 import com.financeiro.entity.converter.ConversorLocalDateTime;
 import com.financeiro.entity.enums.NivelAcesso;
+import com.financeiro.entity.enums.PapelUsuario;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -37,8 +38,16 @@ public class Usuario {
     @Column(name = "precisa_trocar_senha", nullable = false)
     private boolean precisaTrocarSenha = false;
 
-    // Papel global (não por espaço, ver PapelUsuario) — só ADMIN gerencia
-    // recursos que não pertencem a espaço nenhum (hoje, o catálogo de bancos).
+    @Column(name = "espaco_id", nullable = false)
+    private Long espacoId;
+
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private PapelUsuario papel = PapelUsuario.DONO;
+
+    // Papel global (não por espaço) — só ADMIN gerencia recursos que não
+    // pertencem a espaço nenhum (hoje, o catálogo de bancos).
     @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "nivel_acesso", nullable = false)

@@ -1,6 +1,6 @@
 package com.financeiro.service;
 
-import com.financeiro.context.ContextoEntidade;
+import com.financeiro.context.ContextoFilial;
 import com.financeiro.context.ContextoEspaco;
 import com.financeiro.dto.TransacaoDTO;
 import com.financeiro.repository.TransacaoRepository;
@@ -23,17 +23,17 @@ public class CalendarioService {
     private final TransacaoRepository repository;
     private final TransacaoService transacaoService;
     private final ContextoEspaco contextoEspaco;
-    private final ContextoEntidade contextoEntidade;
+    private final ContextoFilial contextoFilial;
 
     public List<TransacaoDTO> buscarMes(String mes) {
         Long espacoId = contextoEspaco.espacoAtual();
-        Long entidadeId = contextoEntidade.entidadeAtual();
+        Long filialId = contextoFilial.filialAtual();
         YearMonth ym = YearMonth.parse(mes);
         LocalDate inicio = ym.atDay(1);
         LocalDate fim = ym.atEndOfMonth();
 
-        var transacoes = entidadeId != null
-                ? repository.findByEspacoIdAndDataVencimentoBetweenFiltradoPorEntidade(espacoId, inicio, fim, entidadeId)
+        var transacoes = filialId != null
+                ? repository.findByEspacoIdAndDataVencimentoBetweenFiltradoPorFilial(espacoId, inicio, fim, filialId)
                 : repository.findByEspacoIdAndDataVencimentoBetweenOrderByDataVencimentoAsc(espacoId, inicio, fim);
 
         return transacoes.stream()

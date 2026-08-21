@@ -14,7 +14,7 @@ import com.financeiro.erro.ExcecaoRecursoNaoEncontrado;
 import com.financeiro.repository.AssinaturaRepository;
 import com.financeiro.repository.EspacoRepository;
 import com.financeiro.repository.PlanoRepository;
-import com.financeiro.repository.UsuarioEspacoRepository;
+import com.financeiro.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -39,7 +39,7 @@ public class ServicoEspacoAdmin {
     private static final int TAMANHO_PAGINA = 10;
 
     private final EspacoRepository espacoRepository;
-    private final UsuarioEspacoRepository usuarioEspacoRepository;
+    private final UsuarioRepository usuarioRepository;
     private final AssinaturaRepository assinaturaRepository;
     private final PlanoRepository planoRepository;
 
@@ -54,7 +54,7 @@ public class ServicoEspacoAdmin {
 
         List<Long> ids = paginaEspacos.getContent().stream().map(Espaco::getId).toList();
 
-        Map<Long, List<RespostaVinculoEspaco>> vinculosPorEspaco = usuarioEspacoRepository
+        Map<Long, List<RespostaVinculoEspaco>> vinculosPorEspaco = usuarioRepository
                 .listarVinculosDosEspacos(ids).stream()
                 .collect(Collectors.groupingBy(RespostaVinculoEspaco::getEspacoId));
 
@@ -106,7 +106,7 @@ public class ServicoEspacoAdmin {
     }
 
     private RespostaEspacoAdmin montarRespostaComVinculos(Espaco espaco) {
-        List<RespostaVinculoEspaco> vinculos = usuarioEspacoRepository.listarVinculosDosEspacos(List.of(espaco.getId()));
+        List<RespostaVinculoEspaco> vinculos = usuarioRepository.listarVinculosDosEspacos(List.of(espaco.getId()));
         CodigoPlano codigoPlano = buscarCodigoPlano(espaco.getId());
         return montarResposta(espaco, vinculos, espaco.getModulosHabilitados(), codigoPlano);
     }

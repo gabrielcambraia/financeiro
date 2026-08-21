@@ -23,12 +23,12 @@ public interface RecorrenciaRepository extends JpaRepository<Recorrencia, Long> 
            "LEFT JOIN FETCH r.centroCusto " +
            "LEFT JOIN cartao.contaPagamento cp " +
            "WHERE r.espacoId = :espacoId " +
-           "AND (:entidadeId IS NULL " +
-           "  OR (c IS NOT NULL AND (c.entidadeId = :entidadeId OR c.entidadeId IS NULL)) " +
-           "  OR (cp IS NOT NULL AND (cp.entidadeId = :entidadeId OR cp.entidadeId IS NULL))) " +
+           "AND (:filialId IS NULL " +
+           "  OR (c IS NOT NULL AND (c.filialId = :filialId OR c.filialId IS NULL)) " +
+           "  OR (cp IS NOT NULL AND (cp.filialId = :filialId OR cp.filialId IS NULL))) " +
            "ORDER BY r.ativa DESC, r.criadoEm DESC")
     List<Recorrencia> findByEspacoIdFiltrado(@Param("espacoId") Long espacoId,
-                                              @Param("entidadeId") Long entidadeId);
+                                              @Param("filialId") Long filialId);
 
     // Scheduler: todas as recorrências ativas cujo período abrange o mês alvo.
     // FETCH nas associações EAGER evita N+1 num job que roda para todos os tenants.

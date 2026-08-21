@@ -17,7 +17,7 @@ public interface ContaRepository extends JpaRepository<Conta, Long> {
     boolean existsByBancoId(Long bancoId);
 
     @Query("SELECT c FROM Conta c WHERE c.espacoId = :espacoId " +
-           "AND (:entidadeId IS NULL OR c.entidadeId = :entidadeId OR c.entidadeId IS NULL)")
-    List<Conta> findByEspacoIdFiltradoPorEntidade(@Param("espacoId") Long espacoId,
-                                                  @Param("entidadeId") Long entidadeId);
+           "AND (:filialId IS NULL OR c.filialId = :filialId OR c.filialId IS NULL)")
+    List<Conta> findByEspacoIdFiltradoPorFilial(@Param("espacoId") Long espacoId,
+                                                  @Param("filialId") Long filialId);
 }

@@ -1,7 +1,7 @@
 package com.financeiro.config;
 
 import com.financeiro.seguranca.FiltroAutenticacaoJwt;
-import com.financeiro.seguranca.FiltroEntidadeAtual;
+import com.financeiro.seguranca.FiltroFilialAtual;
 import com.financeiro.seguranca.FiltroIdRequisicao;
 import com.financeiro.seguranca.FiltroLimiteTaxaAutenticacao;
 import com.financeiro.seguranca.FiltroProtecaoOrigem;
@@ -41,7 +41,7 @@ public class ConfiguracaoSeguranca {
     public SecurityFilterChain cadeiaSeguranca(
             HttpSecurity http, FiltroAutenticacaoJwt filtroJwt, FiltroTrocaSenhaObrigatoria filtroTrocaSenha,
             FiltroLimiteTaxaAutenticacao filtroLimiteTaxa, FiltroProtecaoOrigem filtroProtecaoOrigem,
-            FiltroIdRequisicao filtroIdRequisicao, FiltroEntidadeAtual filtroEntidadeAtual) throws Exception {
+            FiltroIdRequisicao filtroIdRequisicao, FiltroFilialAtual filtroFilialAtual) throws Exception {
         http
                 // CSRF "clássico" (token de sessão) não se aplica aqui: a API é stateless
                 // e autentica via header Authorization (Bearer), que um site terceiro não
@@ -98,7 +98,7 @@ public class ConfiguracaoSeguranca {
                 .addFilterBefore(filtroProtecaoOrigem, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(filtroJwt, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(filtroTrocaSenha, FiltroAutenticacaoJwt.class)
-                .addFilterAfter(filtroEntidadeAtual, FiltroTrocaSenhaObrigatoria.class);
+                .addFilterAfter(filtroFilialAtual, FiltroTrocaSenhaObrigatoria.class);
 
         return http.build();
     }

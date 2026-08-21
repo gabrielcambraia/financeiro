@@ -21,7 +21,7 @@ public class OrcamentoDTO {
     @Positive
     private BigDecimal limite;
 
-    private Long entidadeId;
+    private Long filialId;
 
     // campos de resposta
     private CategoriaDTO categoria;

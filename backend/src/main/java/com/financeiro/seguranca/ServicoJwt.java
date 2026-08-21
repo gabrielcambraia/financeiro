@@ -1,6 +1,7 @@
 package com.financeiro.seguranca;
 
 import com.financeiro.entity.enums.NivelAcesso;
+import com.financeiro.entity.enums.PapelUsuario;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -32,7 +33,7 @@ public class ServicoJwt {
     }
 
     public String gerarToken(Long usuarioId, Long espacoId, String email, boolean precisaTrocarSenha,
-                              NivelAcesso nivelAcesso) {
+                              NivelAcesso nivelAcesso, PapelUsuario papel) {
         Instant agora = Instant.now();
         return Jwts.builder()
                 .subject(String.valueOf(usuarioId))
@@ -40,6 +41,7 @@ public class ServicoJwt {
                 .claim("email", email)
                 .claim("precisaTrocarSenha", precisaTrocarSenha)
                 .claim("nivelAcesso", nivelAcesso.name())
+                .claim("papel", papel.name())
                 .issuedAt(Date.from(agora))
                 .expiration(Date.from(agora.plusSeconds(validadeMinutos * 60)))
                 .signWith(chave)
@@ -57,8 +59,10 @@ public class ServicoJwt {
         Long espacoId = claims.get("espacoId", Long.class);
         String email = claims.get("email", String.class);
         boolean precisaTrocarSenha = Boolean.TRUE.equals(claims.get("precisaTrocarSenha", Boolean.class));
-        String nivelAcessoBruto = claims.get("nivelAcesso", String.class);
-        NivelAcesso nivelAcesso = nivelAcessoBruto != null ? NivelAcesso.valueOf(nivelAcessoBruto) : NivelAcesso.USUARIO;
-        return new UsuarioAutenticado(usuarioId, espacoId, email, precisaTrocarSenha, nivelAcesso);
+        NivelAcesso nivelAcesso = NivelAcesso.valueOf(
+                claims.getOrDefault("nivelAcesso", NivelAcesso.USUARIO.name()).toString());
+        PapelUsuario papel = PapelUsuario.valueOf(
+                claims.getOrDefault("papel", PapelUsuario.DONO.name()).toString());
+        return new UsuarioAutenticado(usuarioId, espacoId, email, precisaTrocarSenha, nivelAcesso, papel);
     }
 }

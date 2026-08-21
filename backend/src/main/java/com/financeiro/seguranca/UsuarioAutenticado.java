@@ -1,6 +1,7 @@
 package com.financeiro.seguranca;
 
 import com.financeiro.entity.enums.NivelAcesso;
+import com.financeiro.entity.enums.PapelUsuario;
 
 /**
  * Principal autenticado extraído do JWT: identifica o usuário e o espaço
@@ -9,5 +10,5 @@ import com.financeiro.entity.enums.NivelAcesso;
  * bloquear o uso normal da API até a troca de senha acontecer.
  */
 public record UsuarioAutenticado(Long usuarioId, Long espacoId, String email, boolean precisaTrocarSenha,
-                                  NivelAcesso nivelAcesso) {
+                                  NivelAcesso nivelAcesso, PapelUsuario papel) {
 }

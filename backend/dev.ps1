@@ -15,4 +15,4 @@ Get-Content $envFile | ForEach-Object {
     Set-Item -Path "env:$key" -Value $value
 }
 
-& "$PSScriptRoot\.maven\apache-maven-3.9.6\bin\mvn.cmd" -f "$PSScriptRoot\pom.xml" spring-boot:run
+& "$PSScriptRoot\mvnw.cmd" -f "$PSScriptRoot\pom.xml" spring-boot:run

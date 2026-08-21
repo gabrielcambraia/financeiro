@@ -25,5 +25,5 @@ public class RequisicaoRegistro {
 
     @NotNull
     @Valid
-    private PrimeiraEntidadeDTO entidade;
+    private PrimeiraFilialDTO entidade;
 }

@@ -7,14 +7,14 @@ import SobreposicaoModal from '../components/SobreposicaoModal'
 import ModalConfirmacao from '../components/ModalConfirmacao'
 import SeletorCor from '../components/SeletorCor'
 import AcaoNova from '../components/AcaoNova'
-import CampoEntidade from '../components/forms/CampoEntidade'
+import CampoFilial from '../components/forms/CampoFilial'
 import Spinner from '../components/Spinner'
 import { useLojaAutenticacao } from '../store/lojaAutenticacao'
 import type { CentroCusto } from '../types'
 
 const CORES = ['#ef4444','#f97316','#eab308','#22c55e','#10b981','#06b6d4','#3b82f6','#8b5cf6','#ec4899','#6b7280','#6366f1','#84cc16']
 
-const formPadrao = { nome: '', cor: CORES[0], entidadeId: undefined as number | null | undefined }
+const formPadrao = { nome: '', cor: CORES[0], filialId: undefined as number | null | undefined }
 
 export default function CentrosCusto() {
   const qc = useQueryClient()
@@ -53,14 +53,14 @@ export default function CentrosCusto() {
   const openCreate = () => { setEditing(null); setForm(formPadrao); setShowForm(true) }
   const openEdit = (cc: CentroCusto) => {
     setEditing(cc)
-    setForm({ nome: cc.nome, cor: cc.cor, entidadeId: cc.entidadeId })
+    setForm({ nome: cc.nome, cor: cc.cor, filialId: cc.filialId })
     setShowForm(true)
   }
   const closeForm = () => { setShowForm(false); setEditing(null) }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    saveMutation.mutate({ ...form, entidadeId: form.entidadeId ?? null })
+    saveMutation.mutate({ ...form, filialId: form.filialId ?? null })
   }
 
   return (
@@ -127,7 +127,7 @@ export default function CentrosCusto() {
               <button onClick={closeForm} className="btn-ghost p-1.5 text-sm">✕</button>
             </div>
             <form onSubmit={handleSubmit} className="cartao-modal-corpo">
-              <CampoEntidade value={form.entidadeId} onChange={v => setForm(f => ({ ...f, entidadeId: v }))} />
+              <CampoFilial value={form.filialId} onChange={v => setForm(f => ({ ...f, filialId: v }))} />
               <div>
                 <label className="label">Nome</label>
                 <input className="input" placeholder="Ex: Consultório, Casa, Loja..." required

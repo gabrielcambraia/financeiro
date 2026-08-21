@@ -25,12 +25,12 @@ public interface FaturaRepository extends JpaRepository<Fatura, Long> {
     boolean existsByCartaoIdAndDataFechamento(Long cartaoId, LocalDate dataFechamento);
 
     @Query("SELECT f FROM Fatura f WHERE f.espacoId = :espacoId AND f.cartao.id = :cartaoId " +
-           "AND (:entidadeId IS NULL OR f.cartao.contaPagamento.entidadeId = :entidadeId " +
-           "  OR f.cartao.contaPagamento.entidadeId IS NULL) " +
+           "AND (:filialId IS NULL OR f.cartao.contaPagamento.filialId = :filialId " +
+           "  OR f.cartao.contaPagamento.filialId IS NULL) " +
            "ORDER BY f.dataFechamento DESC")
-    List<Fatura> findByEspacoIdAndCartaoIdFiltradoPorEntidade(@Param("espacoId") Long espacoId,
+    List<Fatura> findByEspacoIdAndCartaoIdFiltradoPorFilial(@Param("espacoId") Long espacoId,
                                                               @Param("cartaoId") Long cartaoId,
-                                                              @Param("entidadeId") Long entidadeId);
+                                                              @Param("filialId") Long filialId);
 
     Optional<Fatura> findByTransacaoDespesaId(Long transacaoId);
 
@@ -44,18 +44,18 @@ public interface FaturaRepository extends JpaRepository<Fatura, Long> {
     List<Fatura> findByEspacoIdOrderByDataFechamentoDesc(Long espacoId);
 
     @Query("SELECT f FROM Fatura f WHERE f.espacoId = :espacoId " +
-           "AND (:entidadeId IS NULL OR f.cartao.contaPagamento.entidadeId = :entidadeId " +
-           "  OR f.cartao.contaPagamento.entidadeId IS NULL) " +
+           "AND (:filialId IS NULL OR f.cartao.contaPagamento.filialId = :filialId " +
+           "  OR f.cartao.contaPagamento.filialId IS NULL) " +
            "ORDER BY f.dataFechamento DESC")
-    List<Fatura> findByEspacoIdFiltradoPorEntidade(@Param("espacoId") Long espacoId,
-                                                   @Param("entidadeId") Long entidadeId);
+    List<Fatura> findByEspacoIdFiltradoPorFilial(@Param("espacoId") Long espacoId,
+                                                   @Param("filialId") Long filialId);
 
     @Query("SELECT f FROM Fatura f WHERE f.espacoId = :espacoId " +
            "AND f.dataFechamento BETWEEN :inicio AND :fim " +
-           "AND (:entidadeId IS NULL OR f.cartao.contaPagamento.entidadeId = :entidadeId " +
-           "  OR f.cartao.contaPagamento.entidadeId IS NULL) " +
+           "AND (:filialId IS NULL OR f.cartao.contaPagamento.filialId = :filialId " +
+           "  OR f.cartao.contaPagamento.filialId IS NULL) " +
            "ORDER BY f.dataFechamento DESC")
-    List<Fatura> findByEspacoIdAndDataFechamentoBetweenFiltradoPorEntidade(
+    List<Fatura> findByEspacoIdAndDataFechamentoBetweenFiltradoPorFilial(
             @Param("espacoId") Long espacoId, @Param("inicio") LocalDate inicio,
-            @Param("fim") LocalDate fim, @Param("entidadeId") Long entidadeId);
+            @Param("fim") LocalDate fim, @Param("filialId") Long filialId);
 }
