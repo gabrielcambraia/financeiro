@@ -9,7 +9,7 @@ import { iniciaisDoNome } from '../utils/formatadores'
 import AlternadorTema from './AlternadorTema'
 import NavegacaoInferior from './NavegacaoInferior'
 import SeletorEntidade from './SeletorEntidade'
-import LogoNexo360 from './LogoNexo360'
+import LogoPlataforma from './LogoPlataforma'
 import { type ItemNavegacao, itensNavegacao } from '../config/navegacao'
 
 interface PropsGrupo {
@@ -171,10 +171,7 @@ export default function Estrutura() {
         {/* Topo: logo + nome + toggle */}
         <div className={`flex items-center px-3 py-4 gap-2.5 ${recolhido ? 'justify-center' : 'justify-between'}`}>
           <div className="flex items-center gap-2.5 min-w-0">
-            <LogoNexo360 tamanho={32} />
-            {!recolhido && (
-              <span className="font-bold text-sb-texto text-base truncate">Nexo360</span>
-            )}
+            <LogoPlataforma tamanho={32} mostrarNome={!recolhido} classeNome="font-bold text-sb-texto text-base truncate" />
           </div>
           {!recolhido && (
             <button
