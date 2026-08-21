@@ -6,7 +6,10 @@ import { Copy, UserPlus, KeyRound, Palette, User, Image, Trash2, Upload, CreditC
 import { trocarSenha } from '../api/autenticacao'
 import { adicionarMembro, listarMembros, type RespostaMembroAdicionado } from '../api/membros'
 import { buscarAssinatura } from '../api/entidades'
-import { enviarLogoPlataforma, removerLogoPlataforma, logoPlataformaUrl } from '../api/configuracaoPlataforma'
+import {
+  enviarLogoPlataforma, removerLogoPlataforma, logoPlataformaUrl,
+  enviarLogoLoginPlataforma, removerLogoLoginPlataforma, logoLoginPlataformaUrl,
+} from '../api/configuracaoPlataforma'
 import { useConfiguracaoPlataforma } from '../hooks/useConfiguracaoPlataforma'
 import { useLojaAutenticacao } from '../store/lojaAutenticacao'
 import { iniciaisDoNome } from '../utils/formatadores'
@@ -74,7 +77,7 @@ function SecaoLogoPlataforma() {
         <h2 className="text-sm font-semibold text-conteudo">Logo da plataforma</h2>
       </div>
       <p className="text-xs text-conteudo-suave mb-4">
-        Usada como ícone da aba do navegador e no lugar do texto "Financeiro" na barra lateral.
+        Usada como ícone da aba do navegador e no lugar do ícone Nexus360 na barra lateral.
       </p>
       <div className="flex items-center gap-4">
         <div className="w-14 h-14 rounded-xl bg-superficie-2 flex items-center justify-center shrink-0 overflow-hidden">
@@ -91,6 +94,70 @@ function SecaoLogoPlataforma() {
             <Upload size={14} /> {uploadMutation.isPending ? 'Enviando...' : 'Enviar logo'}
           </button>
           {configuracaoPlataforma?.temLogo && (
+            <button type="button" onClick={() => removerMutation.mutate()}
+              className="btn-ghost flex items-center gap-2 text-sm text-red-500 hover:text-red-400">
+              <Trash2 size={14} /> Remover
+            </button>
+          )}
+        </div>
+      </div>
+      {erro && <p className="text-sm text-red-500 mt-3">{erro}</p>}
+    </div>
+  )
+}
+
+// Slot independente da logo acima — a tela de login costuma usar uma peça de
+// marca mais larga (com nome/tagline embutidos), por isso o preview aqui é
+// retangular em vez do quadrado usado para o ícone da barra lateral.
+function SecaoLogoLogin() {
+  const qc = useQueryClient()
+  const { data: configuracaoPlataforma } = useConfiguracaoPlataforma()
+  const inputArquivoRef = useRef<HTMLInputElement>(null)
+  const [erro, setErro] = useState('')
+
+  const invalidar = () => qc.invalidateQueries({ queryKey: ['configuracao-plataforma'] })
+
+  const uploadMutation = useMutation({
+    mutationFn: enviarLogoLoginPlataforma,
+    onSuccess: () => { invalidar(); setErro(''); toast.success('Logo enviada') },
+    onError: () => setErro('Falha ao enviar imagem. Use PNG, JPEG ou WEBP de até 1MB.'),
+  })
+
+  const removerMutation = useMutation({
+    mutationFn: removerLogoLoginPlataforma,
+    onSuccess: () => { invalidar(); toast.success('Logo removida') },
+  })
+
+  const arquivoSelecionado = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const arquivo = e.target.files?.[0]
+    e.target.value = ''
+    if (arquivo) uploadMutation.mutate(arquivo)
+  }
+
+  return (
+    <div className="card">
+      <div className="flex items-center gap-2 mb-4">
+        <Image size={16} className="text-acento" />
+        <h2 className="text-sm font-semibold text-conteudo">Logo da tela de login</h2>
+      </div>
+      <p className="text-xs text-conteudo-suave mb-4">
+        Banner exibido na tela de login, no lugar do ícone Nexus360. Independente da logo da barra lateral.
+      </p>
+      <div className="flex items-center gap-4">
+        <div className="h-14 w-28 rounded-xl bg-superficie-2 flex items-center justify-center shrink-0 overflow-hidden">
+          {configuracaoPlataforma?.temLogoLogin ? (
+            <img src={logoLoginPlataformaUrl()} alt="Logo atual" className="w-full h-full object-contain" />
+          ) : (
+            <Image size={20} className="text-conteudo-suave" />
+          )}
+        </div>
+        <div className="flex gap-2">
+          <input ref={inputArquivoRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={arquivoSelecionado} />
+          <button type="button" onClick={() => inputArquivoRef.current?.click()}
+            className="btn-ghost flex items-center gap-2 text-sm">
+            <Upload size={14} /> {uploadMutation.isPending ? 'Enviando...' : 'Enviar logo'}
+          </button>
+          {configuracaoPlataforma?.temLogoLogin && (
             <button type="button" onClick={() => removerMutation.mutate()}
               className="btn-ghost flex items-center gap-2 text-sm text-red-500 hover:text-red-400">
               <Trash2 size={14} /> Remover
@@ -330,6 +397,7 @@ export default function Perfil() {
       <SecaoInformacoes />
       <SecaoPlano />
       {sessao?.nivelAcesso === 'ADMIN' && <SecaoLogoPlataforma />}
+      {sessao?.nivelAcesso === 'ADMIN' && <SecaoLogoLogin />}
       <SecaoAparencia />
       <SecaoTrocarSenha />
       {sessao?.papel === 'DONO' && <SecaoMembros />}

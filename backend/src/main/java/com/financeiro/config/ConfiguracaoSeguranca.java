@@ -80,9 +80,11 @@ public class ConfiguracaoSeguranca {
                         // precisa ser alcançável sem JWT (não é dado sensível).
                         .requestMatchers(HttpMethod.GET, "/api/bancos/*/logo").permitAll()
                         // Logo da plataforma: usada como favicon (até na tela de login) e
-                        // por <img>/<link>, que também não mandam Authorization.
+                        // por <img>/<link>, que também não mandam Authorization. logo-login
+                        // é o banner da própria tela de login, sem sessão ainda.
                         .requestMatchers(HttpMethod.GET, "/api/configuracao-plataforma",
-                                "/api/configuracao-plataforma/logo").permitAll()
+                                "/api/configuracao-plataforma/logo",
+                                "/api/configuracao-plataforma/logo-login").permitAll()
                         // Consulta de CNPJ/CEP: dados públicos (BrasilAPI); usada também
                         // no formulário de registro antes de o usuário ter um token.
                         .requestMatchers(HttpMethod.GET, "/api/consultas/**").permitAll()

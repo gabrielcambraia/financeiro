@@ -33,13 +33,7 @@ public class ConfiguracaoPlataformaService {
     }
 
     public RespostaConfiguracaoPlataforma uploadLogo(byte[] bytes, String contentType) {
-        if (contentType == null || !TIPOS_IMAGEM_PERMITIDOS.contains(contentType)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Formato de imagem não suportado. Use PNG, JPEG ou WEBP.");
-        }
-        if (bytes.length > TAMANHO_MAXIMO_BYTES) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Imagem muito grande (máximo 1MB)");
-        }
+        validar(bytes, contentType);
         ConfiguracaoPlataforma configuracao = buscarEntidade();
         configuracao.setLogo(bytes);
         configuracao.setLogoTipo(contentType);
@@ -53,7 +47,33 @@ public class ConfiguracaoPlataformaService {
         return toDTO(repository.save(configuracao));
     }
 
+    // Banner exibido na tela de login, independente da logo da barra lateral/favicon.
+    public RespostaConfiguracaoPlataforma uploadLogoLogin(byte[] bytes, String contentType) {
+        validar(bytes, contentType);
+        ConfiguracaoPlataforma configuracao = buscarEntidade();
+        configuracao.setLogoLogin(bytes);
+        configuracao.setLogoLoginTipo(contentType);
+        return toDTO(repository.save(configuracao));
+    }
+
+    public RespostaConfiguracaoPlataforma removerLogoLogin() {
+        ConfiguracaoPlataforma configuracao = buscarEntidade();
+        configuracao.setLogoLogin(null);
+        configuracao.setLogoLoginTipo(null);
+        return toDTO(repository.save(configuracao));
+    }
+
+    private void validar(byte[] bytes, String contentType) {
+        if (contentType == null || !TIPOS_IMAGEM_PERMITIDOS.contains(contentType)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Formato de imagem não suportado. Use PNG, JPEG ou WEBP.");
+        }
+        if (bytes.length > TAMANHO_MAXIMO_BYTES) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Imagem muito grande (máximo 1MB)");
+        }
+    }
+
     private RespostaConfiguracaoPlataforma toDTO(ConfiguracaoPlataforma configuracao) {
-        return new RespostaConfiguracaoPlataforma(configuracao.getLogo() != null);
+        return new RespostaConfiguracaoPlataforma(configuracao.getLogo() != null, configuracao.getLogoLogin() != null);
     }
 }

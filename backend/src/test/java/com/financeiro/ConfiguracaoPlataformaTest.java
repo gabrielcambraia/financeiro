@@ -24,9 +24,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Cobre {@code ConfiguracaoPlataformaService}/{@code ConfiguracaoPlataformaController}
- * — a logo global usada como favicon e no lugar do texto "Financeiro" na
- * barra lateral. GET é público (sem token); upload/remoção é restrito a
- * administradores.
+ * — dois slots de logo independentes: a logo global usada como favicon e
+ * como ícone da barra lateral (/logo), e o banner da tela de login
+ * (/logo-login). GET é público (sem token) nos dois; upload/remoção é
+ * restrito a administradores.
  */
 class ConfiguracaoPlataformaTest extends TesteIntegracaoBase {
 
@@ -132,7 +133,73 @@ class ConfiguracaoPlataformaTest extends TesteIntegracaoBase {
         assertThat(resposta.getBody().get("mensagem")).isEqualTo("Imagem muito grande (máximo 1MB)");
     }
 
+    @Test
+    void usuarioComum_naoEnviaLogoLogin_403() {
+        String token = registrar();
+
+        MultiValueMap<String, Object> corpo = corpoMultipart(pngMinimo(), MediaType.IMAGE_PNG_VALUE, "logo.png");
+        HttpHeaders headers = autenticado(token);
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+        ResponseEntity<Map> resposta = restTemplate.exchange(url("/api/configuracao-plataforma/logo-login"), HttpMethod.POST,
+                new HttpEntity<>(corpo, headers), Map.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    void admin_enviaObtemERemoveLogoLogin_semAfetarLogoDaBarraLateral() {
+        String tokenAdmin = registrarEPromoverAAdmin("admin4");
+
+        // Envia a logo "normal" (barra lateral) primeiro, pra garantir que os
+        // dois slots não se pisam.
+        byte[] pngBarraLateral = pngMinimo();
+        enviarLogo(tokenAdmin, pngBarraLateral, "logo.png");
+
+        byte[] pngLogin = new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x01};
+        MultiValueMap<String, Object> corpo = corpoMultipart(pngLogin, MediaType.IMAGE_PNG_VALUE, "login.png");
+        HttpHeaders headers = autenticado(tokenAdmin);
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+        ResponseEntity<RespostaConfiguracaoPlataforma> respostaUpload = restTemplate.exchange(
+                url("/api/configuracao-plataforma/logo-login"), HttpMethod.POST,
+                new HttpEntity<>(corpo, headers), RespostaConfiguracaoPlataforma.class);
+        assertThat(respostaUpload.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(respostaUpload.getBody().temLogoLogin()).isTrue();
+        assertThat(respostaUpload.getBody().temLogo()).isTrue();
+
+        ResponseEntity<byte[]> respostaLogoLogin = restTemplate.getForEntity(
+                url("/api/configuracao-plataforma/logo-login"), byte[].class);
+        assertThat(respostaLogoLogin.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(respostaLogoLogin.getBody()).isEqualTo(pngLogin);
+
+        // O slot da barra lateral continua intacto, com o conteúdo original.
+        ResponseEntity<byte[]> respostaLogoBarraLateral = restTemplate.getForEntity(
+                url("/api/configuracao-plataforma/logo"), byte[].class);
+        assertThat(respostaLogoBarraLateral.getBody()).isEqualTo(pngBarraLateral);
+
+        ResponseEntity<RespostaConfiguracaoPlataforma> respostaRemocao = restTemplate.exchange(
+                url("/api/configuracao-plataforma/logo-login"), HttpMethod.DELETE,
+                new HttpEntity<>(autenticado(tokenAdmin)), RespostaConfiguracaoPlataforma.class);
+        assertThat(respostaRemocao.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(respostaRemocao.getBody().temLogoLogin()).isFalse();
+        // Remover a logo do login não mexe na da barra lateral.
+        assertThat(respostaRemocao.getBody().temLogo()).isTrue();
+
+        ResponseEntity<byte[]> respostaLogoLoginRemovida = restTemplate.getForEntity(
+                url("/api/configuracao-plataforma/logo-login"), byte[].class);
+        assertThat(respostaLogoLoginRemovida.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
     // ---------- helpers ----------
+
+    private void enviarLogo(String tokenAdmin, byte[] conteudo, String nomeArquivo) {
+        MultiValueMap<String, Object> corpo = corpoMultipart(conteudo, MediaType.IMAGE_PNG_VALUE, nomeArquivo);
+        HttpHeaders headers = autenticado(tokenAdmin);
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+        ResponseEntity<RespostaConfiguracaoPlataforma> resposta = restTemplate.exchange(
+                url("/api/configuracao-plataforma/logo"), HttpMethod.POST,
+                new HttpEntity<>(corpo, headers), RespostaConfiguracaoPlataforma.class);
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
 
     private String registrarEPromoverAAdmin(String prefixo) {
         RespostaAutenticacao autenticacao = registrarCompleto(

@@ -2,7 +2,7 @@ interface Props {
   tamanho?: number
 }
 
-export default function LogoNexo360({ tamanho = 32 }: Props) {
+export default function LogoNexus360({ tamanho = 32 }: Props) {
   return (
     <svg width={tamanho} height={tamanho} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
       <rect width="32" height="32" rx="8" fill="rgb(17 32 60)" />

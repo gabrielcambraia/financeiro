@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { Check } from 'lucide-react'
-import LogoNexo360 from './LogoNexo360'
+import LogoLogin from './LogoLogin'
 import AlternadorTema from './AlternadorTema'
 
 const features = [
@@ -26,8 +26,7 @@ export default function LayoutAuth({ children }: { children: React.ReactNode }) 
       {/* Mobile header */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-10 flex items-center gap-2.5 px-5 bg-sb-fundo"
         style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)', paddingBottom: '1rem' }}>
-        <LogoNexo360 tamanho={28} />
-        <span className="text-base font-bold text-sb-texto">Nexo360</span>
+        <LogoLogin altura={28} classeNome="text-base font-bold text-sb-texto" />
       </div>
 
       {/* Left panel — always navy, never changes with theme */}
@@ -42,8 +41,7 @@ export default function LayoutAuth({ children }: { children: React.ReactNode }) 
         />
 
         <div className="relative z-10 flex items-center gap-3">
-          <LogoNexo360 tamanho={36} />
-          <span className="text-xl font-bold text-sb-texto">Nexo360</span>
+          <LogoLogin altura={36} classeNome="text-xl font-bold text-sb-texto" />
         </div>
 
         <div className="relative z-10">

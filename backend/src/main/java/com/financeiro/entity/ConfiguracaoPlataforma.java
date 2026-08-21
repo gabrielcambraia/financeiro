@@ -8,9 +8,10 @@ import lombok.NoArgsConstructor;
 
 /**
  * Configuração global da plataforma — singleton, sempre a linha id=1
- * (seedada pela migration). Hoje só guarda a logo usada como favicon do
- * navegador e no lugar do texto "Financeiro" na barra lateral; os bytes
- * ficam no banco (não em disco: Render tem filesystem efêmero).
+ * (seedada pela migration). Guarda dois slots de logo independentes: `logo`
+ * (favicon do navegador e ícone da barra lateral) e `logoLogin` (banner
+ * exibido na tela de login, no lugar do ícone+nome padrão). Os bytes ficam
+ * no banco (não em disco: Render tem filesystem efêmero).
  */
 @Entity
 @Table(name = "configuracao_plataforma")
@@ -26,4 +27,8 @@ public class ConfiguracaoPlataforma {
     private byte[] logo;
 
     private String logoTipo;
+
+    private byte[] logoLogin;
+
+    private String logoLoginTipo;
 }
