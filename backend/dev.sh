@@ -13,8 +13,4 @@ set -a
 source "$ENV_FILE"
 set +a
 
-exec "$JAVA_HOME/bin/java" \
-  -Dmaven.multiModuleProjectDirectory="$DIR" \
-  -classpath "$DIR/.mvn/wrapper/maven-wrapper.jar" \
-  org.apache.maven.wrapper.MavenWrapperMain \
-  -f "$DIR/pom.xml" spring-boot:run
+"$DIR/.maven/apache-maven-3.9.6/bin/mvn" -f "$DIR/pom.xml" spring-boot:run
