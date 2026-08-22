@@ -13,5 +13,5 @@ public class CentroCustoDTO {
     @NotBlank
     private String cor;
 
-    private Long entidadeId;
+    private Long filialId;
 }

@@ -27,8 +27,8 @@ public interface AtivoRepository extends JpaRepository<Ativo, Long> {
     Page<Ativo> findByDataCancelamentoIsNullAndRemuneracaoTipoNot(TipoRemuneracao remuneracaoTipo, Pageable pageable);
 
     @Query("SELECT a FROM Ativo a WHERE a.espacoId = :espacoId " +
-           "AND (:entidadeId IS NULL OR a.conta.entidadeId = :entidadeId OR a.conta.entidadeId IS NULL) " +
+           "AND (:filialId IS NULL OR a.conta.filialId = :filialId OR a.conta.filialId IS NULL) " +
            "ORDER BY a.criadoEm DESC")
-    List<Ativo> findByEspacoIdFiltradoPorEntidade(@Param("espacoId") Long espacoId,
-                                                  @Param("entidadeId") Long entidadeId);
+    List<Ativo> findByEspacoIdFiltradoPorFilial(@Param("espacoId") Long espacoId,
+                                                  @Param("filialId") Long filialId);
 }

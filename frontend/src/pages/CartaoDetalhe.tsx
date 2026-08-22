@@ -171,7 +171,7 @@ export default function CartaoDetalhe() {
           />
           <div className="relative flex justify-between items-start mb-7">
             <div>
-              <div className="text-xs mb-1" style={{ opacity: 0.6 }}>Nexo360</div>
+              <div className="text-xs mb-1" style={{ opacity: 0.6 }}>Nexus360</div>
               <div className="text-base font-bold">{cartao.nome}</div>
             </div>
             {cartao.banco && (
@@ -362,7 +362,7 @@ export default function CartaoDetalhe() {
       {showForm && (
         <FormularioCompraCartao
           cartaoId={cartaoId}
-          entidadeId={cartao?.contaPagamento?.entidadeId}
+          filialId={cartao?.contaPagamento?.filialId}
           editing={editing}
           onClose={() => { setShowForm(false); setEditing(undefined) }}
         />

@@ -1,13 +1,11 @@
 package com.financeiro.service;
 
 import com.financeiro.dto.RespostaAutenticacao;
-import com.financeiro.dto.RespostaEntidadeResumo;
+import com.financeiro.dto.RespostaFilialResumo;
 import com.financeiro.entity.Usuario;
-import com.financeiro.entity.UsuarioEspaco;
 import com.financeiro.entity.enums.CanalNotificacao;
 import com.financeiro.entity.enums.PropositoCodigo;
-import com.financeiro.repository.EntidadeRepository;
-import com.financeiro.repository.UsuarioEspacoRepository;
+import com.financeiro.repository.FilialRepository;
 import com.financeiro.repository.UsuarioRepository;
 import com.financeiro.seguranca.ServicoJwt;
 import com.financeiro.seguranca.ServicoTokenAtualizacao;
@@ -28,14 +26,12 @@ public class ServicoOtpLogin {
 
     private final ServicoCodigoVerificacao servicoCodigoVerificacao;
     private final UsuarioRepository usuarioRepository;
-    private final UsuarioEspacoRepository usuarioEspacoRepository;
-    private final EntidadeRepository entidadeRepository;
+    private final FilialRepository filialRepository;
     private final ServicoJwt servicoJwt;
     private final ServicoTokenAtualizacao servicoTokenAtualizacao;
 
     @Transactional
     public void solicitarOtp(String email, String ipOrigem) {
-        // Não revela se o e-mail existe — retorna silenciosamente em ambos os casos
         usuarioRepository.findByEmail(email).ifPresent(usuario ->
                 servicoCodigoVerificacao.solicitar(email, CanalNotificacao.EMAIL, PropositoCodigo.LOGIN, ipOrigem, null));
     }
@@ -47,25 +43,23 @@ public class ServicoOtpLogin {
         Usuario usuario = usuarioRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciais inválidas"));
 
-        UsuarioEspaco vinculo = usuarioEspacoRepository.findByIdUsuarioId(usuario.getId()).stream()
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("Usuário sem espaço vinculado"));
-
-        String token = servicoJwt.gerarToken(usuario.getId(), vinculo.getId().getEspacoId(),
-                usuario.getEmail(), usuario.isPrecisaTrocarSenha(), usuario.getNivelAcesso());
+        boolean telefonePendente = usuario.getTelefone() == null || usuario.getTelefone().isBlank();
+        String token = servicoJwt.gerarToken(usuario.getId(), usuario.getEspacoId(),
+                usuario.getEmail(), usuario.isPrecisaTrocarSenha(), telefonePendente,
+                usuario.getNivelAcesso(), usuario.getPapel());
         TokenRenovado tokenAtualizacao = servicoTokenAtualizacao.emitir(
-                usuario.getId(), vinculo.getId().getEspacoId(), userAgent);
+                usuario.getId(), usuario.getEspacoId(), userAgent);
         RespostaAutenticacao resposta = new RespostaAutenticacao(
                 token, usuario.getId(), usuario.getNome(), usuario.getEmail(),
-                vinculo.getId().getEspacoId(), vinculo.getPapel(),
-                usuario.isPrecisaTrocarSenha(), usuario.getNivelAcesso(),
-                resumirEntidades(vinculo.getId().getEspacoId()));
+                usuario.getEspacoId(), usuario.getPapel(),
+                usuario.isPrecisaTrocarSenha(), telefonePendente, usuario.getNivelAcesso(),
+                resumirFiliais(usuario.getEspacoId()));
         return new ServicoAutenticacao.ResultadoAutenticacao(resposta, tokenAtualizacao.tokenBruto());
     }
 
-    private List<RespostaEntidadeResumo> resumirEntidades(Long espacoId) {
-        return entidadeRepository.findByEspacoId(espacoId).stream()
-                .map(e -> new RespostaEntidadeResumo(e.getId(), e.getNome(), e.getTipoPessoa()))
+    private List<RespostaFilialResumo> resumirFiliais(Long espacoId) {
+        return filialRepository.findByEspacoId(espacoId).stream()
+                .map(e -> new RespostaFilialResumo(e.getId(), e.getNome(), e.getTipoPessoa()))
                 .toList();
     }
 }

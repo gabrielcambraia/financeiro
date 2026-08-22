@@ -1,7 +1,8 @@
 package com.financeiro.config;
 
 import com.financeiro.seguranca.FiltroAutenticacaoJwt;
-import com.financeiro.seguranca.FiltroEntidadeAtual;
+import com.financeiro.seguranca.FiltroCadastroTelefoneObrigatorio;
+import com.financeiro.seguranca.FiltroFilialAtual;
 import com.financeiro.seguranca.FiltroIdRequisicao;
 import com.financeiro.seguranca.FiltroLimiteTaxaAutenticacao;
 import com.financeiro.seguranca.FiltroProtecaoOrigem;
@@ -40,8 +41,9 @@ public class ConfiguracaoSeguranca {
     @Bean
     public SecurityFilterChain cadeiaSeguranca(
             HttpSecurity http, FiltroAutenticacaoJwt filtroJwt, FiltroTrocaSenhaObrigatoria filtroTrocaSenha,
+            FiltroCadastroTelefoneObrigatorio filtroCadastroTelefone,
             FiltroLimiteTaxaAutenticacao filtroLimiteTaxa, FiltroProtecaoOrigem filtroProtecaoOrigem,
-            FiltroIdRequisicao filtroIdRequisicao, FiltroEntidadeAtual filtroEntidadeAtual) throws Exception {
+            FiltroIdRequisicao filtroIdRequisicao, FiltroFilialAtual filtroFilialAtual) throws Exception {
         http
                 // CSRF "clássico" (token de sessão) não se aplica aqui: a API é stateless
                 // e autentica via header Authorization (Bearer), que um site terceiro não
@@ -80,9 +82,11 @@ public class ConfiguracaoSeguranca {
                         // precisa ser alcançável sem JWT (não é dado sensível).
                         .requestMatchers(HttpMethod.GET, "/api/bancos/*/logo").permitAll()
                         // Logo da plataforma: usada como favicon (até na tela de login) e
-                        // por <img>/<link>, que também não mandam Authorization.
+                        // por <img>/<link>, que também não mandam Authorization. logo-login
+                        // é o banner da própria tela de login, sem sessão ainda.
                         .requestMatchers(HttpMethod.GET, "/api/configuracao-plataforma",
-                                "/api/configuracao-plataforma/logo").permitAll()
+                                "/api/configuracao-plataforma/logo",
+                                "/api/configuracao-plataforma/logo-login").permitAll()
                         // Consulta de CNPJ/CEP: dados públicos (BrasilAPI); usada também
                         // no formulário de registro antes de o usuário ter um token.
                         .requestMatchers(HttpMethod.GET, "/api/consultas/**").permitAll()
@@ -96,7 +100,8 @@ public class ConfiguracaoSeguranca {
                 .addFilterBefore(filtroProtecaoOrigem, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(filtroJwt, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(filtroTrocaSenha, FiltroAutenticacaoJwt.class)
-                .addFilterAfter(filtroEntidadeAtual, FiltroTrocaSenhaObrigatoria.class);
+                .addFilterAfter(filtroCadastroTelefone, FiltroTrocaSenhaObrigatoria.class)
+                .addFilterAfter(filtroFilialAtual, FiltroCadastroTelefoneObrigatorio.class);
 
         return http.build();
     }

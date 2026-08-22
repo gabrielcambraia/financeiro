@@ -1,5 +1,11 @@
 # Migração para multi-tenant (servidor na internet) — Roadmap
 
+> **Nota (NEXO-20):** o vínculo N:N `usuarios_espacos` descrito abaixo (PR 1 e
+> PR 2.1) foi substituído por uma relação 1:N — `usuarios.espaco_id` e
+> `usuarios.papel` diretos, sem tabela de junção — já que, na prática, nenhum
+> usuário nunca teve mais de um espaço. Este documento fica como registro
+> histórico das decisões da época; ver `CLAUDE.md` para o modelo atual.
+
 ## Decisão de arquitetura
 
 Uma única instância multi-tenant, com posse do dado por **espaço (workspace)**, não por usuário direto:

@@ -19,8 +19,8 @@ public interface OrcamentoRepository extends JpaRepository<Orcamento, Long> {
     boolean existsByEspacoIdAndCategoriaIdAndMesAndIdNot(Long espacoId, Long categoriaId, String mes, Long id);
 
     @Query("SELECT o FROM Orcamento o WHERE o.espacoId = :espacoId AND o.mes = :mes " +
-           "AND (:entidadeId IS NULL OR o.entidadeId = :entidadeId OR o.entidadeId IS NULL)")
-    List<Orcamento> findByEspacoIdAndMesFiltradoPorEntidade(@Param("espacoId") Long espacoId,
+           "AND (:filialId IS NULL OR o.filialId = :filialId OR o.filialId IS NULL)")
+    List<Orcamento> findByEspacoIdAndMesFiltradoPorFilial(@Param("espacoId") Long espacoId,
                                                             @Param("mes") String mes,
-                                                            @Param("entidadeId") Long entidadeId);
+                                                            @Param("filialId") Long filialId);
 }

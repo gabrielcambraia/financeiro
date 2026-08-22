@@ -335,9 +335,9 @@ export default function AdminEspacos() {
                   value={planoSelecionado}
                   onChange={e => setPlanoSelecionado(e.target.value as CodigoPlano)}
                 >
-                  <option value="INDIVIDUAL">Individual (1 entidade)</option>
-                  <option value="FAMILIA">Família (1 entidade)</option>
-                  <option value="EMPRESA">Empresa (5 entidades)</option>
+                  <option value="INDIVIDUAL">Individual (1 filial)</option>
+                  <option value="FAMILIA">Família (1 filial)</option>
+                  <option value="EMPRESA">Empresa (5 filiais)</option>
                 </select>
               </div>
               <div className="flex gap-3 pt-2">

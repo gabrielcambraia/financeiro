@@ -34,5 +34,9 @@ export default function RotaProtegida() {
     return <Navigate to="/trocar-senha" replace />
   }
 
+  if (requerAutenticacao && sessao?.precisaCadastrarTelefone) {
+    return <Navigate to="/cadastrar-telefone" replace />
+  }
+
   return <Outlet />
 }

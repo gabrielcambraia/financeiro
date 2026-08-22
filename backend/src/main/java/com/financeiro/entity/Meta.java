@@ -60,8 +60,8 @@ public class Meta {
     @Column(name = "usuario_id", nullable = false)
     private Long usuarioId;
 
-    @Column(name = "entidade_id")
-    private Long entidadeId;
+    @Column(name = "filial_id")
+    private Long filialId;
 
     @PrePersist
     public void prePersist() {

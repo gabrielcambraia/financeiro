@@ -8,8 +8,8 @@ import { sair } from '../api/autenticacao'
 import { iniciaisDoNome } from '../utils/formatadores'
 import AlternadorTema from './AlternadorTema'
 import NavegacaoInferior from './NavegacaoInferior'
-import SeletorEntidade from './SeletorEntidade'
-import LogoNexo360 from './LogoNexo360'
+import SeletorFilial from './SeletorFilial'
+import LogoPlataforma from './LogoPlataforma'
 import { type ItemNavegacao, itensNavegacao } from '../config/navegacao'
 
 interface PropsGrupo {
@@ -159,7 +159,7 @@ export default function Estrutura() {
     }
   }
 
-  const itens = itensNavegacao(sessao?.nivelAcesso === 'ADMIN')
+  const itens = itensNavegacao(sessao?.nivelAcesso === 'ADMIN', sessao?.papel === 'DONO')
 
   return (
     <div className="flex h-screen overflow-hidden bg-fundo">
@@ -171,10 +171,7 @@ export default function Estrutura() {
         {/* Topo: logo + nome + toggle */}
         <div className={`flex items-center px-3 py-4 gap-2.5 ${recolhido ? 'justify-center' : 'justify-between'}`}>
           <div className="flex items-center gap-2.5 min-w-0">
-            <LogoNexo360 tamanho={32} />
-            {!recolhido && (
-              <span className="font-bold text-sb-texto text-base truncate">Nexo360</span>
-            )}
+            <LogoPlataforma tamanho={32} mostrarNome={!recolhido} classeNome="font-bold text-sb-texto text-base truncate" />
           </div>
           {!recolhido && (
             <button
@@ -199,7 +196,7 @@ export default function Estrutura() {
           </div>
         )}
 
-        <SeletorEntidade recolhido={recolhido} nasSidebar />
+        <SeletorFilial recolhido={recolhido} nasSidebar />
 
         <nav className="flex-1 min-h-0 overflow-y-auto px-2 py-1 space-y-0.5">
           {itens.map(item =>
@@ -252,7 +249,7 @@ export default function Estrutura() {
       >
         <div className="flex items-center justify-end gap-3 px-6 py-3">
           <div className="mr-auto">
-            <SeletorEntidade />
+            <SeletorFilial />
           </div>
           <AlternadorTema />
           {sessao && (

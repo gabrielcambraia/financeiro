@@ -8,16 +8,18 @@ import { buscarContas } from '../api/contas'
 import SobreposicaoModal from '../components/SobreposicaoModal'
 import ModalConfirmacao from '../components/ModalConfirmacao'
 import SeletorCor from '../components/SeletorCor'
+import SeletorIcone from '../components/SeletorIcone'
 import AcaoNova from '../components/AcaoNova'
-import CampoEntidade from '../components/forms/CampoEntidade'
+import CampoFilial from '../components/forms/CampoFilial'
 import Spinner from '../components/Spinner'
+import { ICONES_META, MAPA_ICONES_META } from '../config/iconesMeta'
 import type { Meta, RespostaImpacto } from '../types'
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
 
 const CORES = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16']
-const formPadrao = { nome: '', valorAlvo: '', prazo: '', cor: CORES[0], icone: 'target', entidadeId: undefined as number | null | undefined }
+const formPadrao = { nome: '', valorAlvo: '', prazo: '', cor: CORES[0], icone: 'target', filialId: undefined as number | null | undefined }
 const movimentoPadrao = { valor: '', contaId: '', data: format(new Date(), 'yyyy-MM-dd') }
 
 export default function Metas() {
@@ -50,7 +52,7 @@ export default function Metas() {
   ])
 
   const saveMutation = useMutation({
-    mutationFn: (data: { nome: string; valorAlvo: number; prazo?: string; cor: string; icone: string; entidadeId?: number | null }) =>
+    mutationFn: (data: { nome: string; valorAlvo: number; prazo?: string; cor: string; icone: string; filialId?: number | null }) =>
       editing ? atualizarMeta(editing.id, data) : criarMeta(data),
     onSuccess: async () => { await invalidar(); toast.success('Meta salva'); closeForm() },
   })
@@ -74,7 +76,7 @@ export default function Metas() {
   const openCreate = () => { setEditing(null); setForm(formPadrao); setShowForm(true) }
   const openEdit = (m: Meta) => {
     setEditing(m)
-    setForm({ nome: m.nome, valorAlvo: String(m.valorAlvo), prazo: m.prazo ?? '', cor: m.cor, icone: m.icone, entidadeId: m.entidadeId })
+    setForm({ nome: m.nome, valorAlvo: String(m.valorAlvo), prazo: m.prazo ?? '', cor: m.cor, icone: m.icone, filialId: m.filialId })
     setShowForm(true)
   }
   const closeForm = () => { setShowForm(false); setEditing(null) }
@@ -84,7 +86,7 @@ export default function Metas() {
     saveMutation.mutate({
       nome: form.nome, valorAlvo: Number(form.valorAlvo),
       prazo: form.prazo || undefined, cor: form.cor, icone: form.icone,
-      entidadeId: form.entidadeId ?? null,
+      filialId: form.filialId ?? null,
     })
   }
 
@@ -139,7 +141,7 @@ export default function Metas() {
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="p-2.5 rounded-xl shrink-0" style={{ background: `${meta.cor}20` }}>
-                  <Target size={20} style={{ color: meta.cor }} />
+                  {(() => { const Ic = MAPA_ICONES_META[meta.icone] ?? Target; return <Ic size={20} style={{ color: meta.cor }} /> })()}
                 </div>
                 <div className="min-w-0">
                   <p className="font-semibold text-conteudo truncate">{meta.nome}</p>
@@ -224,7 +226,7 @@ export default function Metas() {
               <button onClick={closeForm} className="btn-ghost p-1.5 text-sm">✕</button>
             </div>
             <form onSubmit={handleSubmit} className="cartao-modal-corpo">
-              <CampoEntidade value={form.entidadeId} onChange={v => setForm(f => ({ ...f, entidadeId: v }))} />
+              <CampoFilial value={form.filialId} onChange={v => setForm(f => ({ ...f, filialId: v }))} />
               <div>
                 <label className="label">Nome</label>
                 <input className="input" placeholder="Ex: Reserva de emergência" required
@@ -244,6 +246,11 @@ export default function Metas() {
                 <label className="label">Cor</label>
                 <SeletorCor cores={CORES} corSelecionada={form.cor}
                   aoSelecionar={c => setForm(f => ({ ...f, cor: c }))} />
+              </div>
+              <div>
+                <label className="label">Ícone</label>
+                <SeletorIcone icones={ICONES_META} iconeSelecionado={form.icone}
+                  aoSelecionar={i => setForm(f => ({ ...f, icone: i }))} />
               </div>
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={closeForm}

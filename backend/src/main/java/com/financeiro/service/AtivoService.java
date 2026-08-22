@@ -1,6 +1,6 @@
 package com.financeiro.service;
 
-import com.financeiro.context.ContextoEntidade;
+import com.financeiro.context.ContextoFilial;
 import com.financeiro.context.ContextoEspaco;
 import com.financeiro.context.ContextoUsuario;
 import com.financeiro.dto.AtivoDTO;
@@ -49,13 +49,13 @@ public class AtivoService {
     private final ContaService contaService;
     private final ContextoEspaco contextoEspaco;
     private final ContextoUsuario contextoUsuario;
-    private final ContextoEntidade contextoEntidade;
+    private final ContextoFilial contextoFilial;
 
     public List<AtivoDTO> findAll() {
         Long espacoId = contextoEspaco.espacoAtual();
-        Long entidadeId = contextoEntidade.entidadeAtual();
-        List<Ativo> ativos = entidadeId != null
-                ? repository.findByEspacoIdFiltradoPorEntidade(espacoId, entidadeId)
+        Long filialId = contextoFilial.filialAtual();
+        List<Ativo> ativos = filialId != null
+                ? repository.findByEspacoIdFiltradoPorFilial(espacoId, filialId)
                 : repository.findByEspacoIdOrderByCriadoEmDesc(espacoId);
         BigDecimal total = ativos.stream().map(Ativo::getValorAtual).reduce(BigDecimal.ZERO, BigDecimal::add);
 

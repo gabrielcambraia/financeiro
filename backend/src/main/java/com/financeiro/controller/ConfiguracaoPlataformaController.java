@@ -61,4 +61,34 @@ public class ConfiguracaoPlataformaController {
     public RespostaConfiguracaoPlataforma removerLogo() {
         return service.removerLogo();
     }
+
+    // Banner exibido na tela de login — endpoints espelham os de /logo acima,
+    // mas gravam no slot logoLogin (independente do ícone da barra lateral/favicon).
+    @GetMapping("/logo-login")
+    public ResponseEntity<byte[]> logoLogin() {
+        ConfiguracaoPlataforma configuracao = service.buscarEntidade();
+        if (configuracao.getLogoLogin() == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(configuracao.getLogoLoginTipo()))
+                .cacheControl(CacheControl.maxAge(1, TimeUnit.DAYS))
+                .body(configuracao.getLogoLogin());
+    }
+
+    @PostMapping("/logo-login")
+    @PreAuthorize("@autorizacaoAdmin.exigirAdmin()")
+    public RespostaConfiguracaoPlataforma uploadLogoLogin(@RequestParam("arquivo") MultipartFile arquivo) {
+        try {
+            return service.uploadLogoLogin(arquivo.getBytes(), arquivo.getContentType());
+        } catch (IOException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Falha ao ler o arquivo enviado");
+        }
+    }
+
+    @DeleteMapping("/logo-login")
+    @PreAuthorize("@autorizacaoAdmin.exigirAdmin()")
+    public RespostaConfiguracaoPlataforma removerLogoLogin() {
+        return service.removerLogoLogin();
+    }
 }

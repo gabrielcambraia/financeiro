@@ -21,7 +21,7 @@ interface FormPerfil {
   telefone: string
 }
 
-interface FormEntidade {
+interface FormFilial {
   tipoPessoa: TipoPessoa
   nome: string
   nomeFantasia: string
@@ -39,7 +39,7 @@ interface FormEntidade {
   uf: string
 }
 
-const entidadeInicial: FormEntidade = {
+const filialInicial: FormFilial = {
   tipoPessoa: 'FISICA',
   nome: '',
   nomeFantasia: '',
@@ -62,7 +62,7 @@ export default function Registro() {
   const definirSessao = useLojaAutenticacao(s => s.definirSessao)
   const [passo, setPasso] = useState<Passo>(1)
   const [perfil, setPerfil] = useState<FormPerfil>({ nome: '', email: '', senha: '', telefone: '' })
-  const [entidade, setEntidade] = useState<FormEntidade>(entidadeInicial)
+  const [filial, setFilial] = useState<FormFilial>(filialInicial)
   const [codigoEmail, setCodigoEmail] = useState('')
   const [erro, setErro] = useState('')
   const [carregando, setCarregando] = useState(false)
@@ -76,10 +76,10 @@ export default function Registro() {
   const ultimoCepBuscado = useRef('')
 
   const setPf = (k: keyof FormPerfil, v: string) => setPerfil(p => ({ ...p, [k]: v }))
-  const setEnt = (k: keyof FormEntidade, v: string) => setEntidade(e => ({ ...e, [k]: v }))
+  const setFil = (k: keyof FormFilial, v: string) => setFilial(e => ({ ...e, [k]: v }))
 
   const alterarTipoPessoa = (t: TipoPessoa) => {
-    setEntidade(e => ({ ...e, tipoPessoa: t, documento: '' }))
+    setFilial(e => ({ ...e, tipoPessoa: t, documento: '' }))
     setErroCpf('')
     setErroCnpj('')
     ultimoCnpjBuscado.current = ''
@@ -91,7 +91,7 @@ export default function Registro() {
     setCarregandoCnpj(true)
     try {
       const dados = await consultarCnpj(cnpj)
-      setEntidade(e => ({
+      setFilial(e => ({
         ...e,
         nome: e.nome || dados.razaoSocial,
         nomeFantasia: e.nomeFantasia || dados.nomeFantasia || '',
@@ -118,7 +118,7 @@ export default function Registro() {
     setCarregandoCep(true)
     try {
       const dados = await consultarCep(cep)
-      setEntidade(e => ({
+      setFilial(e => ({
         ...e,
         logradouro: e.logradouro || dados.logradouro || '',
         bairro: e.bairro || dados.bairro || '',
@@ -150,21 +150,21 @@ export default function Registro() {
         senha: perfil.senha,
         telefone: perfil.telefone || undefined,
         entidade: {
-          tipoPessoa: entidade.tipoPessoa,
-          nome: entidade.nome,
-          nomeFantasia: entidade.nomeFantasia || undefined,
-          documento: entidade.documento,
-          inscricaoEstadual: entidade.inscricaoEstadual || undefined,
-          dataNascimento: entidade.dataNascimento || undefined,
-          email: entidade.email || undefined,
-          telefone: entidade.telefone || undefined,
-          cep: entidade.cep || undefined,
-          logradouro: entidade.logradouro || undefined,
-          numero: entidade.numero || undefined,
-          complemento: entidade.complemento || undefined,
-          bairro: entidade.bairro || undefined,
-          cidade: entidade.cidade || undefined,
-          uf: entidade.uf || undefined,
+          tipoPessoa: filial.tipoPessoa,
+          nome: filial.nome,
+          nomeFantasia: filial.nomeFantasia || undefined,
+          documento: filial.documento,
+          inscricaoEstadual: filial.inscricaoEstadual || undefined,
+          dataNascimento: filial.dataNascimento || undefined,
+          email: filial.email || undefined,
+          telefone: filial.telefone || undefined,
+          cep: filial.cep || undefined,
+          logradouro: filial.logradouro || undefined,
+          numero: filial.numero || undefined,
+          complemento: filial.complemento || undefined,
+          bairro: filial.bairro || undefined,
+          cidade: filial.cidade || undefined,
+          uf: filial.uf || undefined,
         },
       })
       definirSessao(resposta)
@@ -272,9 +272,7 @@ export default function Registro() {
           </div>
 
           <div>
-            <label className="label">
-              Telefone <span className="text-conteudo-suave text-xs font-normal">(opcional)</span>
-            </label>
+            <label className="label">Telefone</label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-conteudo-suave pointer-events-none">
                 <Phone size={15} />
@@ -282,6 +280,7 @@ export default function Registro() {
               <IMaskInput
                 mask={[{ mask: '(00) 0000-0000' }, { mask: '(00) 00000-0000' }]}
                 unmask={true}
+                required
                 className="input pl-10"
                 placeholder="(11) 99999-9999"
                 value={perfil.telefone}
@@ -316,9 +315,9 @@ export default function Registro() {
       {passo === 2 && (
         <form onSubmit={submitPasso2} className="space-y-4">
           <div>
-            <h2 className="text-xl font-bold text-conteudo mb-1">Dados da entidade</h2>
+            <h2 className="text-xl font-bold text-conteudo mb-1">Dados da filial</h2>
             <p className="text-xs text-conteudo-suave mb-4">
-              Seu espaço começa no plano Individual com 1 entidade.
+              Seu espaço começa no plano Individual com 1 filial.
             </p>
           </div>
 
@@ -329,7 +328,7 @@ export default function Registro() {
                 type="button"
                 onClick={() => alterarTipoPessoa(t)}
                 className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                  entidade.tipoPessoa === t
+                  filial.tipoPessoa === t
                     ? 'border-acento bg-acento text-white'
                     : 'border-borda text-conteudo-suave hover:border-acento'
                 }`}
@@ -340,32 +339,32 @@ export default function Registro() {
           </div>
 
           <div>
-            <label className="label">{entidade.tipoPessoa === 'FISICA' ? 'Nome completo' : 'Razão social'}</label>
-            <input className="input" required value={entidade.nome}
-              onChange={e => setEnt('nome', e.target.value)} />
+            <label className="label">{filial.tipoPessoa === 'FISICA' ? 'Nome completo' : 'Razão social'}</label>
+            <input className="input" required value={filial.nome}
+              onChange={e => setFil('nome', e.target.value)} />
           </div>
 
-          {entidade.tipoPessoa === 'JURIDICA' && (
+          {filial.tipoPessoa === 'JURIDICA' && (
             <div>
               <label className="label">Nome fantasia <span className="text-conteudo-suave text-xs font-normal">(opcional)</span></label>
-              <input className="input" value={entidade.nomeFantasia}
-                onChange={e => setEnt('nomeFantasia', e.target.value)} />
+              <input className="input" value={filial.nomeFantasia}
+                onChange={e => setFil('nomeFantasia', e.target.value)} />
             </div>
           )}
 
           <div>
-            <label className="label">{entidade.tipoPessoa === 'FISICA' ? 'CPF' : 'CNPJ'}</label>
-            {entidade.tipoPessoa === 'FISICA' ? (
+            <label className="label">{filial.tipoPessoa === 'FISICA' ? 'CPF' : 'CNPJ'}</label>
+            {filial.tipoPessoa === 'FISICA' ? (
               <>
                 <IMaskInput
                   mask="000.000.000-00"
                   unmask={true}
                   className={`input ${erroCpf ? 'border-red-500 focus:border-red-500' : ''}`}
                   required
-                  value={entidade.documento}
+                  value={filial.documento}
                   onAccept={(val) => {
                     const v = val as string
-                    setEnt('documento', v)
+                    setFil('documento', v)
                     if (v.length === 11) setErroCpf(validarCpf(v) ? '' : 'CPF inválido')
                     else setErroCpf('')
                   }}
@@ -382,10 +381,10 @@ export default function Registro() {
                     unmask={true}
                     className={`input ${erroCnpj ? 'border-red-500 focus:border-red-500' : ''} ${carregandoCnpj ? 'pr-9' : ''}`}
                     required
-                    value={entidade.documento}
+                    value={filial.documento}
                     onAccept={(val) => {
                       const v = val as string
-                      setEnt('documento', v)
+                      setFil('documento', v)
                       if (v.length === 14) {
                         if (!validarCnpj(v)) { setErroCnpj('CNPJ inválido'); return }
                         setErroCnpj('')
@@ -404,26 +403,26 @@ export default function Registro() {
             )}
           </div>
 
-          {entidade.tipoPessoa === 'FISICA' && (
+          {filial.tipoPessoa === 'FISICA' && (
             <div>
               <label className="label">Data de nascimento <span className="text-conteudo-suave text-xs font-normal">(opcional)</span></label>
-              <input className="input" type="date" value={entidade.dataNascimento}
-                onChange={e => setEnt('dataNascimento', e.target.value)} />
+              <input className="input" type="date" value={filial.dataNascimento}
+                onChange={e => setFil('dataNascimento', e.target.value)} />
             </div>
           )}
 
-          {entidade.tipoPessoa === 'JURIDICA' && (
+          {filial.tipoPessoa === 'JURIDICA' && (
             <div>
               <label className="label">Inscrição estadual <span className="text-conteudo-suave text-xs font-normal">(opcional)</span></label>
-              <input className="input" value={entidade.inscricaoEstadual}
-                onChange={e => setEnt('inscricaoEstadual', e.target.value)} />
+              <input className="input" value={filial.inscricaoEstadual}
+                onChange={e => setFil('inscricaoEstadual', e.target.value)} />
             </div>
           )}
 
           <div>
             <label className="label">E-mail <span className="text-conteudo-suave text-xs font-normal">(opcional)</span></label>
-            <input className="input" type="email" value={entidade.email}
-              onChange={e => setEnt('email', e.target.value)} />
+            <input className="input" type="email" value={filial.email}
+              onChange={e => setFil('email', e.target.value)} />
           </div>
 
           <div>
@@ -432,8 +431,8 @@ export default function Registro() {
               mask={[{ mask: '(00) 0000-0000' }, { mask: '(00) 00000-0000' }]}
               unmask={true}
               className="input"
-              value={entidade.telefone}
-              onAccept={(val) => setEnt('telefone', val as string)}
+              value={filial.telefone}
+              onAccept={(val) => setFil('telefone', val as string)}
             />
           </div>
 
@@ -445,10 +444,10 @@ export default function Registro() {
                   mask="00000-000"
                   unmask={true}
                   className={`input ${carregandoCep ? 'pr-9' : ''}`}
-                  value={entidade.cep}
+                  value={filial.cep}
                   onAccept={(val) => {
                     const v = val as string
-                    setEnt('cep', v)
+                    setFil('cep', v)
                     if (v.length === 8) handleCepBuscar(v)
                   }}
                 />
@@ -461,39 +460,39 @@ export default function Registro() {
             </div>
             <div className="col-span-2">
               <label className="label">Logradouro</label>
-              <input className="input" value={entidade.logradouro}
-                onChange={e => setEnt('logradouro', e.target.value)} />
+              <input className="input" value={filial.logradouro}
+                onChange={e => setFil('logradouro', e.target.value)} />
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-2">
             <div>
               <label className="label">Número</label>
-              <input ref={numeroRef} className="input" value={entidade.numero}
-                onChange={e => setEnt('numero', e.target.value)} />
+              <input ref={numeroRef} className="input" value={filial.numero}
+                onChange={e => setFil('numero', e.target.value)} />
             </div>
             <div className="col-span-2">
               <label className="label">Complemento</label>
-              <input className="input" value={entidade.complemento}
-                onChange={e => setEnt('complemento', e.target.value)} />
+              <input className="input" value={filial.complemento}
+                onChange={e => setFil('complemento', e.target.value)} />
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-2">
             <div>
               <label className="label">Bairro</label>
-              <input className="input" value={entidade.bairro}
-                onChange={e => setEnt('bairro', e.target.value)} />
+              <input className="input" value={filial.bairro}
+                onChange={e => setFil('bairro', e.target.value)} />
             </div>
             <div>
               <label className="label">Cidade</label>
-              <input className="input" value={entidade.cidade}
-                onChange={e => setEnt('cidade', e.target.value)} />
+              <input className="input" value={filial.cidade}
+                onChange={e => setFil('cidade', e.target.value)} />
             </div>
             <div>
               <label className="label">UF</label>
-              <input className="input" maxLength={2} value={entidade.uf}
-                onChange={e => setEnt('uf', e.target.value.toUpperCase())} />
+              <input className="input" maxLength={2} value={filial.uf}
+                onChange={e => setFil('uf', e.target.value.toUpperCase())} />
             </div>
           </div>
 

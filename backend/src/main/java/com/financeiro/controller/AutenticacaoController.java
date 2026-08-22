@@ -1,5 +1,6 @@
 package com.financeiro.controller;
 
+import com.financeiro.dto.RequisicaoCadastrarTelefone;
 import com.financeiro.dto.RequisicaoConfirmarCodigo;
 import com.financeiro.dto.RequisicaoLogin;
 import com.financeiro.dto.RequisicaoRegistro;
@@ -51,6 +52,15 @@ public class AutenticacaoController {
     public RespostaAutenticacao trocarSenha(@Valid @RequestBody RequisicaoTrocarSenha requisicao,
                                              HttpServletRequest request, HttpServletResponse response) {
         ResultadoAutenticacao resultado = servicoAutenticacao.trocarSenha(requisicao, request.getHeader("User-Agent"));
+        auxiliarCookieRenovacao.escrever(response, resultado.tokenAtualizacaoBruto());
+        return resultado.resposta();
+    }
+
+    @PostMapping("/telefone")
+    public RespostaAutenticacao cadastrarTelefone(@Valid @RequestBody RequisicaoCadastrarTelefone requisicao,
+                                                    HttpServletRequest request, HttpServletResponse response) {
+        ResultadoAutenticacao resultado = servicoAutenticacao.cadastrarTelefone(
+                requisicao.getTelefone(), request.getHeader("User-Agent"));
         auxiliarCookieRenovacao.escrever(response, resultado.tokenAtualizacaoBruto());
         return resultado.resposta();
     }

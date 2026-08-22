@@ -20,12 +20,12 @@ interface Props {
   // Ausente quando o formulário é aberto de uma tela sem cartão fixo (ex.:
   // "Compras no Cartão") — nesse caso o próprio formulário exibe o seletor.
   cartaoId?: number
-  entidadeId?: number | null
+  filialId?: number | null
   onClose: () => void
   editing?: ItemFatura
 }
 
-export default function FormularioCompraCartao({ cartaoId, entidadeId, onClose, editing }: Props) {
+export default function FormularioCompraCartao({ cartaoId, filialId, onClose, editing }: Props) {
   const qc = useQueryClient()
   const navigate = useNavigate()
   const [form, setForm] = useState({
@@ -42,11 +42,11 @@ export default function FormularioCompraCartao({ cartaoId, entidadeId, onClose, 
 
   // Sempre carregada (não só quando precisaEscolherCartao) para resolver a
   // entidade do cartão ao editar um item aberto pela tela sem cartão fixo
-  // ("Compras no Cartão"), onde `entidadeId` não vem pronto via prop.
+  // ("Compras no Cartão"), onde `filialId` não vem pronto via prop.
   const { data: cartoes = [] } = useQuery({ queryKey: ['cartoes'], queryFn: buscarCartoes })
 
   const cartaoSelecionado = cartoes.find(c => c.id === Number(form.cartaoId))
-  const entidadeAtual = entidadeId ?? cartaoSelecionado?.contaPagamento?.entidadeId
+  const filialAtual = filialId ?? cartaoSelecionado?.contaPagamento?.filialId
 
   const { data: categorias = [] } = useQuery({
     queryKey: ['categorias', 'DESPESA'],
@@ -59,10 +59,10 @@ export default function FormularioCompraCartao({ cartaoId, entidadeId, onClose, 
   })
 
   const categoriasFiltradas = categorias.filter(c =>
-    entidadeAtual == null || c.entidadeId == null || c.entidadeId === entidadeAtual
+    filialAtual == null || c.filialId == null || c.filialId === filialAtual
   )
   const centrosCustoFiltrados = centrosCusto.filter(cc =>
-    entidadeAtual == null || cc.entidadeId == null || cc.entidadeId === entidadeAtual
+    filialAtual == null || cc.filialId == null || cc.filialId === filialAtual
   )
 
   const mutation = useMutation({

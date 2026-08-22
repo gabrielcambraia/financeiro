@@ -1,6 +1,6 @@
 package com.financeiro.service;
 
-import com.financeiro.context.ContextoEntidade;
+import com.financeiro.context.ContextoFilial;
 import com.financeiro.context.ContextoEspaco;
 import com.financeiro.context.ContextoUsuario;
 import com.financeiro.dto.MetaDTO;
@@ -38,15 +38,15 @@ public class MetaService {
     private final TransacaoRepository transacaoRepository;
     private final ContaService contaService;
     private final ContextoEspaco contextoEspaco;
-    private final ContextoEntidade contextoEntidade;
+    private final ContextoFilial contextoFilial;
     private final ContextoUsuario contextoUsuario;
-    private final ServicoEntidade servicoEntidade;
+    private final ServicoFilial servicoFilial;
 
     public List<MetaDTO> findAll() {
         Long espacoId = contextoEspaco.espacoAtual();
-        Long entidadeId = contextoEntidade.entidadeAtual();
-        List<Meta> metas = entidadeId != null
-                ? repository.findByEspacoIdFiltradoPorEntidade(espacoId, entidadeId)
+        Long filialId = contextoFilial.filialAtual();
+        List<Meta> metas = filialId != null
+                ? repository.findByEspacoIdFiltradoPorFilial(espacoId, filialId)
                 : repository.findByEspacoIdOrderByCriadoEmDesc(espacoId);
         return metas.stream().map(this::toDTO).toList();
     }
@@ -61,7 +61,7 @@ public class MetaService {
                 .icone(dto.getIcone())
                 .espacoId(espacoId)
                 .usuarioId(contextoUsuario.usuarioAtual())
-                .entidadeId(servicoEntidade.resolverParaCadastro(dto.getEntidadeId(), espacoId))
+                .filialId(servicoFilial.resolverParaCadastro(dto.getFilialId(), espacoId))
                 .build();
         return toDTO(repository.save(meta));
     }
@@ -217,7 +217,7 @@ public class MetaService {
         dto.setCor(m.getCor());
         dto.setIcone(m.getIcone());
         dto.setDataCancelamento(m.getDataCancelamento());
-        dto.setEntidadeId(m.getEntidadeId());
+        dto.setFilialId(m.getFilialId());
 
         boolean concluida = m.getValorAtual().compareTo(m.getValorAlvo()) >= 0;
         dto.setConcluida(concluida);

@@ -24,16 +24,19 @@ const Metas = lazy(() => import('./pages/Metas'))
 const Calendario = lazy(() => import('./pages/Calendario'))
 const Dividas = lazy(() => import('./pages/Dividas'))
 const Investimentos = lazy(() => import('./pages/Investimentos'))
-const Simulacao = lazy(() => import('./pages/Simulacao'))
+const FluxoDeCaixa = lazy(() => import('./pages/FluxoDeCaixa'))
 const AdminBancos = lazy(() => import('./pages/AdminBancos'))
 const AdminEspacos = lazy(() => import('./pages/AdminEspacos'))
 const Login = lazy(() => import('./pages/Login'))
 const LoginCodigo = lazy(() => import('./pages/LoginCodigo'))
 const Registro = lazy(() => import('./pages/Registro'))
 const TrocarSenha = lazy(() => import('./pages/TrocarSenha'))
+const CadastrarTelefone = lazy(() => import('./pages/CadastrarTelefone'))
 const Perfil = lazy(() => import('./pages/Perfil'))
-const Entidades = lazy(() => import('./pages/Entidades'))
+const Filiais = lazy(() => import('./pages/Filiais'))
 const CentrosCusto = lazy(() => import('./pages/CentrosCusto'))
+const Usuarios = lazy(() => import('./pages/Usuarios'))
+const UsuarioForm = lazy(() => import('./pages/UsuarioForm'))
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -54,6 +57,7 @@ export default function App() {
             <Route path="/entrar-codigo" element={<LoginCodigo />} />
             <Route path="/registro" element={<Registro />} />
             <Route path="/trocar-senha" element={<TrocarSenha />} />
+            <Route path="/cadastrar-telefone" element={<CadastrarTelefone />} />
             <Route element={<RotaProtegida />}>
               <Route path="/" element={<Estrutura />}>
                 <Route index element={<Painel />} />
@@ -72,10 +76,13 @@ export default function App() {
                 <Route path="calendario" element={<Calendario />} />
                 <Route path="dividas" element={<Dividas />} />
                 <Route path="investimentos" element={<Investimentos />} />
-                <Route path="simulacao" element={<Simulacao />} />
+                <Route path="fluxo-de-caixa" element={<FluxoDeCaixa />} />
                 <Route path="perfil" element={<Perfil />} />
-                <Route path="entidades" element={<Entidades />} />
+                <Route path="filiais" element={<Filiais />} />
                 <Route path="centros-custo" element={<CentrosCusto />} />
+                <Route path="usuarios" element={<Usuarios />} />
+                <Route path="usuarios/novo" element={<UsuarioForm />} />
+                <Route path="usuarios/:id" element={<UsuarioForm />} />
                 <Route element={<RotaAdmin />}>
                   <Route path="admin/bancos" element={<AdminBancos />} />
                   <Route path="admin/espacos" element={<AdminEspacos />} />

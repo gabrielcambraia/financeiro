@@ -1,6 +1,6 @@
 package com.financeiro.service;
 
-import com.financeiro.context.ContextoEntidade;
+import com.financeiro.context.ContextoFilial;
 import com.financeiro.context.ContextoEspaco;
 import com.financeiro.dto.FaturaDTO;
 import com.financeiro.entity.Fatura;
@@ -21,7 +21,7 @@ public class FaturaService {
     private final FaturaRepository repository;
     private final ItemFaturaRepository itemFaturaRepository;
     private final ContextoEspaco contextoEspaco;
-    private final ContextoEntidade contextoEntidade;
+    private final ContextoFilial contextoFilial;
     private final CartaoService cartaoService;
     private final TransacaoService transacaoService;
     private final ItemFaturaService itemFaturaService;
@@ -34,7 +34,7 @@ public class FaturaService {
     // histórico de faturas de um cartão mês a mês em vez de trazer tudo de uma vez.
     public List<FaturaDTO> findByCartao(Long cartaoId, String month) {
         Long espacoId = contextoEspaco.espacoAtual();
-        Long entidadeId = contextoEntidade.entidadeAtual();
+        Long filialId = contextoFilial.filialAtual();
         List<Fatura> faturas;
         if (month != null) {
             YearMonth ym = YearMonth.parse(month);
@@ -42,8 +42,8 @@ public class FaturaService {
             LocalDate fim = ym.atEndOfMonth();
             faturas = repository.findByEspacoIdAndCartaoIdAndDataFechamentoBetweenOrderByDataFechamentoDesc(
                     espacoId, cartaoId, inicio, fim);
-        } else if (entidadeId != null) {
-            faturas = repository.findByEspacoIdAndCartaoIdFiltradoPorEntidade(espacoId, cartaoId, entidadeId);
+        } else if (filialId != null) {
+            faturas = repository.findByEspacoIdAndCartaoIdFiltradoPorFilial(espacoId, cartaoId, filialId);
         } else {
             faturas = repository.findByEspacoIdAndCartaoIdOrderByDataFechamentoDesc(espacoId, cartaoId);
         }
@@ -52,14 +52,14 @@ public class FaturaService {
 
     public List<FaturaDTO> findAllByEspaco(String month) {
         Long espacoId = contextoEspaco.espacoAtual();
-        Long entidadeId = contextoEntidade.entidadeAtual();
+        Long filialId = contextoFilial.filialAtual();
         List<Fatura> faturas;
         if (month != null) {
             YearMonth ym = YearMonth.parse(month);
-            faturas = repository.findByEspacoIdAndDataFechamentoBetweenFiltradoPorEntidade(
-                    espacoId, ym.atDay(1), ym.atEndOfMonth(), entidadeId);
+            faturas = repository.findByEspacoIdAndDataFechamentoBetweenFiltradoPorFilial(
+                    espacoId, ym.atDay(1), ym.atEndOfMonth(), filialId);
         } else {
-            faturas = repository.findByEspacoIdFiltradoPorEntidade(espacoId, entidadeId);
+            faturas = repository.findByEspacoIdFiltradoPorFilial(espacoId, filialId);
         }
         return faturas.stream().map(f -> toDTO(f, false)).toList();
     }

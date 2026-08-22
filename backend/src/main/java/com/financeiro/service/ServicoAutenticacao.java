@@ -1,26 +1,23 @@
 package com.financeiro.service;
 
 import com.financeiro.context.ContextoUsuario;
-import com.financeiro.dto.PrimeiraEntidadeDTO;
+import com.financeiro.dto.PrimeiraFilialDTO;
 import com.financeiro.dto.RequisicaoLogin;
 import com.financeiro.dto.RequisicaoRegistro;
 import com.financeiro.dto.RequisicaoTrocarSenha;
 import com.financeiro.dto.RespostaAutenticacao;
-import com.financeiro.dto.RespostaEntidadeResumo;
-import com.financeiro.entity.Entidade;
+import com.financeiro.dto.RespostaFilialResumo;
+import com.financeiro.entity.Filial;
 import com.financeiro.entity.Espaco;
 import com.financeiro.entity.Usuario;
-import com.financeiro.entity.UsuarioEspaco;
-import com.financeiro.entity.UsuarioEspacoId;
 import com.financeiro.entity.enums.CanalNotificacao;
 import com.financeiro.entity.enums.CodigoPlano;
 import com.financeiro.entity.enums.PapelUsuario;
 import com.financeiro.entity.enums.PlanoEspaco;
 import com.financeiro.entity.enums.PropositoCodigo;
 import com.financeiro.entity.enums.TipoEspaco;
-import com.financeiro.repository.EntidadeRepository;
+import com.financeiro.repository.FilialRepository;
 import com.financeiro.repository.EspacoRepository;
-import com.financeiro.repository.UsuarioEspacoRepository;
 import com.financeiro.repository.UsuarioRepository;
 import com.financeiro.seguranca.ServicoJwt;
 import com.financeiro.seguranca.ServicoTokenAtualizacao;
@@ -34,8 +31,8 @@ import org.springframework.http.HttpStatus;
 
 /**
  * Orquestra registro e login. O registro cria, numa única transação, o
- * usuário, o espaço pessoal dele, o vínculo (DONO) e as categorias padrão —
- * se algo falhar no meio, nada fica órfão.
+ * usuário, o espaço pessoal dele e as categorias padrão — se algo falhar
+ * no meio, nada fica órfão.
  */
 @Slf4j
 @Service
@@ -43,8 +40,7 @@ public class ServicoAutenticacao {
 
     private final UsuarioRepository usuarioRepository;
     private final EspacoRepository espacoRepository;
-    private final UsuarioEspacoRepository usuarioEspacoRepository;
-    private final EntidadeRepository entidadeRepository;
+    private final FilialRepository filialRepository;
     private final PasswordEncoder passwordEncoder;
     private final ServicoJwt servicoJwt;
     private final ServicoTokenAtualizacao servicoTokenAtualizacao;
@@ -58,8 +54,7 @@ public class ServicoAutenticacao {
     public ServicoAutenticacao(
             UsuarioRepository usuarioRepository,
             EspacoRepository espacoRepository,
-            UsuarioEspacoRepository usuarioEspacoRepository,
-            EntidadeRepository entidadeRepository,
+            FilialRepository filialRepository,
             PasswordEncoder passwordEncoder,
             ServicoJwt servicoJwt,
             ServicoTokenAtualizacao servicoTokenAtualizacao,
@@ -71,8 +66,7 @@ public class ServicoAutenticacao {
             ContextoUsuario contextoUsuario) {
         this.usuarioRepository = usuarioRepository;
         this.espacoRepository = espacoRepository;
-        this.usuarioEspacoRepository = usuarioEspacoRepository;
-        this.entidadeRepository = entidadeRepository;
+        this.filialRepository = filialRepository;
         this.passwordEncoder = passwordEncoder;
         this.servicoJwt = servicoJwt;
         this.servicoTokenAtualizacao = servicoTokenAtualizacao;
@@ -93,30 +87,27 @@ public class ServicoAutenticacao {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "E-mail já cadastrado");
         }
 
-        Usuario usuario = usuarioRepository.save(Usuario.builder()
-                .nome(requisicao.getNome())
-                .email(requisicao.getEmail())
-                .senhaHash(passwordEncoder.encode(requisicao.getSenha()))
-                .telefone(requisicao.getTelefone())
-                .build());
-
         Espaco espaco = espacoRepository.save(Espaco.builder()
                 .nome(requisicao.getNome())
                 .tipo(TipoEspaco.PESSOAL)
                 .plano(PlanoEspaco.GRATUITO)
                 .build());
 
-        usuarioEspacoRepository.save(UsuarioEspaco.builder()
-                .id(new UsuarioEspacoId(usuario.getId(), espaco.getId()))
+        Usuario usuario = usuarioRepository.save(Usuario.builder()
+                .nome(requisicao.getNome())
+                .email(requisicao.getEmail())
+                .senhaHash(passwordEncoder.encode(requisicao.getSenha()))
+                .telefone(requisicao.getTelefone())
+                .espacoId(espaco.getId())
                 .papel(PapelUsuario.DONO)
                 .build());
 
         servicoAssinatura.criarParaEspaco(espaco.getId(), CodigoPlano.INDIVIDUAL);
 
-        PrimeiraEntidadeDTO ent = requisicao.getEntidade();
+        PrimeiraFilialDTO ent = requisicao.getEntidade();
         String docLimpo = validadorDocumento.limparEValidar(ent.getDocumento(), ent.getTipoPessoa());
         String hashDoc = cifradorDados.hashDocumento(docLimpo);
-        entidadeRepository.save(Entidade.builder()
+        filialRepository.save(Filial.builder()
                 .espacoId(espaco.getId())
                 .tipoPessoa(ent.getTipoPessoa())
                 .nome(ent.getNome())
@@ -138,7 +129,6 @@ public class ServicoAutenticacao {
 
         semeadorCategoriasPadrao.semear(espaco.getId());
 
-        // Envio de código de verificação de e-mail (assíncrono — não bloqueia a transação)
         try {
             servicoCodigoVerificacao.solicitar(
                     usuario.getEmail(), CanalNotificacao.EMAIL, PropositoCodigo.VERIFICAR_EMAIL, ipOrigem, usuario.getId());
@@ -146,11 +136,12 @@ public class ServicoAutenticacao {
             log.warn("Envio de código de verificação falhou no registro: {}", e.getReason());
         }
 
-        String token = servicoJwt.gerarToken(usuario.getId(), espaco.getId(), usuario.getEmail(), false, usuario.getNivelAcesso());
+        String token = servicoJwt.gerarToken(usuario.getId(), espaco.getId(), usuario.getEmail(), false,
+                telefonePendente(usuario), usuario.getNivelAcesso(), usuario.getPapel());
         TokenRenovado tokenAtualizacao = servicoTokenAtualizacao.emitir(usuario.getId(), espaco.getId(), userAgent);
         RespostaAutenticacao resposta = new RespostaAutenticacao(token, usuario.getId(), usuario.getNome(),
-                usuario.getEmail(), espaco.getId(), PapelUsuario.DONO, false, usuario.getNivelAcesso(),
-                resumirEntidades(espaco.getId()));
+                usuario.getEmail(), espaco.getId(), usuario.getPapel(), false, telefonePendente(usuario),
+                usuario.getNivelAcesso(), resumirFiliais(espaco.getId()));
         return new ResultadoAutenticacao(resposta, tokenAtualizacao.tokenBruto());
     }
 
@@ -163,17 +154,12 @@ public class ServicoAutenticacao {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciais inválidas");
         }
 
-        UsuarioEspaco vinculo = usuarioEspacoRepository.findByIdUsuarioId(usuario.getId()).stream()
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("Usuário sem espaço vinculado"));
-
-        String token = servicoJwt.gerarToken(usuario.getId(), vinculo.getId().getEspacoId(), usuario.getEmail(),
-                usuario.isPrecisaTrocarSenha(), usuario.getNivelAcesso());
-        TokenRenovado tokenAtualizacao = servicoTokenAtualizacao.emitir(
-                usuario.getId(), vinculo.getId().getEspacoId(), userAgent);
+        String token = servicoJwt.gerarToken(usuario.getId(), usuario.getEspacoId(), usuario.getEmail(),
+                usuario.isPrecisaTrocarSenha(), telefonePendente(usuario), usuario.getNivelAcesso(), usuario.getPapel());
+        TokenRenovado tokenAtualizacao = servicoTokenAtualizacao.emitir(usuario.getId(), usuario.getEspacoId(), userAgent);
         RespostaAutenticacao resposta = new RespostaAutenticacao(token, usuario.getId(), usuario.getNome(),
-                usuario.getEmail(), vinculo.getId().getEspacoId(), vinculo.getPapel(), usuario.isPrecisaTrocarSenha(),
-                usuario.getNivelAcesso(), resumirEntidades(vinculo.getId().getEspacoId()));
+                usuario.getEmail(), usuario.getEspacoId(), usuario.getPapel(), usuario.isPrecisaTrocarSenha(),
+                telefonePendente(usuario), usuario.getNivelAcesso(), resumirFiliais(usuario.getEspacoId()));
         return new ResultadoAutenticacao(resposta, tokenAtualizacao.tokenBruto());
     }
 
@@ -190,19 +176,12 @@ public class ServicoAutenticacao {
         usuario.setPrecisaTrocarSenha(false);
         usuarioRepository.save(usuario);
 
-        UsuarioEspaco vinculo = usuarioEspacoRepository.findByIdUsuarioId(usuario.getId()).stream()
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("Usuário sem espaço vinculado"));
-
-        String token = servicoJwt.gerarToken(usuario.getId(), vinculo.getId().getEspacoId(), usuario.getEmail(), false,
-                usuario.getNivelAcesso());
-        // Revoga tokens de outros dispositivos: uma troca de senha (inclusive por
-        // suspeita de comprometimento) não deve deixar sessões antigas vivas.
-        TokenRenovado tokenAtualizacao = servicoTokenAtualizacao.emitir(
-                usuario.getId(), vinculo.getId().getEspacoId(), userAgent);
+        String token = servicoJwt.gerarToken(usuario.getId(), usuario.getEspacoId(), usuario.getEmail(), false,
+                telefonePendente(usuario), usuario.getNivelAcesso(), usuario.getPapel());
+        TokenRenovado tokenAtualizacao = servicoTokenAtualizacao.emitir(usuario.getId(), usuario.getEspacoId(), userAgent);
         RespostaAutenticacao resposta = new RespostaAutenticacao(token, usuario.getId(), usuario.getNome(),
-                usuario.getEmail(), vinculo.getId().getEspacoId(), vinculo.getPapel(), false, usuario.getNivelAcesso(),
-                resumirEntidades(vinculo.getId().getEspacoId()));
+                usuario.getEmail(), usuario.getEspacoId(), usuario.getPapel(), false, telefonePendente(usuario),
+                usuario.getNivelAcesso(), resumirFiliais(usuario.getEspacoId()));
         return new ResultadoAutenticacao(resposta, tokenAtualizacao.tokenBruto());
     }
 
@@ -212,17 +191,41 @@ public class ServicoAutenticacao {
 
         Usuario usuario = usuarioRepository.findById(renovado.usuarioId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Sessão inválida"));
-        UsuarioEspaco vinculo = usuarioEspacoRepository.findByIdUsuarioId(usuario.getId()).stream()
-                .filter(v -> v.getId().getEspacoId().equals(renovado.espacoId()))
-                .findFirst()
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Sessão inválida"));
 
-        String token = servicoJwt.gerarToken(usuario.getId(), vinculo.getId().getEspacoId(), usuario.getEmail(),
-                usuario.isPrecisaTrocarSenha(), usuario.getNivelAcesso());
+        if (!renovado.espacoId().equals(usuario.getEspacoId())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Sessão inválida");
+        }
+
+        String token = servicoJwt.gerarToken(usuario.getId(), usuario.getEspacoId(), usuario.getEmail(),
+                usuario.isPrecisaTrocarSenha(), telefonePendente(usuario), usuario.getNivelAcesso(), usuario.getPapel());
         RespostaAutenticacao resposta = new RespostaAutenticacao(token, usuario.getId(), usuario.getNome(),
-                usuario.getEmail(), vinculo.getId().getEspacoId(), vinculo.getPapel(), usuario.isPrecisaTrocarSenha(),
-                usuario.getNivelAcesso(), resumirEntidades(vinculo.getId().getEspacoId()));
+                usuario.getEmail(), usuario.getEspacoId(), usuario.getPapel(), usuario.isPrecisaTrocarSenha(),
+                telefonePendente(usuario), usuario.getNivelAcesso(), resumirFiliais(usuario.getEspacoId()));
         return new ResultadoAutenticacao(resposta, renovado.tokenBruto());
+    }
+
+    /**
+     * Grava o telefone do usuário autenticado e reemite o token — usado pela
+     * tela de "cadastrar telefone" (gate de primeiro acesso, ver
+     * {@code FiltroCadastroTelefoneObrigatorio}), tanto por quem se
+     * autorregistrou sem telefone (legado, antes de virar campo obrigatório)
+     * quanto por membros criados por um DONO sem telefone informado.
+     */
+    @Transactional
+    public ResultadoAutenticacao cadastrarTelefone(String telefone, String userAgent) {
+        Usuario usuario = usuarioRepository.findById(contextoUsuario.usuarioAtual())
+                .orElseThrow(() -> new IllegalStateException("Usuário autenticado não encontrado"));
+
+        usuario.setTelefone(telefone);
+        usuarioRepository.save(usuario);
+
+        String token = servicoJwt.gerarToken(usuario.getId(), usuario.getEspacoId(), usuario.getEmail(),
+                usuario.isPrecisaTrocarSenha(), false, usuario.getNivelAcesso(), usuario.getPapel());
+        TokenRenovado tokenAtualizacao = servicoTokenAtualizacao.emitir(usuario.getId(), usuario.getEspacoId(), userAgent);
+        RespostaAutenticacao resposta = new RespostaAutenticacao(token, usuario.getId(), usuario.getNome(),
+                usuario.getEmail(), usuario.getEspacoId(), usuario.getPapel(), usuario.isPrecisaTrocarSenha(), false,
+                usuario.getNivelAcesso(), resumirFiliais(usuario.getEspacoId()));
+        return new ResultadoAutenticacao(resposta, tokenAtualizacao.tokenBruto());
     }
 
     public void sair(String tokenAtualizacaoBruto) {
@@ -231,9 +234,13 @@ public class ServicoAutenticacao {
         }
     }
 
-    private java.util.List<RespostaEntidadeResumo> resumirEntidades(Long espacoId) {
-        return entidadeRepository.findByEspacoId(espacoId).stream()
-                .map(e -> new RespostaEntidadeResumo(e.getId(), e.getNome(), e.getTipoPessoa()))
+    private boolean telefonePendente(Usuario usuario) {
+        return usuario.getTelefone() == null || usuario.getTelefone().isBlank();
+    }
+
+    private java.util.List<RespostaFilialResumo> resumirFiliais(Long espacoId) {
+        return filialRepository.findByEspacoId(espacoId).stream()
+                .map(e -> new RespostaFilialResumo(e.getId(), e.getNome(), e.getTipoPessoa()))
                 .toList();
     }
 }

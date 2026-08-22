@@ -2,15 +2,15 @@ package com.financeiro.entity;
 
 import com.financeiro.entity.converter.ConversorLocalDateTime;
 import com.financeiro.entity.enums.NivelAcesso;
+import com.financeiro.entity.enums.PapelUsuario;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
 
 /**
- * Uma pessoa que acessa o sistema. Nesta PR ainda não há autenticação
- * (senhaHash fica nulo) — a tabela existe para já suportar o vínculo com
- * espaços via {@link UsuarioEspaco}.
+ * Uma pessoa que acessa o sistema. Pertence a exatamente um {@link Espaco}
+ * (via {@code espacoId}), com um {@link PapelUsuario} nesse espaço.
  */
 @Entity
 @Table(name = "usuarios")
@@ -37,8 +37,16 @@ public class Usuario {
     @Column(name = "precisa_trocar_senha", nullable = false)
     private boolean precisaTrocarSenha = false;
 
-    // Papel global (não por espaço, ver PapelUsuario) — só ADMIN gerencia
-    // recursos que não pertencem a espaço nenhum (hoje, o catálogo de bancos).
+    @Column(name = "espaco_id", nullable = false)
+    private Long espacoId;
+
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private PapelUsuario papel = PapelUsuario.MEMBRO;
+
+    // Papel global (não por espaço) — só ADMIN gerencia recursos que não
+    // pertencem a espaço nenhum (hoje, o catálogo de bancos).
     @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "nivel_acesso", nullable = false)

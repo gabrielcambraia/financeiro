@@ -4,21 +4,24 @@ import com.financeiro.dto.CartaoDTO;
 import com.financeiro.dto.ContaDTO;
 import com.financeiro.dto.FaturaDTO;
 import com.financeiro.dto.ItemFaturaDTO;
-import com.financeiro.dto.PrimeiraEntidadeDTO;
+import com.financeiro.dto.PrimeiraFilialDTO;
+import com.financeiro.dto.RequisicaoLogin;
 import com.financeiro.dto.TransacaoDTO;
 import com.financeiro.entity.enums.TipoPagamento;
 import com.financeiro.entity.enums.TipoTransacao;
-import com.financeiro.dto.RequisicaoCriarEntidade;
+import com.financeiro.dto.RequisicaoCriarFilial;
 import com.financeiro.dto.RequisicaoRegistro;
 import com.financeiro.dto.RespostaAutenticacao;
-import com.financeiro.dto.RespostaEntidade;
+import com.financeiro.dto.RespostaFilial;
 import com.financeiro.entity.Assinatura;
 import com.financeiro.entity.Plano;
 import com.financeiro.entity.enums.CodigoPlano;
 import com.financeiro.entity.enums.TipoConta;
 import com.financeiro.entity.enums.TipoPessoa;
+import com.financeiro.entity.enums.PapelUsuario;
 import com.financeiro.repository.AssinaturaRepository;
 import com.financeiro.repository.PlanoRepository;
+import com.financeiro.repository.UsuarioRepository;
 import com.financeiro.seguranca.LimitadorTaxa;
 import com.financeiro.service.ServicoConsultaExterna;
 import com.financeiro.service.ServicoIndiceEconomico;
@@ -128,6 +131,9 @@ public abstract class TesteIntegracaoBase {
     @Autowired
     private PlanoRepository planoRepository;
 
+    @Autowired
+    private UsuarioRepository usuarioRepository;
+
     @BeforeEach
     void permitirAutenticacaoSemLimiteDeTaxa() {
         when(limitadorTaxa.permitir(anyString())).thenReturn(true);
@@ -156,17 +162,18 @@ public abstract class TesteIntegracaoBase {
     }
 
     protected RespostaAutenticacao registrarCompleto(String nome, String email) {
-        PrimeiraEntidadeDTO entidade = new PrimeiraEntidadeDTO();
-        entidade.setTipoPessoa(TipoPessoa.FISICA);
-        entidade.setNome(nome);
+        PrimeiraFilialDTO filial = new PrimeiraFilialDTO();
+        filial.setTipoPessoa(TipoPessoa.FISICA);
+        filial.setNome(nome);
         // CPF válido gerado para testes — dígitos verificadores corretos.
-        entidade.setDocumento("529.982.247-25");
+        filial.setDocumento("529.982.247-25");
 
         RequisicaoRegistro requisicao = new RequisicaoRegistro();
         requisicao.setNome(nome);
         requisicao.setEmail(email);
         requisicao.setSenha("senha12345");
-        requisicao.setEntidade(entidade);
+        requisicao.setTelefone("11999999999");
+        requisicao.setEntidade(filial);
 
         ResponseEntity<RespostaAutenticacao> resposta = restTemplate.postForEntity(
                 url("/api/auth/register"), requisicao, RespostaAutenticacao.class);
@@ -241,7 +248,7 @@ public abstract class TesteIntegracaoBase {
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
     }
 
-    /** Promove o espaço ao plano Empresa (limite_entidades=5) para testes que precisam de múltiplas entidades. */
+    /** Promove o espaço ao plano Empresa (limite_entidades=5) para testes que precisam de múltiplas filiais. */
     protected void ativarPlanoEmpresa(Long espacoId) {
         Plano empresa = planoRepository.findByCodigo(CodigoPlano.EMPRESA).orElseThrow();
         Assinatura assinatura = assinaturaRepository.findByEspacoId(espacoId).orElseThrow();
@@ -249,22 +256,67 @@ public abstract class TesteIntegracaoBase {
         assinaturaRepository.save(assinatura);
     }
 
-    /** Cria uma segunda entidade no espaço do token e devolve o ID. */
-    protected Long criarEntidade(String token, String nome, TipoPessoa tipoPessoa) {
-        RequisicaoCriarEntidade req = new RequisicaoCriarEntidade();
+    /**
+     * Cria um usuário com papel MEMBRO no espaço informado. Como o cadastro
+     * normal sempre cria DONO com espaço próprio, o helper ajusta diretamente
+     * via repositório e refaz o login para obter um token com o claim atualizado.
+     */
+    protected String registrarComoMembro(Long espacoId) {
+        String email = "membro+" + UUID.randomUUID() + "@teste.com";
+        RespostaAutenticacao auth = registrarCompleto("Membro Teste", email);
+        com.financeiro.entity.Usuario usuario = usuarioRepository.findById(auth.getUsuarioId()).orElseThrow();
+        usuario.setEspacoId(espacoId);
+        usuario.setPapel(PapelUsuario.MEMBRO);
+        usuarioRepository.save(usuario);
+
+        RequisicaoLogin login = new RequisicaoLogin();
+        login.setEmail(email);
+        login.setSenha("senha12345");
+        ResponseEntity<RespostaAutenticacao> resp = restTemplate.postForEntity(
+                url("/api/auth/login"), login, RespostaAutenticacao.class);
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
+        return resp.getBody().getToken();
+    }
+
+    /**
+     * Zera o telefone de um usuário já existente — simula uma conta antiga,
+     * cadastrada antes de telefone virar campo obrigatório em
+     * {@code RequisicaoRegistro}, ou um membro criado sem telefone
+     * informado pelo DONO.
+     */
+    protected void removerTelefone(Long usuarioId) {
+        com.financeiro.entity.Usuario usuario = usuarioRepository.findById(usuarioId).orElseThrow();
+        usuario.setTelefone(null);
+        usuarioRepository.save(usuario);
+    }
+
+    /** Faz login com e-mail/senha e devolve a resposta completa. */
+    protected RespostaAutenticacao login(String email, String senha) {
+        RequisicaoLogin requisicao = new RequisicaoLogin();
+        requisicao.setEmail(email);
+        requisicao.setSenha(senha);
+        ResponseEntity<RespostaAutenticacao> resp = restTemplate.postForEntity(
+                url("/api/auth/login"), requisicao, RespostaAutenticacao.class);
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
+        return resp.getBody();
+    }
+
+    /** Cria uma segunda filial no espaço do token e devolve o ID. */
+    protected Long criarFilial(String token, String nome, TipoPessoa tipoPessoa) {
+        RequisicaoCriarFilial req = new RequisicaoCriarFilial();
         req.setTipoPessoa(tipoPessoa);
         req.setNome(nome);
         req.setDocumento(tipoPessoa == TipoPessoa.FISICA ? "529.982.247-25" : "11.222.333/0001-81");
-        ResponseEntity<RespostaEntidade> resp = post("/api/entidades", req, token, RespostaEntidade.class);
+        ResponseEntity<RespostaFilial> resp = post("/api/filiais", req, token, RespostaFilial.class);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         return resp.getBody().id();
     }
 
     // ---------- atalhos HTTP tipados sobre TestRestTemplate ----------
 
-    protected HttpHeaders autenticadoComEntidade(String token, Long entidadeId) {
+    protected HttpHeaders autenticadoComFilial(String token, Long filialId) {
         HttpHeaders headers = autenticado(token);
-        headers.set("X-Entidade-Id", String.valueOf(entidadeId));
+        headers.set("X-Filial-Id", String.valueOf(filialId));
         return headers;
     }
 
@@ -276,12 +328,12 @@ public abstract class TesteIntegracaoBase {
         return restTemplate.exchange(url(caminho), HttpMethod.GET, new HttpEntity<>(autenticado(token)), tipo);
     }
 
-    protected <T> ResponseEntity<T> get(String caminho, String token, Long entidadeId, Class<T> tipo) {
-        return restTemplate.exchange(url(caminho), HttpMethod.GET, new HttpEntity<>(autenticadoComEntidade(token, entidadeId)), tipo);
+    protected <T> ResponseEntity<T> get(String caminho, String token, Long filialId, Class<T> tipo) {
+        return restTemplate.exchange(url(caminho), HttpMethod.GET, new HttpEntity<>(autenticadoComFilial(token, filialId)), tipo);
     }
 
-    protected <T> ResponseEntity<T> get(String caminho, String token, Long entidadeId, ParameterizedTypeReference<T> tipo) {
-        return restTemplate.exchange(url(caminho), HttpMethod.GET, new HttpEntity<>(autenticadoComEntidade(token, entidadeId)), tipo);
+    protected <T> ResponseEntity<T> get(String caminho, String token, Long filialId, ParameterizedTypeReference<T> tipo) {
+        return restTemplate.exchange(url(caminho), HttpMethod.GET, new HttpEntity<>(autenticadoComFilial(token, filialId)), tipo);
     }
 
     protected <T> ResponseEntity<T> post(String caminho, Object corpo, String token, Class<T> tipo) {
@@ -292,8 +344,8 @@ public abstract class TesteIntegracaoBase {
         return restTemplate.exchange(url(caminho), HttpMethod.POST, new HttpEntity<>(corpo, autenticado(token)), tipo);
     }
 
-    protected <T> ResponseEntity<T> post(String caminho, Object corpo, String token, Long entidadeId, Class<T> tipo) {
-        return restTemplate.exchange(url(caminho), HttpMethod.POST, new HttpEntity<>(corpo, autenticadoComEntidade(token, entidadeId)), tipo);
+    protected <T> ResponseEntity<T> post(String caminho, Object corpo, String token, Long filialId, Class<T> tipo) {
+        return restTemplate.exchange(url(caminho), HttpMethod.POST, new HttpEntity<>(corpo, autenticadoComFilial(token, filialId)), tipo);
     }
 
     protected <T> ResponseEntity<T> put(String caminho, Object corpo, String token, Class<T> tipo) {
@@ -322,5 +374,10 @@ public abstract class TesteIntegracaoBase {
     @SuppressWarnings("rawtypes")
     protected ResponseEntity<Map> patchComCorpoDeErro(String caminho, Object corpo, String token) {
         return restTemplate.exchange(url(caminho), HttpMethod.PATCH, new HttpEntity<>(corpo, autenticado(token)), Map.class);
+    }
+
+    @SuppressWarnings("rawtypes")
+    protected ResponseEntity<Map> putComCorpoDeErro(String caminho, Object corpo, String token) {
+        return restTemplate.exchange(url(caminho), HttpMethod.PUT, new HttpEntity<>(corpo, autenticado(token)), Map.class);
     }
 }

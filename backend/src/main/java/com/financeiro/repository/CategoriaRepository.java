@@ -17,13 +17,13 @@ public interface CategoriaRepository extends JpaRepository<Categoria, Long> {
     Optional<Categoria> findByIdAndEspacoId(Long id, Long espacoId);
 
     @Query("SELECT c FROM Categoria c WHERE c.espacoId = :espacoId " +
-           "AND (:entidadeId IS NULL OR c.entidadeId = :entidadeId OR c.entidadeId IS NULL)")
-    List<Categoria> findByEspacoIdFiltradoPorEntidade(@Param("espacoId") Long espacoId,
-                                                      @Param("entidadeId") Long entidadeId);
+           "AND (:filialId IS NULL OR c.filialId = :filialId OR c.filialId IS NULL)")
+    List<Categoria> findByEspacoIdFiltradoPorFilial(@Param("espacoId") Long espacoId,
+                                                      @Param("filialId") Long filialId);
 
     @Query("SELECT c FROM Categoria c WHERE c.tipo = :tipo AND c.espacoId = :espacoId " +
-           "AND (:entidadeId IS NULL OR c.entidadeId = :entidadeId OR c.entidadeId IS NULL)")
-    List<Categoria> findByTipoAndEspacoIdFiltradoPorEntidade(@Param("tipo") TipoTransacao tipo,
+           "AND (:filialId IS NULL OR c.filialId = :filialId OR c.filialId IS NULL)")
+    List<Categoria> findByTipoAndEspacoIdFiltradoPorFilial(@Param("tipo") TipoTransacao tipo,
                                                              @Param("espacoId") Long espacoId,
-                                                             @Param("entidadeId") Long entidadeId);
+                                                             @Param("filialId") Long filialId);
 }

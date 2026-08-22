@@ -1,7 +1,7 @@
 import axios from 'axios'
 import { toast } from 'sonner'
 import { useLojaAutenticacao } from '../store/lojaAutenticacao'
-import { useLojaEntidadeAtual } from '../store/lojaEntidadeAtual'
+import { useLojaFilialAtual } from '../store/lojaFilialAtual'
 
 const cliente = axios.create({
   baseURL: '/api',
@@ -14,9 +14,9 @@ cliente.interceptors.request.use(config => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
-  const entidadeAtualId = useLojaEntidadeAtual.getState().entidadeAtualId
-  if (entidadeAtualId != null && !config.url?.startsWith('/entidades') && !config.url?.startsWith('/consultas')) {
-    config.headers['X-Entidade-Id'] = String(entidadeAtualId)
+  const filialAtualId = useLojaFilialAtual.getState().filialAtualId
+  if (filialAtualId != null && !config.url?.startsWith('/filiais') && !config.url?.startsWith('/consultas')) {
+    config.headers['X-Filial-Id'] = String(filialAtualId)
   }
   return config
 })
@@ -79,6 +79,13 @@ cliente.interceptors.response.use(
     if (erro.response?.status === 403 && erro.response?.data?.codigo === 'SENHA_TEMPORARIA') {
       if (window.location.pathname !== '/trocar-senha') {
         window.location.href = '/trocar-senha'
+      }
+      return Promise.reject(erro)
+    }
+
+    if (erro.response?.status === 403 && erro.response?.data?.codigo === 'TELEFONE_PENDENTE') {
+      if (window.location.pathname !== '/cadastrar-telefone') {
+        window.location.href = '/cadastrar-telefone'
       }
       return Promise.reject(erro)
     }

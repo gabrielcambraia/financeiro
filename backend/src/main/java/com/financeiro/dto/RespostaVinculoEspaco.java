@@ -7,7 +7,7 @@ import lombok.Data;
 /**
  * Um vínculo usuário↔espaço, usado na tela de admin para listar todos os
  * e-mails ligados a um espaço (com o papel de cada um). Ver
- * {@link com.financeiro.repository.UsuarioEspacoRepository#listarVinculosDosEspacos}.
+ * {@link com.financeiro.repository.UsuarioRepository#listarVinculosDosEspacos}.
  */
 @Data
 @AllArgsConstructor

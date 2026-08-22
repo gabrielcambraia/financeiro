@@ -2,11 +2,7 @@ package com.financeiro;
 
 import com.financeiro.dto.CentroCustoDTO;
 import com.financeiro.dto.ItemFaturaDTO;
-import com.financeiro.dto.RequisicaoAdicionarMembro;
-import com.financeiro.dto.RequisicaoLogin;
-import com.financeiro.dto.RequisicaoTrocarSenha;
 import com.financeiro.dto.RespostaAutenticacao;
-import com.financeiro.dto.RespostaMembroAdicionado;
 import com.financeiro.dto.TransacaoDTO;
 import com.financeiro.entity.enums.TipoPagamento;
 import com.financeiro.entity.enums.TipoPessoa;
@@ -100,7 +96,7 @@ class CentroCustoTest extends TesteIntegracaoBase {
     @Test
     void membro_naoCriaCc_403() {
         RespostaAutenticacao dono = registrarCompleto("Dono", "dono+" + UUID.randomUUID() + "@teste.com");
-        String tokenMembro = adicionarMembroEObterToken(dono.getToken());
+        String tokenMembro = registrarComoMembro(dono.getEspacoId());
 
         CentroCustoDTO payload = new CentroCustoDTO();
         payload.setNome("Proibido");
@@ -114,7 +110,7 @@ class CentroCustoTest extends TesteIntegracaoBase {
     void membro_naoAtualizaCc_403() {
         RespostaAutenticacao dono = registrarCompleto("Dono", "dono+" + UUID.randomUUID() + "@teste.com");
         CentroCustoDTO cc = criarCc(dono.getToken(), "Original", "#6366f1", null);
-        String tokenMembro = adicionarMembroEObterToken(dono.getToken());
+        String tokenMembro = registrarComoMembro(dono.getEspacoId());
 
         CentroCustoDTO payload = new CentroCustoDTO();
         payload.setNome("Alterado");
@@ -132,7 +128,7 @@ class CentroCustoTest extends TesteIntegracaoBase {
     void membro_naoExcluiCc_403() {
         RespostaAutenticacao dono = registrarCompleto("Dono", "dono+" + UUID.randomUUID() + "@teste.com");
         CentroCustoDTO cc = criarCc(dono.getToken(), "Persistente", "#8b5cf6", null);
-        String tokenMembro = adicionarMembroEObterToken(dono.getToken());
+        String tokenMembro = registrarComoMembro(dono.getEspacoId());
 
         ResponseEntity<Void> resposta = delete("/api/centros-custo/" + cc.getId(), tokenMembro);
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
@@ -145,7 +141,7 @@ class CentroCustoTest extends TesteIntegracaoBase {
     void membro_listaCC_200() {
         RespostaAutenticacao dono = registrarCompleto("Dono", "dono+" + UUID.randomUUID() + "@teste.com");
         criarCc(dono.getToken(), "Visível", "#06b6d4", null);
-        String tokenMembro = adicionarMembroEObterToken(dono.getToken());
+        String tokenMembro = registrarComoMembro(dono.getEspacoId());
 
         // listagem é aberta a todos os membros
         ResponseEntity<List<CentroCustoDTO>> resposta = get(
@@ -159,40 +155,40 @@ class CentroCustoTest extends TesteIntegracaoBase {
     // -----------------------------------------------------------------------
 
     @Test
-    void ccGlobal_apareceEmTodosOsFiltrosDeEntidade() {
+    void ccGlobal_apareceEmTodosOsFiltrosDeFilial() {
         RespostaAutenticacao auth = registrarCompleto("Filtro", "filtro+" + UUID.randomUUID() + "@teste.com");
 
-        // O registro já cria a 1ª entidade (PF) — buscá-la evita conflito de CPF.
-        Long entidadeId = primeiraEntidadeId(auth.getToken());
+        // O registro já cria a 1ª filial (PF) — buscá-la evita conflito de CPF.
+        Long filialId = primeiraFilialId(auth.getToken());
 
         CentroCustoDTO ccGlobal = criarCc(auth.getToken(), "Global CC", "#eab308", null);
 
-        // sem header de entidade
+        // sem header de filial
         assertThat(listarCcs(auth.getToken()))
                 .extracting(CentroCustoDTO::getId).contains(ccGlobal.getId());
 
-        // com header de entidade
-        assertThat(listarCcsComEntidade(auth.getToken(), entidadeId))
+        // com header de filial
+        assertThat(listarCcsComFilial(auth.getToken(), filialId))
                 .extracting(CentroCustoDTO::getId).contains(ccGlobal.getId());
     }
 
     @Test
-    void ccEscopado_naoaparece_emOutraEntidade() {
+    void ccEscopado_naoaparece_emOutraFilial() {
         RespostaAutenticacao auth = registrarCompleto("Escopo", "escopo+" + UUID.randomUUID() + "@teste.com");
         ativarPlanoEmpresa(auth.getEspacoId());
 
         // Registro já cria PF; só criamos PJ (CNPJ diferente, sem conflito).
-        Long entidadePfId = primeiraEntidadeId(auth.getToken());
-        Long entidadePjId = criarEntidade(auth.getToken(), "PJ", TipoPessoa.JURIDICA);
+        Long filialPfId = primeiraFilialId(auth.getToken());
+        Long filialPjId = criarFilial(auth.getToken(), "PJ", TipoPessoa.JURIDICA);
 
-        CentroCustoDTO ccPf = criarCc(auth.getToken(), "Consultório", "#3b82f6", entidadePfId);
+        CentroCustoDTO ccPf = criarCc(auth.getToken(), "Consultório", "#3b82f6", filialPfId);
 
-        // filtro pela entidade dona do CC: aparece
-        assertThat(listarCcsComEntidade(auth.getToken(), entidadePfId))
+        // filtro pela filial dona do CC: aparece
+        assertThat(listarCcsComFilial(auth.getToken(), filialPfId))
                 .extracting(CentroCustoDTO::getId).contains(ccPf.getId());
 
-        // filtro por outra entidade: não aparece
-        assertThat(listarCcsComEntidade(auth.getToken(), entidadePjId))
+        // filtro por outra filial: não aparece
+        assertThat(listarCcsComFilial(auth.getToken(), filialPjId))
                 .extracting(CentroCustoDTO::getId).doesNotContain(ccPf.getId());
     }
 
@@ -384,11 +380,11 @@ class CentroCustoTest extends TesteIntegracaoBase {
     // helpers
     // -----------------------------------------------------------------------
 
-    private CentroCustoDTO criarCc(String token, String nome, String cor, Long entidadeId) {
+    private CentroCustoDTO criarCc(String token, String nome, String cor, Long filialId) {
         CentroCustoDTO dto = new CentroCustoDTO();
         dto.setNome(nome);
         dto.setCor(cor);
-        dto.setEntidadeId(entidadeId);
+        dto.setFilialId(filialId);
         ResponseEntity<CentroCustoDTO> resposta = post("/api/centros-custo", dto, token, CentroCustoDTO.class);
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         return resposta.getBody();
@@ -401,52 +397,19 @@ class CentroCustoTest extends TesteIntegracaoBase {
         return resposta.getBody();
     }
 
-    private List<CentroCustoDTO> listarCcsComEntidade(String token, Long entidadeId) {
+    private List<CentroCustoDTO> listarCcsComFilial(String token, Long filialId) {
         ResponseEntity<List<CentroCustoDTO>> resposta = get(
-                "/api/centros-custo", token, entidadeId, new ParameterizedTypeReference<List<CentroCustoDTO>>() {});
+                "/api/centros-custo", token, filialId, new ParameterizedTypeReference<List<CentroCustoDTO>>() {});
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
         return resposta.getBody();
     }
 
-    /** Retorna o ID da primeira entidade do espaço (criada automaticamente no registro). */
+    /** Retorna o ID da primeira filial do espaço (criada automaticamente no registro). */
     @SuppressWarnings("rawtypes")
-    private Long primeiraEntidadeId(String token) {
-        ResponseEntity<List<Map>> resp = get("/api/entidades", token, new ParameterizedTypeReference<List<Map>>() {});
+    private Long primeiraFilialId(String token) {
+        ResponseEntity<List<Map>> resp = get("/api/filiais", token, new ParameterizedTypeReference<List<Map>>() {});
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
         return ((Number) resp.getBody().get(0).get("id")).longValue();
     }
 
-    /**
-     * Adiciona um membro ao espaço do DONO e devolve o token do membro já com
-     * senha definitiva (sem precisaTrocarSenha bloqueando as requisições).
-     */
-    private String adicionarMembroEObterToken(String tokenDono) {
-        String email = "membro+" + UUID.randomUUID() + "@teste.com";
-
-        RequisicaoAdicionarMembro req = new RequisicaoAdicionarMembro();
-        req.setNome("Membro Teste");
-        req.setEmail(email);
-        ResponseEntity<RespostaMembroAdicionado> adicionado = post(
-                "/api/espacos/membros", req, tokenDono, RespostaMembroAdicionado.class);
-        assertThat(adicionado.getStatusCode()).isEqualTo(HttpStatus.OK);
-        String senhaTemporaria = adicionado.getBody().getSenhaTemporaria();
-
-        // login com senha temporária
-        RequisicaoLogin login = new RequisicaoLogin();
-        login.setEmail(email);
-        login.setSenha(senhaTemporaria);
-        ResponseEntity<RespostaAutenticacao> loginResp = restTemplate.postForEntity(
-                url("/api/auth/login"), login, RespostaAutenticacao.class);
-        assertThat(loginResp.getStatusCode()).isEqualTo(HttpStatus.OK);
-        String tokenTemp = loginResp.getBody().getToken();
-
-        // trocar senha para liberar o filtro FiltroTrocaSenhaObrigatoria
-        RequisicaoTrocarSenha trocar = new RequisicaoTrocarSenha();
-        trocar.setSenhaAtual(senhaTemporaria);
-        trocar.setNovaSenha("senha12345");
-        ResponseEntity<RespostaAutenticacao> trocarResp = post(
-                "/api/auth/trocar-senha", trocar, tokenTemp, RespostaAutenticacao.class);
-        assertThat(trocarResp.getStatusCode()).isEqualTo(HttpStatus.OK);
-        return trocarResp.getBody().getToken();
-    }
 }

@@ -37,5 +37,5 @@ public class ContaDTO {
     // campo de resposta
     private BancoDTO banco;
 
-    private Long entidadeId;
+    private Long filialId;
 }

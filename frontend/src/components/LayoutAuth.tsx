@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { Check } from 'lucide-react'
-import LogoNexo360 from './LogoNexo360'
+import LogoLogin from './LogoLogin'
 import AlternadorTema from './AlternadorTema'
 
 const features = [
@@ -9,12 +9,6 @@ const features = [
   'Relatórios e previsão financeira',
   'Acesso familiar e empresarial',
 ]
-
-const stats = [
-  ['R$ 2,4M', 'gerenciados'],
-  ['1.200+', 'usuários'],
-  ['99,9%', 'uptime'],
-] as const
 
 export default function LayoutAuth({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation()
@@ -26,12 +20,11 @@ export default function LayoutAuth({ children }: { children: React.ReactNode }) 
       {/* Mobile header */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-10 flex items-center gap-2.5 px-5 bg-sb-fundo"
         style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)', paddingBottom: '1rem' }}>
-        <LogoNexo360 tamanho={28} />
-        <span className="text-base font-bold text-sb-texto">Nexo360</span>
+        <LogoLogin altura={28} classeNome="text-base font-bold text-sb-texto" />
       </div>
 
       {/* Left panel — always navy, never changes with theme */}
-      <div className="hidden md:flex w-[45%] shrink-0 flex-col justify-between px-14 py-12 bg-sb-fundo relative overflow-hidden">
+      <div className="hidden md:flex w-[45%] shrink-0 flex-col justify-center gap-10 px-14 py-12 bg-sb-fundo relative overflow-hidden">
         <div
           className="absolute rounded-full pointer-events-none"
           style={{ width: 400, height: 400, background: 'radial-gradient(circle, rgb(40 100 220 / 0.15), transparent 70%)', top: -100, right: -100 }}
@@ -41,9 +34,8 @@ export default function LayoutAuth({ children }: { children: React.ReactNode }) 
           style={{ width: 300, height: 300, background: 'radial-gradient(circle, rgb(46 160 90 / 0.1), transparent 70%)', bottom: -80, left: -80 }}
         />
 
-        <div className="relative z-10 flex items-center gap-3">
-          <LogoNexo360 tamanho={36} />
-          <span className="text-xl font-bold text-sb-texto">Nexo360</span>
+        <div className="relative z-10 flex items-center gap-3 mb-2">
+          <LogoLogin altura={36} classeNome="text-xl font-bold text-sb-texto" variante="grande" />
         </div>
 
         <div className="relative z-10">
@@ -66,15 +58,6 @@ export default function LayoutAuth({ children }: { children: React.ReactNode }) 
               </div>
             ))}
           </div>
-        </div>
-
-        <div className="relative z-10 flex gap-6">
-          {stats.map(([val, lbl]) => (
-            <div key={lbl} className="text-center">
-              <div className="text-2xl font-bold text-white mb-0.5">{val}</div>
-              <div className="text-xs text-sb-suave">{lbl}</div>
-            </div>
-          ))}
         </div>
       </div>
 

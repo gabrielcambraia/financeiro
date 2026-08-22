@@ -21,9 +21,10 @@ public class RequisicaoRegistro {
     @Size(min = 8, message = "A senha deve ter pelo menos 8 caracteres")
     private String senha;
 
+    @NotBlank
     private String telefone;
 
     @NotNull
     @Valid
-    private PrimeiraEntidadeDTO entidade;
+    private PrimeiraFilialDTO entidade;
 }

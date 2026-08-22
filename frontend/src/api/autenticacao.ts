@@ -1,5 +1,5 @@
 import cliente from './cliente'
-import type { EntidadeResumo, NivelAcesso, PapelUsuario, TipoPessoa } from '../types'
+import type { FilialResumo, NivelAcesso, PapelUsuario, TipoPessoa } from '../types'
 
 export interface RespostaAutenticacao {
   token: string
@@ -9,15 +9,16 @@ export interface RespostaAutenticacao {
   espacoId: number
   papel: PapelUsuario
   precisaTrocarSenha: boolean
+  precisaCadastrarTelefone: boolean
   nivelAcesso: NivelAcesso
-  entidades?: EntidadeResumo[]
+  filiais?: FilialResumo[]
 }
 
 export interface RespostaConfigAuth {
   requerAutenticacao: boolean
 }
 
-export interface DadosPrimeiraEntidade {
+export interface DadosPrimeiraFilial {
   tipoPessoa: TipoPessoa
   nome: string
   nomeFantasia?: string
@@ -40,7 +41,7 @@ export const registrar = (dados: {
   email: string
   senha: string
   telefone?: string
-  entidade: DadosPrimeiraEntidade
+  entidade: DadosPrimeiraFilial
 }) =>
   cliente.post<RespostaAutenticacao>('/auth/register', dados).then(r => r.data)
 
@@ -52,6 +53,9 @@ export const obterConfigAuth = () =>
 
 export const trocarSenha = (dados: { senhaAtual: string; novaSenha: string }) =>
   cliente.post<RespostaAutenticacao>('/auth/trocar-senha', dados).then(r => r.data)
+
+export const cadastrarTelefone = (dados: { telefone: string }) =>
+  cliente.post<RespostaAutenticacao>('/auth/telefone', dados).then(r => r.data)
 
 export const renovar = () =>
   cliente.post<RespostaAutenticacao>('/auth/renovar').then(r => r.data)

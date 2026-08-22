@@ -1,42 +1,40 @@
 package com.financeiro.seguranca;
 
-import com.financeiro.context.ContextoEspaco;
 import com.financeiro.context.ContextoUsuario;
-import com.financeiro.entity.UsuarioEspaco;
-import com.financeiro.entity.UsuarioEspacoId;
+import com.financeiro.entity.Usuario;
 import com.financeiro.entity.enums.PapelUsuario;
-import com.financeiro.repository.UsuarioEspacoRepository;
+import com.financeiro.repository.UsuarioRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * Verificações de autorização por vínculo/espaço, expostas como bean SpEL
+ * Verificações de autorização por papel, expostas como bean SpEL
  * para uso em {@code @PreAuthorize} (ex.: {@code @autorizacaoEspaco.exigirDono(...)}).
+ * O papel é sempre lido do banco, não do claim JWT — assim um rebaixamento de
+ * papel feito por outro DONO (ver {@code UsuarioController.alterarPapel}) tem
+ * efeito imediato, em vez de só valer quando o access token do usuário afetado
+ * expirar.
  */
 @Component("autorizacaoEspaco")
+@RequiredArgsConstructor
 public class AutorizacaoEspaco {
 
-    private final UsuarioEspacoRepository usuarioEspacoRepository;
-    private final ContextoEspaco contextoEspaco;
     private final ContextoUsuario contextoUsuario;
-
-    public AutorizacaoEspaco(
-            UsuarioEspacoRepository usuarioEspacoRepository,
-            ContextoEspaco contextoEspaco,
-            ContextoUsuario contextoUsuario) {
-        this.usuarioEspacoRepository = usuarioEspacoRepository;
-        this.contextoEspaco = contextoEspaco;
-        this.contextoUsuario = contextoUsuario;
-    }
+    private final UsuarioRepository usuarioRepository;
 
     public boolean exigirDono(String mensagemErro) {
-        Long espacoId = contextoEspaco.espacoAtual();
-        Long usuarioAtualId = contextoUsuario.usuarioAtual();
-
-        UsuarioEspaco vinculoAtual = usuarioEspacoRepository.findById(new UsuarioEspacoId(usuarioAtualId, espacoId))
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Sem vínculo com este espaço"));
-        if (vinculoAtual.getPapel() != PapelUsuario.DONO) {
+        Long usuarioId;
+        try {
+            usuarioId = contextoUsuario.usuarioAtual();
+        } catch (IllegalStateException e) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Não autenticado");
+        }
+        PapelUsuario papelAtual = usuarioRepository.findById(usuarioId)
+                .map(Usuario::getPapel)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Não autenticado"));
+        if (papelAtual != PapelUsuario.DONO) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, mensagemErro);
         }
         return true;

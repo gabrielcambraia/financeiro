@@ -1,6 +1,6 @@
 package com.financeiro.service;
 
-import com.financeiro.context.ContextoEntidade;
+import com.financeiro.context.ContextoFilial;
 import com.financeiro.context.ContextoEspaco;
 import com.financeiro.dto.CartaoDTO;
 import com.financeiro.entity.Banco;
@@ -31,14 +31,14 @@ public class CartaoService {
     private final ItemFaturaRepository itemFaturaRepository;
     private final FaturaRepository faturaRepository;
     private final ContextoEspaco contextoEspaco;
-    private final ContextoEntidade contextoEntidade;
+    private final ContextoFilial contextoFilial;
     private final ContaService contaService;
 
     public List<CartaoDTO> findAll() {
         Long espacoId = contextoEspaco.espacoAtual();
-        Long entidadeId = contextoEntidade.entidadeAtual();
-        List<Cartao> cartoes = entidadeId != null
-                ? repository.findByEspacoIdFiltradoPorEntidade(espacoId, entidadeId)
+        Long filialId = contextoFilial.filialAtual();
+        List<Cartao> cartoes = filialId != null
+                ? repository.findByEspacoIdFiltradoPorFilial(espacoId, filialId)
                 : repository.findByEspacoId(espacoId);
         return cartoes.stream().map(this::toDTO).toList();
     }

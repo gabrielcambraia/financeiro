@@ -7,7 +7,7 @@ type PayloadMeta = {
   prazo?: string
   cor: string
   icone: string
-  entidadeId?: number | null
+  filialId?: number | null
 }
 
 type PayloadMovimento = {

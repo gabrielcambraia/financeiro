@@ -8,7 +8,7 @@ import ModalConfirmacao from '../components/ModalConfirmacao'
 import SeletorBanco from '../components/SeletorBanco'
 import LogoBanco from '../components/LogoBanco'
 import AcaoNova from '../components/AcaoNova'
-import CampoEntidade from '../components/forms/CampoEntidade'
+import CampoFilial from '../components/forms/CampoFilial'
 import Spinner from '../components/Spinner'
 import type { Conta, TipoConta } from '../types'
 
@@ -22,7 +22,7 @@ const TIPOS_CONTA: { value: TipoConta; label: string }[] = [
   { value: 'INVESTIMENTO', label: 'Investimentos' },
 ]
 
-const formPadrao = { nome: '', tipo: 'CORRENTE' as TipoConta, saldoInicial: '', cor: '#6366f1', icone: 'wallet', bancoId: undefined as number | undefined, entidadeId: undefined as number | null | undefined }
+const formPadrao = { nome: '', tipo: 'CORRENTE' as TipoConta, saldoInicial: '', cor: '#6366f1', icone: 'wallet', bancoId: undefined as number | undefined, filialId: undefined as number | null | undefined }
 
 export default function Contas() {
   const qc = useQueryClient()
@@ -36,7 +36,7 @@ export default function Contas() {
 
   const saveMutation = useMutation({
     mutationFn: () => {
-      const base = { nome: form.nome, tipo: form.tipo, cor: form.cor, icone: form.icone, bancoId: form.bancoId, entidadeId: form.entidadeId ?? null }
+      const base = { nome: form.nome, tipo: form.tipo, cor: form.cor, icone: form.icone, bancoId: form.bancoId, filialId: form.filialId ?? null }
       return editing
         ? atualizarConta(editing.id, base)
         : criarConta({ ...base, saldoInicial: Number(form.saldoInicial) })
@@ -60,7 +60,7 @@ export default function Contas() {
   const openCreate = () => { setEditing(null); setForm(formPadrao); setShowForm(true) }
   const openEdit = (c: Conta) => {
     setEditing(c)
-    setForm({ nome: c.nome, tipo: c.tipo, saldoInicial: String(c.saldoInicial), cor: c.cor, icone: c.icone, bancoId: c.bancoId, entidadeId: c.entidadeId })
+    setForm({ nome: c.nome, tipo: c.tipo, saldoInicial: String(c.saldoInicial), cor: c.cor, icone: c.icone, bancoId: c.bancoId, filialId: c.filialId })
     setShowForm(true)
   }
   const closeForm = () => { setShowForm(false); setEditing(null) }
@@ -161,7 +161,7 @@ export default function Contas() {
               <button onClick={closeForm} className="btn-ghost p-1.5 text-sm">✕</button>
             </div>
             <form onSubmit={handleSubmit} className="cartao-modal-corpo">
-              <CampoEntidade value={form.entidadeId} onChange={v => setForm(f => ({ ...f, entidadeId: v }))} />
+              <CampoFilial value={form.filialId} onChange={v => setForm(f => ({ ...f, filialId: v }))} />
               <div>
                 <label className="label">Banco</label>
                 <SeletorBanco bancoSelecionado={form.bancoId} aoSelecionar={b => setForm(f => ({ ...f, bancoId: b }))} />

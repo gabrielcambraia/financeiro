@@ -1,6 +1,6 @@
 package com.financeiro.service;
 
-import com.financeiro.context.ContextoEntidade;
+import com.financeiro.context.ContextoFilial;
 import com.financeiro.context.ContextoEspaco;
 import com.financeiro.context.ContextoUsuario;
 import com.financeiro.dto.CategoriaDTO;
@@ -37,7 +37,7 @@ public class ItemFaturaService {
     private final ResolvedorFaturaAlvo resolvedorFaturaAlvo;
     private final ContextoEspaco contextoEspaco;
     private final ContextoUsuario contextoUsuario;
-    private final ContextoEntidade contextoEntidade;
+    private final ContextoFilial contextoFilial;
 
     // Usado pela tela do cartão: itens em aberto (ainda não faturados) do
     // CICLO DE FECHAMENTO que cai no mês informado — não o mês corrido da
@@ -69,10 +69,10 @@ public class ItemFaturaService {
     public List<ItemFaturaDTO> buscarPorFiltro(String month, Long contaId, Long cartaoId, Long centroCustoId,
                                                 boolean incluirFaturados) {
         Long espacoId = contextoEspaco.espacoAtual();
-        Long entidadeId = contextoEntidade.entidadeAtual();
+        Long filialId = contextoFilial.filialAtual();
         YearMonth ym = month != null ? YearMonth.parse(month) : YearMonth.now();
         return repository.buscarPorFiltro(espacoId, ym.atDay(1), ym.atEndOfMonth(), contaId, cartaoId,
-                        incluirFaturados, entidadeId)
+                        incluirFaturados, filialId)
                 .stream()
                 .filter(i -> centroCustoId == null || centroCustoId.equals(i.getCentroCustoId()))
                 .map(this::toDTO).toList();

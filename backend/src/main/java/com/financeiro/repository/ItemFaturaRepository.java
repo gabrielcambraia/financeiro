@@ -48,14 +48,14 @@ public interface ItemFaturaRepository extends JpaRepository<ItemFatura, Long> {
           AND i.data BETWEEN :inicio AND :fim
           AND (:contaId IS NULL OR i.cartao.contaPagamento.id = :contaId)
           AND (:cartaoId IS NULL OR i.cartao.id = :cartaoId)
-          AND (:entidadeId IS NULL OR i.cartao.contaPagamento.entidadeId = :entidadeId
-            OR i.cartao.contaPagamento.entidadeId IS NULL)
+          AND (:filialId IS NULL OR i.cartao.contaPagamento.filialId = :filialId
+            OR i.cartao.contaPagamento.filialId IS NULL)
         ORDER BY i.data DESC
         """)
     List<ItemFatura> buscarPorFiltro(@Param("espacoId") Long espacoId, @Param("inicio") LocalDate inicio,
                                       @Param("fim") LocalDate fim, @Param("contaId") Long contaId,
                                       @Param("cartaoId") Long cartaoId, @Param("incluirFaturados") boolean incluirFaturados,
-                                      @Param("entidadeId") Long entidadeId);
+                                      @Param("filialId") Long filialId);
 
     // --- série de fixas (itens de fatura) ---
 
