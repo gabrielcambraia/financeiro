@@ -9,6 +9,7 @@ interface SessaoAutenticacao {
   espacoId: number
   papel: PapelUsuario
   precisaTrocarSenha: boolean
+  precisaCadastrarTelefone: boolean
   nivelAcesso: NivelAcesso
   filiais?: FilialResumo[]
 }

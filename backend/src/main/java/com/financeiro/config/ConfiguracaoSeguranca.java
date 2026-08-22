@@ -1,6 +1,7 @@
 package com.financeiro.config;
 
 import com.financeiro.seguranca.FiltroAutenticacaoJwt;
+import com.financeiro.seguranca.FiltroCadastroTelefoneObrigatorio;
 import com.financeiro.seguranca.FiltroFilialAtual;
 import com.financeiro.seguranca.FiltroIdRequisicao;
 import com.financeiro.seguranca.FiltroLimiteTaxaAutenticacao;
@@ -40,6 +41,7 @@ public class ConfiguracaoSeguranca {
     @Bean
     public SecurityFilterChain cadeiaSeguranca(
             HttpSecurity http, FiltroAutenticacaoJwt filtroJwt, FiltroTrocaSenhaObrigatoria filtroTrocaSenha,
+            FiltroCadastroTelefoneObrigatorio filtroCadastroTelefone,
             FiltroLimiteTaxaAutenticacao filtroLimiteTaxa, FiltroProtecaoOrigem filtroProtecaoOrigem,
             FiltroIdRequisicao filtroIdRequisicao, FiltroFilialAtual filtroFilialAtual) throws Exception {
         http
@@ -98,7 +100,8 @@ public class ConfiguracaoSeguranca {
                 .addFilterBefore(filtroProtecaoOrigem, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(filtroJwt, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(filtroTrocaSenha, FiltroAutenticacaoJwt.class)
-                .addFilterAfter(filtroFilialAtual, FiltroTrocaSenhaObrigatoria.class);
+                .addFilterAfter(filtroCadastroTelefone, FiltroTrocaSenhaObrigatoria.class)
+                .addFilterAfter(filtroFilialAtual, FiltroCadastroTelefoneObrigatorio.class);
 
         return http.build();
     }

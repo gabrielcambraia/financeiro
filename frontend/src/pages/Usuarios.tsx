@@ -1,16 +1,10 @@
-import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { toast } from 'sonner'
-import { Users, Lock } from 'lucide-react'
-import { listarUsuarios, alterarPapel, type UsuarioDoEspaco } from '../api/usuarios'
-import { useLojaAutenticacao } from '../store/lojaAutenticacao'
+import { useNavigate, Link } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
+import { Users, Lock, Pencil } from 'lucide-react'
+import { listarUsuarios, type UsuarioDoEspaco } from '../api/usuarios'
 import { iniciaisDoNome } from '../utils/formatadores'
+import AcaoNova from '../components/AcaoNova'
 import type { PapelUsuario } from '../types'
-
-const PAPEIS: { value: PapelUsuario; label: string }[] = [
-  { value: 'DONO', label: 'Dono' },
-  { value: 'MEMBRO', label: 'Usuário' },
-]
 
 function BadgePapel({ papel }: { papel: PapelUsuario }) {
   return (
@@ -24,21 +18,7 @@ function BadgePapel({ papel }: { papel: PapelUsuario }) {
   )
 }
 
-function LinhaUsuario({ usuario, euId }: { usuario: UsuarioDoEspaco; euId: number | undefined }) {
-  const qc = useQueryClient()
-  const [papel, setPapel] = useState<PapelUsuario>(usuario.papel)
-  const euMesmo = usuario.id === euId
-
-  const mutation = useMutation({
-    mutationFn: (novoPapel: PapelUsuario) => alterarPapel(usuario.id, novoPapel),
-    onSuccess: u => {
-      setPapel(u.papel)
-      qc.invalidateQueries({ queryKey: ['usuarios'] })
-      toast.success('Papel atualizado')
-    },
-    onError: () => toast.error('Não foi possível alterar o papel'),
-  })
-
+function LinhaUsuario({ usuario }: { usuario: UsuarioDoEspaco }) {
   return (
     <tr className="border-b border-borda last:border-0">
       <td className="py-3 pr-4">
@@ -53,33 +33,26 @@ function LinhaUsuario({ usuario, euId }: { usuario: UsuarioDoEspaco; euId: numbe
         </div>
       </td>
       <td className="py-3 pr-4">
-        {euMesmo ? (
-          <BadgePapel papel={papel} />
-        ) : (
-          <select
-            value={papel}
-            disabled={mutation.isPending}
-            onChange={e => mutation.mutate(e.target.value as PapelUsuario)}
-            className="input py-1 text-sm w-32"
-          >
-            {PAPEIS.map(p => (
-              <option key={p.value} value={p.value}>{p.label}</option>
-            ))}
-          </select>
-        )}
+        <BadgePapel papel={usuario.papel} />
       </td>
-      <td className="py-3">
+      <td className="py-3 pr-4">
         <div className="flex items-center gap-1.5 text-xs text-conteudo-suave">
           <Lock size={12} />
           <span>Permissões por tela — em breve</span>
         </div>
+      </td>
+      <td className="py-3 text-right">
+        <Link to={`/usuarios/${usuario.id}`}
+          className="inline-flex p-1.5 rounded hover:bg-superficie-2 text-conteudo-suave hover:text-conteudo transition-colors">
+          <Pencil size={14} />
+        </Link>
       </td>
     </tr>
   )
 }
 
 export default function Usuarios() {
-  const sessaoId = useLojaAutenticacao(s => s.sessao?.usuarioId)
+  const navigate = useNavigate()
   const { data: usuarios = [], isLoading } = useQuery({
     queryKey: ['usuarios'],
     queryFn: listarUsuarios,
@@ -87,9 +60,12 @@ export default function Usuarios() {
 
   return (
     <div className="p-6 space-y-5 max-w-3xl">
-      <div>
-        <h1 className="text-2xl font-bold text-conteudo">Usuários</h1>
-        <p className="text-sm text-conteudo-suave mt-0.5">Gerencie os usuários do seu espaço.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-conteudo">Usuários</h1>
+          <p className="text-sm text-conteudo-suave mt-0.5">Gerencie os usuários do seu espaço.</p>
+        </div>
+        <AcaoNova aoClicar={() => navigate('/usuarios/novo')} rotulo="Adicionar usuário" />
       </div>
 
       <div className="card">
@@ -108,12 +84,13 @@ export default function Usuarios() {
               <tr className="border-b border-borda">
                 <th className="text-left text-xs font-medium text-conteudo-suave pb-2 pr-4">Usuário</th>
                 <th className="text-left text-xs font-medium text-conteudo-suave pb-2 pr-4">Papel</th>
-                <th className="text-left text-xs font-medium text-conteudo-suave pb-2">Permissões</th>
+                <th className="text-left text-xs font-medium text-conteudo-suave pb-2 pr-4">Permissões</th>
+                <th className="pb-2"></th>
               </tr>
             </thead>
             <tbody>
               {usuarios.map(u => (
-                <LinhaUsuario key={u.id} usuario={u} euId={sessaoId} />
+                <LinhaUsuario key={u.id} usuario={u} />
               ))}
             </tbody>
           </table>

@@ -12,6 +12,8 @@ import java.util.Optional;
 public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     Optional<Usuario> findByEmail(String email);
 
+    Optional<Usuario> findByIdAndEspacoId(Long id, Long espacoId);
+
     List<Usuario> findByEspacoIdOrderByPapelAscNomeAsc(Long espacoId);
 
     @Query("select new com.financeiro.dto.RespostaVinculoEspaco(u.espacoId, u.id, u.nome, u.email, u.papel) " +

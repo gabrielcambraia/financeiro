@@ -19,7 +19,7 @@ export default function TrocarSenha() {
     try {
       const resposta = await trocarSenha({ senhaAtual, novaSenha })
       definirSessao(resposta)
-      navigate('/')
+      navigate(resposta.precisaCadastrarTelefone ? '/cadastrar-telefone' : '/')
     } catch (e: unknown) {
       const status = (e as { response?: { status?: number } })?.response?.status
       setErro(status === 401 ? 'Senha atual incorreta' : 'Não foi possível trocar a senha')

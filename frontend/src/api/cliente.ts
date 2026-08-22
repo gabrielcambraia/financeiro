@@ -83,6 +83,13 @@ cliente.interceptors.response.use(
       return Promise.reject(erro)
     }
 
+    if (erro.response?.status === 403 && erro.response?.data?.codigo === 'TELEFONE_PENDENTE') {
+      if (window.location.pathname !== '/cadastrar-telefone') {
+        window.location.href = '/cadastrar-telefone'
+      }
+      return Promise.reject(erro)
+    }
+
     // Dispara toast global para qualquer erro não tratado acima (exceto cancelamentos e erros de rede sem resposta)
     const jaFoiTratado = erro.response?.status === 401 || erro.code === 'ERR_CANCELED'
     if (!jaFoiTratado) {

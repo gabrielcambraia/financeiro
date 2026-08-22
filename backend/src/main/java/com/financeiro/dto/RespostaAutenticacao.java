@@ -17,6 +17,7 @@ public class RespostaAutenticacao {
     private Long espacoId;
     private PapelUsuario papel;
     private boolean precisaTrocarSenha;
+    private boolean precisaCadastrarTelefone;
     private NivelAcesso nivelAcesso;
     private List<RespostaFilialResumo> filiais;
 }

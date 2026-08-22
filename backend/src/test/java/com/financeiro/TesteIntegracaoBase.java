@@ -172,6 +172,7 @@ public abstract class TesteIntegracaoBase {
         requisicao.setNome(nome);
         requisicao.setEmail(email);
         requisicao.setSenha("senha12345");
+        requisicao.setTelefone("11999999999");
         requisicao.setEntidade(filial);
 
         ResponseEntity<RespostaAutenticacao> resposta = restTemplate.postForEntity(
@@ -277,6 +278,29 @@ public abstract class TesteIntegracaoBase {
         return resp.getBody().getToken();
     }
 
+    /**
+     * Zera o telefone de um usuário já existente — simula uma conta antiga,
+     * cadastrada antes de telefone virar campo obrigatório em
+     * {@code RequisicaoRegistro}, ou um membro criado sem telefone
+     * informado pelo DONO.
+     */
+    protected void removerTelefone(Long usuarioId) {
+        com.financeiro.entity.Usuario usuario = usuarioRepository.findById(usuarioId).orElseThrow();
+        usuario.setTelefone(null);
+        usuarioRepository.save(usuario);
+    }
+
+    /** Faz login com e-mail/senha e devolve a resposta completa. */
+    protected RespostaAutenticacao login(String email, String senha) {
+        RequisicaoLogin requisicao = new RequisicaoLogin();
+        requisicao.setEmail(email);
+        requisicao.setSenha(senha);
+        ResponseEntity<RespostaAutenticacao> resp = restTemplate.postForEntity(
+                url("/api/auth/login"), requisicao, RespostaAutenticacao.class);
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
+        return resp.getBody();
+    }
+
     /** Cria uma segunda filial no espaço do token e devolve o ID. */
     protected Long criarFilial(String token, String nome, TipoPessoa tipoPessoa) {
         RequisicaoCriarFilial req = new RequisicaoCriarFilial();
@@ -350,5 +374,10 @@ public abstract class TesteIntegracaoBase {
     @SuppressWarnings("rawtypes")
     protected ResponseEntity<Map> patchComCorpoDeErro(String caminho, Object corpo, String token) {
         return restTemplate.exchange(url(caminho), HttpMethod.PATCH, new HttpEntity<>(corpo, autenticado(token)), Map.class);
+    }
+
+    @SuppressWarnings("rawtypes")
+    protected ResponseEntity<Map> putComCorpoDeErro(String caminho, Object corpo, String token) {
+        return restTemplate.exchange(url(caminho), HttpMethod.PUT, new HttpEntity<>(corpo, autenticado(token)), Map.class);
     }
 }

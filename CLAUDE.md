@@ -18,7 +18,7 @@ Todo código novo (métodos, variáveis, classes, DTOs, comentários, mensagens)
 
 ## O que é
 
-Aplicativo de gestão financeira, servidor **multi-tenant** (Spring Boot + React) com **login obrigatório**. Cada usuário pertence a um ou mais **Espaços** (workspaces), e todo dado de domínio (contas, categorias, transações, cartões, metas, dívidas, investimentos...) é escopado por `espaco_id`. Hospedado na nuvem: [Render](https://render.com) (deploy automático via `render.yaml` a cada push na `main`) com banco gerenciado no [Neon](https://neon.tech).
+Aplicativo de gestão financeira, servidor **multi-tenant** (Spring Boot + React) com **login obrigatório**. Cada usuário pertence a exatamente um **Espaço** (workspace) — um espaço pode ter vários usuários —, e todo dado de domínio (contas, categorias, transações, cartões, metas, dívidas, investimentos...) é escopado por `espaco_id`. Hospedado na nuvem: [Render](https://render.com) (deploy automático via `render.yaml` a cada push na `main`) com banco gerenciado no [Neon](https://neon.tech).
 
 ## Stack
 
@@ -35,7 +35,7 @@ Aplicativo de gestão financeira, servidor **multi-tenant** (Spring Boot + React
 ## Multi-tenancy e segurança
 
 - **Espaço** (`Espaco`) é o workspace: todas as tabelas de domínio carregam `espaco_id` e toda query de repository/service deve ser filtrada pelo espaço do usuário autenticado.
-- `Usuario` ↔ `Espaco` via `UsuarioEspaco`, com papel por espaço (`PapelUsuario`: `DONO`/`MEMBRO`).
+- `Usuario` ↔ `Espaco` é 1:N direto (`usuarios.espaco_id`, sem tabela de junção), com papel por espaço em `usuarios.papel` (`PapelUsuario`: `DONO`/`MEMBRO`). `AutorizacaoEspaco.exigirDono()` sempre revalida o papel no banco (não confia no claim do JWT), para que um rebaixamento tenha efeito imediato.
 - `NivelAcesso` é um papel **global** da plataforma (`USUARIO`/`ADMIN`), independente de espaço — hoje só usado para gerenciar o catálogo de bancos.
 - Autenticação via `ServicoJwt` (access token) + `ServicoTokenAtualizacao` (refresh token). Filtros em `seguranca/` cobrem autenticação JWT, verificação de Origin (defesa contra CSRF), rate limit de login e troca de senha obrigatória.
 
@@ -204,6 +204,8 @@ Sempre incrementar — nunca editar uma migration já aplicada.
 | V21 | `entidade_id` nas tabelas de domínio |
 | V22 | Multa por atraso em transações |
 | V23 | `origem_fixa_id` e `serie_ativa` em transações fixas |
+| V20260821130000 | `usuarios.espaco_id`/`papel` diretos; remove `usuarios_espacos` (NEXO-20) |
+| V20260822090000 | Remove `DEFAULT 'DONO'` de `usuarios.papel` (NEXO-20) |
 
 ## Dev mode (frontend separado)
 

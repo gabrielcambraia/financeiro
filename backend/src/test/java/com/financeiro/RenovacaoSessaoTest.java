@@ -147,6 +147,7 @@ class RenovacaoSessaoTest extends TesteIntegracaoBase {
         requisicao.setNome("Usuária Teste");
         requisicao.setEmail("usuaria" + java.util.UUID.randomUUID() + "@teste.com");
         requisicao.setSenha("senha12345");
+        requisicao.setTelefone("11999999999");
         requisicao.setEntidade(entidade);
         return restTemplate.postForEntity(url("/api/auth/register"), requisicao, RespostaAutenticacao.class);
     }

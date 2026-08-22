@@ -35,10 +35,10 @@ import argparse
 import sqlite3
 import sys
 
-# Ordem de exportação respeita as FKs do schema Postgres: espaços e usuários
-# antes do vínculo N:N; categorias e contas (que dependem de espaco) antes
-# de transações (que depende de conta, categoria, espaço e usuário).
-TABELAS = ["espacos", "usuarios", "usuarios_espacos", "categorias", "contas", "transacoes"]
+# Ordem de exportação respeita as FKs do schema Postgres: espaços antes de
+# usuários (usuarios.espaco_id); categorias e contas (que dependem de espaco)
+# antes de transações (que depende de conta, categoria, espaço e usuário).
+TABELAS = ["espacos", "usuarios", "categorias", "contas", "transacoes"]
 
 # Colunas que no SQLite são INTEGER 0/1 e no Postgres são BOOLEAN.
 COLUNAS_BOOLEANAS = {
@@ -46,8 +46,8 @@ COLUNAS_BOOLEANAS = {
     "transacoes": {"fixa", "saldo_ajustado"},
 }
 
-# Tabelas com PK simples (id) — recebem reset de identity ao final.
-# usuarios_espacos tem PK composta (usuario_id, espaco_id) e não usa identity.
+# Todas as tabelas exportadas têm PK simples (id) e recebem reset de
+# identity ao final.
 TABELAS_COM_ID_SIMPLES = ["espacos", "usuarios", "categorias", "contas", "transacoes"]
 
 

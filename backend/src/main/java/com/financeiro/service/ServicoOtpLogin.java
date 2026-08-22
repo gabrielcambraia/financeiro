@@ -43,14 +43,16 @@ public class ServicoOtpLogin {
         Usuario usuario = usuarioRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciais inválidas"));
 
+        boolean telefonePendente = usuario.getTelefone() == null || usuario.getTelefone().isBlank();
         String token = servicoJwt.gerarToken(usuario.getId(), usuario.getEspacoId(),
-                usuario.getEmail(), usuario.isPrecisaTrocarSenha(), usuario.getNivelAcesso(), usuario.getPapel());
+                usuario.getEmail(), usuario.isPrecisaTrocarSenha(), telefonePendente,
+                usuario.getNivelAcesso(), usuario.getPapel());
         TokenRenovado tokenAtualizacao = servicoTokenAtualizacao.emitir(
                 usuario.getId(), usuario.getEspacoId(), userAgent);
         RespostaAutenticacao resposta = new RespostaAutenticacao(
                 token, usuario.getId(), usuario.getNome(), usuario.getEmail(),
                 usuario.getEspacoId(), usuario.getPapel(),
-                usuario.isPrecisaTrocarSenha(), usuario.getNivelAcesso(),
+                usuario.isPrecisaTrocarSenha(), telefonePendente, usuario.getNivelAcesso(),
                 resumirFiliais(usuario.getEspacoId()));
         return new ServicoAutenticacao.ResultadoAutenticacao(resposta, tokenAtualizacao.tokenBruto());
     }

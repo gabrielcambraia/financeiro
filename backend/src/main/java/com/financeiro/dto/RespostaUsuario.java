@@ -8,6 +8,7 @@ public record RespostaUsuario(
         Long id,
         String nome,
         String email,
+        String telefone,
         PapelUsuario papel,
         LocalDateTime criadoEm
 ) {

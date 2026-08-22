@@ -137,11 +137,11 @@ public class ServicoAutenticacao {
         }
 
         String token = servicoJwt.gerarToken(usuario.getId(), espaco.getId(), usuario.getEmail(), false,
-                usuario.getNivelAcesso(), usuario.getPapel());
+                telefonePendente(usuario), usuario.getNivelAcesso(), usuario.getPapel());
         TokenRenovado tokenAtualizacao = servicoTokenAtualizacao.emitir(usuario.getId(), espaco.getId(), userAgent);
         RespostaAutenticacao resposta = new RespostaAutenticacao(token, usuario.getId(), usuario.getNome(),
-                usuario.getEmail(), espaco.getId(), usuario.getPapel(), false, usuario.getNivelAcesso(),
-                resumirFiliais(espaco.getId()));
+                usuario.getEmail(), espaco.getId(), usuario.getPapel(), false, telefonePendente(usuario),
+                usuario.getNivelAcesso(), resumirFiliais(espaco.getId()));
         return new ResultadoAutenticacao(resposta, tokenAtualizacao.tokenBruto());
     }
 
@@ -155,11 +155,11 @@ public class ServicoAutenticacao {
         }
 
         String token = servicoJwt.gerarToken(usuario.getId(), usuario.getEspacoId(), usuario.getEmail(),
-                usuario.isPrecisaTrocarSenha(), usuario.getNivelAcesso(), usuario.getPapel());
+                usuario.isPrecisaTrocarSenha(), telefonePendente(usuario), usuario.getNivelAcesso(), usuario.getPapel());
         TokenRenovado tokenAtualizacao = servicoTokenAtualizacao.emitir(usuario.getId(), usuario.getEspacoId(), userAgent);
         RespostaAutenticacao resposta = new RespostaAutenticacao(token, usuario.getId(), usuario.getNome(),
                 usuario.getEmail(), usuario.getEspacoId(), usuario.getPapel(), usuario.isPrecisaTrocarSenha(),
-                usuario.getNivelAcesso(), resumirFiliais(usuario.getEspacoId()));
+                telefonePendente(usuario), usuario.getNivelAcesso(), resumirFiliais(usuario.getEspacoId()));
         return new ResultadoAutenticacao(resposta, tokenAtualizacao.tokenBruto());
     }
 
@@ -177,11 +177,11 @@ public class ServicoAutenticacao {
         usuarioRepository.save(usuario);
 
         String token = servicoJwt.gerarToken(usuario.getId(), usuario.getEspacoId(), usuario.getEmail(), false,
-                usuario.getNivelAcesso(), usuario.getPapel());
+                telefonePendente(usuario), usuario.getNivelAcesso(), usuario.getPapel());
         TokenRenovado tokenAtualizacao = servicoTokenAtualizacao.emitir(usuario.getId(), usuario.getEspacoId(), userAgent);
         RespostaAutenticacao resposta = new RespostaAutenticacao(token, usuario.getId(), usuario.getNome(),
-                usuario.getEmail(), usuario.getEspacoId(), usuario.getPapel(), false, usuario.getNivelAcesso(),
-                resumirFiliais(usuario.getEspacoId()));
+                usuario.getEmail(), usuario.getEspacoId(), usuario.getPapel(), false, telefonePendente(usuario),
+                usuario.getNivelAcesso(), resumirFiliais(usuario.getEspacoId()));
         return new ResultadoAutenticacao(resposta, tokenAtualizacao.tokenBruto());
     }
 
@@ -197,17 +197,45 @@ public class ServicoAutenticacao {
         }
 
         String token = servicoJwt.gerarToken(usuario.getId(), usuario.getEspacoId(), usuario.getEmail(),
-                usuario.isPrecisaTrocarSenha(), usuario.getNivelAcesso(), usuario.getPapel());
+                usuario.isPrecisaTrocarSenha(), telefonePendente(usuario), usuario.getNivelAcesso(), usuario.getPapel());
         RespostaAutenticacao resposta = new RespostaAutenticacao(token, usuario.getId(), usuario.getNome(),
                 usuario.getEmail(), usuario.getEspacoId(), usuario.getPapel(), usuario.isPrecisaTrocarSenha(),
-                usuario.getNivelAcesso(), resumirFiliais(usuario.getEspacoId()));
+                telefonePendente(usuario), usuario.getNivelAcesso(), resumirFiliais(usuario.getEspacoId()));
         return new ResultadoAutenticacao(resposta, renovado.tokenBruto());
+    }
+
+    /**
+     * Grava o telefone do usuário autenticado e reemite o token — usado pela
+     * tela de "cadastrar telefone" (gate de primeiro acesso, ver
+     * {@code FiltroCadastroTelefoneObrigatorio}), tanto por quem se
+     * autorregistrou sem telefone (legado, antes de virar campo obrigatório)
+     * quanto por membros criados por um DONO sem telefone informado.
+     */
+    @Transactional
+    public ResultadoAutenticacao cadastrarTelefone(String telefone, String userAgent) {
+        Usuario usuario = usuarioRepository.findById(contextoUsuario.usuarioAtual())
+                .orElseThrow(() -> new IllegalStateException("Usuário autenticado não encontrado"));
+
+        usuario.setTelefone(telefone);
+        usuarioRepository.save(usuario);
+
+        String token = servicoJwt.gerarToken(usuario.getId(), usuario.getEspacoId(), usuario.getEmail(),
+                usuario.isPrecisaTrocarSenha(), false, usuario.getNivelAcesso(), usuario.getPapel());
+        TokenRenovado tokenAtualizacao = servicoTokenAtualizacao.emitir(usuario.getId(), usuario.getEspacoId(), userAgent);
+        RespostaAutenticacao resposta = new RespostaAutenticacao(token, usuario.getId(), usuario.getNome(),
+                usuario.getEmail(), usuario.getEspacoId(), usuario.getPapel(), usuario.isPrecisaTrocarSenha(), false,
+                usuario.getNivelAcesso(), resumirFiliais(usuario.getEspacoId()));
+        return new ResultadoAutenticacao(resposta, tokenAtualizacao.tokenBruto());
     }
 
     public void sair(String tokenAtualizacaoBruto) {
         if (tokenAtualizacaoBruto != null) {
             servicoTokenAtualizacao.revogar(tokenAtualizacaoBruto);
         }
+    }
+
+    private boolean telefonePendente(Usuario usuario) {
+        return usuario.getTelefone() == null || usuario.getTelefone().isBlank();
     }
 
     private java.util.List<RespostaFilialResumo> resumirFiliais(Long espacoId) {

@@ -9,9 +9,8 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 /**
- * Uma pessoa que acessa o sistema. Nesta PR ainda não há autenticação
- * (senhaHash fica nulo) — a tabela existe para já suportar o vínculo com
- * espaços via {@link UsuarioEspaco}.
+ * Uma pessoa que acessa o sistema. Pertence a exatamente um {@link Espaco}
+ * (via {@code espacoId}), com um {@link PapelUsuario} nesse espaço.
  */
 @Entity
 @Table(name = "usuarios")
@@ -44,7 +43,7 @@ public class Usuario {
     @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private PapelUsuario papel = PapelUsuario.DONO;
+    private PapelUsuario papel = PapelUsuario.MEMBRO;
 
     // Papel global (não por espaço) — só ADMIN gerencia recursos que não
     // pertencem a espaço nenhum (hoje, o catálogo de bancos).

@@ -1,14 +1,13 @@
 package com.financeiro.dto;
 
-import jakarta.validation.Valid;
+import com.financeiro.entity.enums.PapelUsuario;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 @Data
-public class RequisicaoRegistro {
+public class RequisicaoAtualizarUsuario {
 
     @NotBlank
     private String nome;
@@ -17,14 +16,8 @@ public class RequisicaoRegistro {
     @Email
     private String email;
 
-    @NotBlank
-    @Size(min = 8, message = "A senha deve ter pelo menos 8 caracteres")
-    private String senha;
-
-    @NotBlank
     private String telefone;
 
     @NotNull
-    @Valid
-    private PrimeiraFilialDTO entidade;
+    private PapelUsuario papel;
 }

@@ -272,9 +272,7 @@ export default function Registro() {
           </div>
 
           <div>
-            <label className="label">
-              Telefone <span className="text-conteudo-suave text-xs font-normal">(opcional)</span>
-            </label>
+            <label className="label">Telefone</label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-conteudo-suave pointer-events-none">
                 <Phone size={15} />
@@ -282,6 +280,7 @@ export default function Registro() {
               <IMaskInput
                 mask={[{ mask: '(00) 0000-0000' }, { mask: '(00) 00000-0000' }]}
                 unmask={true}
+                required
                 className="input pl-10"
                 placeholder="(11) 99999-9999"
                 value={perfil.telefone}

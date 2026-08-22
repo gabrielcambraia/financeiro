@@ -9,6 +9,7 @@ export interface RespostaAutenticacao {
   espacoId: number
   papel: PapelUsuario
   precisaTrocarSenha: boolean
+  precisaCadastrarTelefone: boolean
   nivelAcesso: NivelAcesso
   filiais?: FilialResumo[]
 }
@@ -52,6 +53,9 @@ export const obterConfigAuth = () =>
 
 export const trocarSenha = (dados: { senhaAtual: string; novaSenha: string }) =>
   cliente.post<RespostaAutenticacao>('/auth/trocar-senha', dados).then(r => r.data)
+
+export const cadastrarTelefone = (dados: { telefone: string }) =>
+  cliente.post<RespostaAutenticacao>('/auth/telefone', dados).then(r => r.data)
 
 export const renovar = () =>
   cliente.post<RespostaAutenticacao>('/auth/renovar').then(r => r.data)
